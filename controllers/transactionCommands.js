@@ -117,9 +117,9 @@ const handlePlusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\`\n*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = ${formatSmart(newUSDT)} (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\`  [${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue}\n =[${formatSmart(newUSDT)}](https://t.me/@id7590104666) (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\`\n*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = ${formatSmart(newUSDT)}`;
+      details = `\`${formatTimeString(new Date())}\`  [${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue}\n =[${formatSmart(newUSDT)}](https://t.me/@id7590104666)`;
     }
     
     // Lưu giao dịch mới
@@ -289,9 +289,9 @@ const handleMinusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\`\n-*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = -${formatSmart(minusUSDT)} (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\`  [-${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue}\n =[-${formatSmart(minusUSDT)}](https://t.me/@id7590104666) (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\`\n-*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = -${formatSmart(minusUSDT)}`;
+      details = `\`${formatTimeString(new Date())}\`  [-${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue}\n =[-${formatSmart(minusUSDT)}](https://t.me/@id7590104666)`;
     }
     // Lưu giao dịch mới
     const transaction = new Transaction({
@@ -462,9 +462,9 @@ const handlePercentCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\`    *${formatSmart(payUSDT)}*  ${currencyUnit} (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\`    [${formatSmart(payUSDT)}](https://t.me/@id7590104666)  ${currencyUnit} (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\`    *${formatSmart(payUSDT)}*  ${currencyUnit}`;
+      details = `\`${formatTimeString(new Date())}\`    [${formatSmart(payUSDT)}](https://t.me/@id7590104666)  ${currencyUnit}`;
     }
     
     // Lưu giao dịch mới

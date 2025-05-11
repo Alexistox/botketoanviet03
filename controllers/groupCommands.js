@@ -543,18 +543,18 @@ const getCardSummary = async (chatId) => {
     
     // Format thông tin từng thẻ
     const summary = cards.map(card => {
-      let cardInfo = `${card.cardCode}=${formatSmart(card.total)}`;
+      let cardInfo = `${card.cardCode}=[${formatSmart(card.total)}](https://t.me/@id7590104666)`;
       
       // Thêm thông tin limit nếu có
       if (card.limit > 0) {
         const remaining = card.limit - card.total;
-        cardInfo += `|Hạn mức:${formatSmart(remaining)}`;
+        cardInfo += `|Hạn mức:[${formatSmart(remaining)}](https://t.me/@id7590104666)`;
       }
       
       // Thêm thông tin thanh toán còn lại nếu rate=0 và exchange rate=1
       if (showRemaining) {
         const remainingPayment = card.total - card.paid;
-        cardInfo += `|Số dư:${formatSmart(remainingPayment)}`;
+        cardInfo += `|\nSố dư trong thẻ:[${formatSmart(remainingPayment)}](https://t.me/@id7590104666)`;
       }
       
       return cardInfo;
