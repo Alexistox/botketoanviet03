@@ -94,20 +94,20 @@ const handleAddAdminCommand = async (bot, msg) => {
   
   // Chỉ Owner mới có quyền thêm Admin
   if (!await isUserOwner(userId)) {
-    bot.sendMessage(chatId, "⛔ 只有机器人所有者才能添加管理员");
+    bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu bot mới có thể thêm quản trị viên");
     return;
   }
   
   // Phân tích username hoặc ID người dùng
   const parts = messageText.split('/addadmin ');
   if (parts.length !== 2) {
-    bot.sendMessage(chatId, "语法无效。例如: /addadmin @username 或 /addadmin 123456789");
+    bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /addadmin @username hoặc /addadmin 123456789");
     return;
   }
   
   const targetUser = await extractUserFromCommand(parts[1]);
   if (!targetUser) {
-    bot.sendMessage(chatId, "未找到用户。请确保用户名或ID正确。");
+    bot.sendMessage(chatId, "Không tìm thấy người dùng. Vui lòng đảm bảo tên người dùng hoặc ID chính xác.");
     return;
   }
   
@@ -115,7 +115,7 @@ const handleAddAdminCommand = async (bot, msg) => {
   targetUser.isAdmin = true;
   await targetUser.save();
   
-  bot.sendMessage(chatId, `✅ 用户 ${targetUser.username || targetUser.userId} 已被设置为管理员`);
+  bot.sendMessage(chatId, `✅ Người dùng ${targetUser.username || targetUser.userId} đã được đặt làm quản trị viên`);
 };
 
 // Thêm Operator (Owner và Admin có quyền)
@@ -127,20 +127,20 @@ const handleAddOperatorCommand = async (bot, msg) => {
   
   // Chỉ Owner và Admin có quyền thêm Operator
   if (!await isUserAdmin(userId)) {
-    bot.sendMessage(chatId, "⛔ 只有机器人所有者和管理员才能添加操作员");
+    bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu và quản trị viên mới có thể thêm người điều hành");
     return;
   }
   
   // Phân tích username hoặc ID người dùng
   const parts = messageText.split('加操作人 ');
   if (parts.length !== 2) {
-    bot.sendMessage(chatId, "语法无效。例如: 加操作人 @username 或 加操作人 123456789");
+    bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: 加操作人 @username hoặc 加操作人 123456789");
     return;
   }
   
   const targetUser = await extractUserFromCommand(parts[1]);
   if (!targetUser) {
-    bot.sendMessage(chatId, "未找到用户。请确保用户名或ID正确。");
+    bot.sendMessage(chatId, "Không tìm thấy người dùng. Vui lòng đảm bảo tên người dùng hoặc ID chính xác.");
     return;
   }
   
@@ -156,7 +156,7 @@ const handleAddOperatorCommand = async (bot, msg) => {
   // Kiểm tra người dùng đã là operator chưa
   const existingOperator = group.operators.find(op => op.userId === targetUser.userId);
   if (existingOperator) {
-    bot.sendMessage(chatId, `用户 ${targetUser.username || targetUser.userId} 已经是操作员`);
+    bot.sendMessage(chatId, `Người dùng ${targetUser.username || targetUser.userId} đã là người điều hành`);
     return;
   }
   
@@ -183,7 +183,7 @@ const handleAddOperatorCommand = async (bot, msg) => {
   
   await targetUser.save();
   
-  bot.sendMessage(chatId, `✅ 用户 ${targetUser.username || targetUser.userId} 已被添加为此群组的操作员`);
+  bot.sendMessage(chatId, `✅ Người dùng ${targetUser.username || targetUser.userId} đã được thêm làm người điều hành cho nhóm này`);
 };
 
 const checkAndRegisterUser = async (userId, username, firstName, lastName) => {

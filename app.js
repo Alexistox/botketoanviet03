@@ -23,6 +23,7 @@ connectDB();
 // Khởi tạo Telegram Bot
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
+const messages = require('./src/messages/vi');
 
 // Xử lý tin nhắn
 bot.on('message', async (msg) => {
@@ -30,7 +31,7 @@ bot.on('message', async (msg) => {
     await handleMessage(bot, msg, cache);
   } catch (error) {
     console.error('Error handling message:', error);
-    bot.sendMessage(msg.chat.id, "处理消息时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
   }
 });
 

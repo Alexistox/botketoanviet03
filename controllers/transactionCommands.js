@@ -19,7 +19,7 @@ const handlePlusCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('+');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：+数字 或 +数字 [卡号] [额度]");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: +số hoặc +số [mã thẻ] [hạn mức]");
       return;
     }
     
@@ -35,7 +35,7 @@ const handlePlusCommand = async (bot, msg) => {
       try {
         amountVND = eval(expr);
       } catch(err) {
-        bot.sendMessage(chatId, "表达式无效，请重试。");
+        bot.sendMessage(chatId, "Thử lại đi, sai rồi.");
         return;
       }
     } else {
@@ -43,19 +43,19 @@ const handlePlusCommand = async (bot, msg) => {
     }
     
     if (isNaN(amountVND)) {
-      bot.sendMessage(chatId, "金额无效。");
+      bot.sendMessage(chatId, "Hãy nhập đúng.");
       return;
     }
 
     // Tìm hoặc tạo group
     let group = await Group.findOne({ chatId: chatId.toString() });
     if (!group) {
-      bot.sendMessage(chatId, "请设置汇率，费率");
+      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
     // Kiểm tra tỷ giá
     if (!group.exchangeRate) {
-      bot.sendMessage(chatId, "请设置汇率，费率");
+      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
     // Lấy đơn vị tiền tệ
@@ -117,9 +117,9 @@ const handlePlusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = ${formatSmart(newUSDT)} (${cardCode}) \`${senderName}\``;
+      details = `\`${formatTimeString(new Date())}\`\n*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = ${formatSmart(newUSDT)} (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = ${formatSmart(newUSDT)} \`${senderName}\``;
+      details = `\`${formatTimeString(new Date())}\`\n*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = ${formatSmart(newUSDT)}`;
     }
     
     // Lưu giao dịch mới
@@ -210,7 +210,7 @@ const handlePlusCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handlePlusCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理入款命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh nạp tiền bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -227,7 +227,7 @@ const handleMinusCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('-');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：-数字 或 -数字 [卡号]");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: -số hoặc -số [mã thẻ]");
       return;
     }
     
@@ -242,7 +242,7 @@ const handleMinusCommand = async (bot, msg) => {
       try {
         amountVND = eval(expr);
       } catch(err) {
-        bot.sendMessage(chatId, "表达式无效，请重试。");
+        bot.sendMessage(chatId, "Thử lại đi, sai rồi.");
         return;
       }
     } else {
@@ -250,7 +250,7 @@ const handleMinusCommand = async (bot, msg) => {
     }
     
     if (isNaN(amountVND)) {
-      bot.sendMessage(chatId, "金额无效。");
+      bot.sendMessage(chatId, "Hãy nhập đúng.");
       return;
     }
    
@@ -258,13 +258,13 @@ const handleMinusCommand = async (bot, msg) => {
     // Tìm hoặc tạo group
     let group = await Group.findOne({ chatId: chatId.toString() });
     if (!group) {
-      bot.sendMessage(chatId, "请设置汇率，费率");
+      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
     
     // Kiểm tra tỷ giá
     if (!group.exchangeRate) {
-      bot.sendMessage(chatId, "请设置汇率，费率");
+      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
     
@@ -289,9 +289,9 @@ const handleMinusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = -${formatSmart(minusUSDT)} (${cardCode}) \`${senderName}\``;
+      details = `\`${formatTimeString(new Date())}\`\n-*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = -${formatSmart(minusUSDT)} (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = -${formatSmart(minusUSDT)} \`${senderName}\``;
+      details = `\`${formatTimeString(new Date())}\`\n-*${formatSmart(amountVND)}*\\*${rateFactor}/${yValue} = -${formatSmart(minusUSDT)}`;
     }
     // Lưu giao dịch mới
     const transaction = new Transaction({
@@ -378,7 +378,7 @@ const handleMinusCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleMinusCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理出款命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh rút tiền bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -399,12 +399,12 @@ const handlePercentCommand = async (bot, msg) => {
     } else if (messageText.startsWith('%')) {
       parts = messageText.split('%');
     } else {
-      bot.sendMessage(chatId, "指令无效。格式为：下发数字 (USDT) 或 %数字 (USDT) 或 下发数字 [卡号] 或 %数字 [卡号]");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: xuống số (USDT) hoặc %số (USDT) hoặc xuống số [mã thẻ] hoặc %số [mã thẻ]");
       return;
     }
     
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：下发数字 (USDT) 或 %数字 (USDT) 或 下发数字 [卡号] 或 %数字 [卡号]");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: xuống số (USDT) hoặc %số (USDT) hoặc xuống số [mã thẻ] hoặc %số [mã thẻ]");
       return;
     }
     
@@ -419,7 +419,7 @@ const handlePercentCommand = async (bot, msg) => {
       try {
         payUSDT = eval(expr);
       } catch(err) {
-        bot.sendMessage(chatId, "表达式无效，请重试。");
+        bot.sendMessage(chatId, "Thử lại đi, sai rồi.");
         return;
       }
     } else {
@@ -427,26 +427,26 @@ const handlePercentCommand = async (bot, msg) => {
     }
     
     if (isNaN(payUSDT)) {
-      bot.sendMessage(chatId, "USDT金额无效。");
+      bot.sendMessage(chatId, "Hãy nhập đúng.");
       return;
     }
     
     // Ignore zero-value transactions
     if (payUSDT === 0) {
-      bot.sendMessage(chatId, "金额为零，不处理。");
+      bot.sendMessage(chatId, "Số tiền bằng 0, không xử lý.");
       return;
     }
     
     // Tìm hoặc tạo group
     let group = await Group.findOne({ chatId: chatId.toString() });
     if (!group) {
-      bot.sendMessage(chatId, "请设置汇率，费率");
+      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
     
     // Kiểm tra tỷ giá
     if (!group.exchangeRate) {
-      bot.sendMessage(chatId, "请设置汇率，费率");
+      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
     
@@ -493,7 +493,7 @@ const handlePercentCommand = async (bot, msg) => {
         await card.save();
       } else {
         // Không tạo thẻ mới khi chỉ thanh toán mà không có tiền gửi
-        bot.sendMessage(chatId, `卡号 ${cardCode} 不存在。`);
+        bot.sendMessage(chatId, `Mã thẻ ${cardCode} không tồn tại.`);
         return;
       }
     }
@@ -544,7 +544,7 @@ const handlePercentCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handlePercentCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理下发命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thanh toán bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -560,7 +560,7 @@ const handleSkipCommand = async (bot, msg) => {
     // Phân tích tin nhắn để lấy ID
     const parts = messageText.split('/skip');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：/skip [ID] 例如: /skip 3 或 /skip !2");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: /skip [ID] Ví dụ: /skip 3 hoặc /skip !2");
       return;
     }
     
@@ -576,14 +576,14 @@ const handleSkipCommand = async (bot, msg) => {
     // Chuyển đổi ID thành số
     const id = parseInt(idStr);
     if (isNaN(id) || id <= 0) {
-      bot.sendMessage(chatId, "ID无效。应为正整数。");
+      bot.sendMessage(chatId, "ID không hợp lệ. Phải là số nguyên dương.");
       return;
     }
     
     // Tìm nhóm
     const group = await Group.findOne({ chatId: chatId.toString() });
     if (!group) {
-      bot.sendMessage(chatId, "没有找到群组信息。");
+      bot.sendMessage(chatId, "Không tìm thấy thông tin nhóm.");
       return;
     }
     
@@ -611,7 +611,7 @@ const handleSkipCommand = async (bot, msg) => {
     
     // Kiểm tra xem ID có hợp lệ không
     if (id > transactions.length) {
-      bot.sendMessage(chatId, `ID无效。${isPaymentId ? '下发' : '入款'}记录中只有 ${transactions.length} 个条目。`);
+      bot.sendMessage(chatId, `ID không hợp lệ. Chỉ có ${transactions.length} mục trong bản ghi ${isPaymentId ? 'thanh toán' : 'nạp tiền'}.`);
       return;
     }
     
@@ -713,7 +713,7 @@ const handleSkipCommand = async (bot, msg) => {
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
-    bot.sendMessage(chatId, `✅ 成功删除ID为 ${id}${isPaymentId ? '!' : ''} 的交易记录。`, { 
+    bot.sendMessage(chatId, `✅ Đã xóa thành công bản ghi giao dịch có ID ${id}${isPaymentId ? '!' : ''}.`, { 
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
@@ -725,7 +725,7 @@ const handleSkipCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleSkipCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理删除命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh xóa bị lỗi. Vui lòng thử lại sau.");
   }
 };
 

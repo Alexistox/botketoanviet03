@@ -4,6 +4,7 @@ const Card = require('../models/Card');
 const Config = require('../models/Config');
 const { formatSmart, formatRateValue, formatTelegramMessage, formatDateUS } = require('../utils/formatter');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
+const messages = require('../src/messages/vi');
 
 /**
  * Xử lý lệnh clear (上课) - Reset các giá trị về 0
@@ -37,6 +38,9 @@ const handleClearCommand = async (bot, msg) => {
     }
     
     await group.save();
+
+    // Xóa tất cả thông tin thẻ
+    await Card.deleteMany({ chatId: msg.chat.id.toString() });
     
     // Lưu transaction mới
     const transaction = new Transaction({
@@ -97,7 +101,7 @@ const handleClearCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleClearCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理清除命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.error);
   }
 };
 
@@ -114,14 +118,14 @@ const handleRateCommand = async (bot, msg) => {
     const inputText = messageText.substring(4).trim();
     
     if (!inputText) {
-      bot.sendMessage(chatId, "语法无效。例如: 设置费率2 (对应2%)");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: 设置费率2 (tương ứng 2%)");
       return;
     }
     
     // Chuyển đổi sang số
     const xValue = parseFloat(inputText);
     if (isNaN(xValue)) {
-      bot.sendMessage(chatId, "输入值无效。");
+      bot.sendMessage(chatId, "Giá trị nhập vào không hợp lệ.");
       return;
     }
     
@@ -190,7 +194,7 @@ const handleRateCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleRateCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理费率命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingRate);
   }
 };
 
@@ -207,14 +211,14 @@ const handleExchangeRateCommand = async (bot, msg) => {
     const inputText = messageText.substring(4).trim();
     
     if (!inputText) {
-      bot.sendMessage(chatId, "语法无效。例如: 设置汇率23000");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: 设置汇率14600");
       return;
     }
     
     // Chuyển đổi sang số
     const yValue = parseFloat(inputText);
     if (isNaN(yValue)) {
-      bot.sendMessage(chatId, "输入值无效。");
+      bot.sendMessage(chatId, "Giá trị nhập vào không hợp lệ.");
       return;
     }
     
@@ -283,7 +287,7 @@ const handleExchangeRateCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleExchangeRateCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理汇率命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingExchangeRate);
   }
 };
 
@@ -296,20 +300,27 @@ const handleDualRateCommand = async (bot, msg) => {
     const senderName = msg.from.first_name;
     const messageText = msg.text;
     
-    // Trích xuất tham số từ tin nhắn
-    const param = messageText.substring(3).trim();
-    const parts = param.split('/');
+    // Trích xuất giá trị rate và tỷ giá từ tin nhắn
+    const inputText = messageText.substring(3).trim();
     
-    if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /d 2/14600");
+    if (!inputText) {
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /d 2/14600");
       return;
     }
     
-    const newRate = parseFloat(parts[0]);
-    const newExRate = parseFloat(parts[1]);
+    // Tách rate và tỷ giá
+    const [rateStr, exRateStr] = inputText.split('/');
+    if (!rateStr || !exRateStr) {
+      bot.sendMessage(chatId, "Định dạng không hợp lệ. Ví dụ: /d 2/14600");
+      return;
+    }
+    
+    // Chuyển đổi sang số
+    const newRate = parseFloat(rateStr);
+    const newExRate = parseFloat(exRateStr);
     
     if (isNaN(newRate) || isNaN(newExRate)) {
-      bot.sendMessage(chatId, "输入的数值无效，请检查后重试。");
+      bot.sendMessage(chatId, "Giá trị nhập vào không hợp lệ.");
       return;
     }
     
@@ -377,7 +388,7 @@ const handleDualRateCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleDualRateCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理双费率命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingDualRate);
   }
 };
 
@@ -425,7 +436,7 @@ const handleDeleteCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleDeleteCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理删除命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
   }
 };
 
@@ -537,13 +548,13 @@ const getCardSummary = async (chatId) => {
       // Thêm thông tin limit nếu có
       if (card.limit > 0) {
         const remaining = card.limit - card.total;
-        cardInfo += `|剩余额度:${formatSmart(remaining)}`;
+        cardInfo += `|Hạn mức:${formatSmart(remaining)}`;
       }
       
       // Thêm thông tin thanh toán còn lại nếu rate=0 và exchange rate=1
       if (showRemaining) {
         const remainingPayment = card.total - card.paid;
-        cardInfo += `|剩余余额:${formatSmart(remainingPayment)}`;
+        cardInfo += `|Số dư:${formatSmart(remainingPayment)}`;
       }
       
       return cardInfo;

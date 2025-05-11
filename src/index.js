@@ -26,7 +26,7 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 // Handle /start command
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  await bot.sendMessage(chatId, "欢迎使用交易机器人！");
+  await bot.sendMessage(chatId, "Chào mừng sử dụng bot giao dịch!");
 });
 
 // Handle addition command
@@ -36,14 +36,14 @@ bot.onText(/^\+/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleTransaction(msg, bot);
   } catch (error) {
     console.error('Error handling addition command:', error);
-    await bot.sendMessage(msg.chat.id, "处理命令时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh, vui lòng thử lại.");
   }
 });
 
@@ -54,14 +54,14 @@ bot.onText(/^-/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleTransaction(msg, bot);
   } catch (error) {
     console.error('Error handling subtraction command:', error);
-    await bot.sendMessage(msg.chat.id, "处理命令时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh, vui lòng thử lại.");
   }
 });
 
@@ -72,14 +72,14 @@ bot.onText(/^下发/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleTransaction(msg, bot);
   } catch (error) {
     console.error('Error handling USDT payment command:', error);
-    await bot.sendMessage(msg.chat.id, "处理命令时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh thanh toán USDT, vui lòng thử lại.");
   }
 });
 
@@ -90,14 +90,14 @@ bot.onText(/^T[1-9A-Za-z]{33}$/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleTrc20Address(msg, bot);
   } catch (error) {
     console.error('Error handling TRC20 address:', error);
-    await bot.sendMessage(msg.chat.id, "处理TRC20地址时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý địa chỉ TRC20, vui lòng thử lại.");
   }
 });
 
@@ -108,7 +108,7 @@ bot.onText(/\/c/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
@@ -117,7 +117,7 @@ bot.onText(/\/c/, async (msg) => {
     }
   } catch (error) {
     console.error('Error handling bank image:', error);
-    await bot.sendMessage(msg.chat.id, "处理图片时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý hình ảnh, vui lòng thử lại.");
   }
 });
 
@@ -129,7 +129,7 @@ bot.on('photo', async (msg) => {
       const username = msg.from.username;
       
       if (!await isUsernameAllowed(username)) {
-        await bot.sendMessage(chatId, "您没有权限使用此命令。");
+        await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
         return;
       }
 
@@ -137,7 +137,7 @@ bot.on('photo', async (msg) => {
     }
   } catch (error) {
     console.error('Error handling photo with caption:', error);
-    await bot.sendMessage(msg.chat.id, "处理图片时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý hình ảnh, vui lòng thử lại.");
   }
 });
 
@@ -148,14 +148,14 @@ bot.onText(/\/report/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleReportCommand(chatId, bot);
   } catch (error) {
     console.error('Error handling report command:', error);
-    await bot.sendMessage(msg.chat.id, "生成报告时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi tạo báo cáo, vui lòng thử lại.");
   }
 });
 
@@ -166,14 +166,14 @@ bot.onText(/\/clear/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleClearCommand(chatId, username, bot);
   } catch (error) {
     console.error('Error handling clear command:', error);
-    await bot.sendMessage(msg.chat.id, "处理清除命令时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh xóa, vui lòng thử lại.");
   }
 });
 
@@ -184,14 +184,14 @@ bot.onText(/^\/d/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleDualCommand(chatId, msg.text, username, bot);
   } catch (error) {
     console.error('Error handling dual command:', error);
-    await bot.sendMessage(msg.chat.id, "处理双重命令时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh kép, vui lòng thử lại.");
   }
 });
 
@@ -202,14 +202,14 @@ bot.onText(/^\/[tv]/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleCalculateCommand(chatId, msg.text, bot);
   } catch (error) {
     console.error('Error handling calculate command:', error);
-    await bot.sendMessage(msg.chat.id, "计算时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi tính toán, vui lòng thử lại.");
   }
 });
 
@@ -220,14 +220,14 @@ bot.onText(/^(加操作人|移除操作人|\/users)$/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleUserManagement(chatId, msg.text, bot);
   } catch (error) {
     console.error('Error handling user management:', error);
-    await bot.sendMessage(msg.chat.id, "处理用户管理时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi quản lý người dùng, vui lòng thử lại.");
   }
 });
 
@@ -238,14 +238,14 @@ bot.onText(/^(\/x|\/sx|\/hiddenCards)/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     await handleCardManagement(chatId, msg.text, bot);
   } catch (error) {
     console.error('Error handling card management:', error);
-    await bot.sendMessage(msg.chat.id, "处理卡密管理时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi quản lý thẻ, vui lòng thử lại.");
   }
 });
 
@@ -256,13 +256,13 @@ bot.onText(/^\/m/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
     const newUnit = msg.text.substring(3).trim();
     if (!newUnit) {
-      await bot.sendMessage(chatId, "请指定新的货币单位。");
+      await bot.sendMessage(chatId, "Vui lòng chỉ định đơn vị tiền tệ mới.");
       return;
     }
 
@@ -272,10 +272,10 @@ bot.onText(/^\/m/, async (msg) => {
       { upsert: true }
     );
 
-    await bot.sendMessage(chatId, `货币单位已更改为: ${newUnit}`);
+    await bot.sendMessage(chatId, `Đơn vị tiền tệ đã được thay đổi thành: ${newUnit}`);
   } catch (error) {
     console.error('Error handling currency unit change:', error);
-    await bot.sendMessage(msg.chat.id, "更改货币单位时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi thay đổi đơn vị tiền tệ, vui lòng thử lại.");
   }
 });
 
@@ -286,14 +286,14 @@ bot.onText(/^\/off/, async (msg) => {
     const username = msg.from.username;
     
     if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "您没有权限使用此命令。");
+      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
       return;
     }
 
-    await bot.sendMessage(chatId, "再见！");
+    await bot.sendMessage(chatId, "Tạm biệt!");
   } catch (error) {
     console.error('Error handling end session command:', error);
-    await bot.sendMessage(msg.chat.id, "处理结束会话命令时出错，请重试。");
+    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi kết thúc phiên, vui lòng thử lại.");
   }
 });
 

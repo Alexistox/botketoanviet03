@@ -5,6 +5,7 @@ const Config = require('../models/Config');
 const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS } = require('../utils/formatter');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
+const messages = require('../src/messages/vi');
 
 /**
  * Xử lý lệnh tính toán USDT (/t)
@@ -17,21 +18,21 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('/t ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /t 50000");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /t 50000");
       return;
     }
     
     // Lấy số tiền VND
     const amount = parseFloat(parts[1].trim());
     if (isNaN(amount)) {
-      bot.sendMessage(chatId, "金额无效。");
+      bot.sendMessage(chatId, "Số tiền không hợp lệ.");
       return;
     }
     
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
     if (!group || !group.exchangeRate || !group.rate) {
-      bot.sendMessage(chatId, "请先设置汇率和费率。");
+      bot.sendMessage(chatId, "Vui lòng thiết lập tỷ giá và tỷ lệ trước.");
       return;
     }
     
@@ -52,7 +53,7 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
     );
   } catch (error) {
     console.error('Error in handleCalculateUsdtCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理计算USDT命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
   }
 };
 
@@ -67,21 +68,21 @@ const handleCalculateVndCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('/v ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /v 100");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /v 100");
       return;
     }
     
     // Lấy số tiền USDT
     const amount = parseFloat(parts[1].trim());
     if (isNaN(amount)) {
-      bot.sendMessage(chatId, "金额无效。");
+      bot.sendMessage(chatId, "Số tiền không hợp lệ.");
       return;
     }
     
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
     if (!group || !group.exchangeRate || !group.rate) {
-      bot.sendMessage(chatId, "请先设置汇率和费率。");
+      bot.sendMessage(chatId, "Vui lòng thiết lập tỷ giá và tỷ lệ trước.");
       return;
     }
     
@@ -102,7 +103,7 @@ const handleCalculateVndCommand = async (bot, msg) => {
     );
   } catch (error) {
     console.error('Error in handleCalculateVndCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理计算VND命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
   }
 };
 
@@ -116,23 +117,23 @@ const handleMathExpression = async (bot, chatId, expression, senderName) => {
     try {
       result = eval(expression);
     } catch (error) {
-      bot.sendMessage(chatId, "表达式无效，请重试。");
+      bot.sendMessage(chatId, "Biểu thức không hợp lệ, vui lòng thử lại.");
       return;
     }
     
     if (isNaN(result)) {
-      bot.sendMessage(chatId, "计算结果无效。");
+      bot.sendMessage(chatId, "Kết quả tính toán không hợp lệ.");
       return;
     }
     
     // Gửi kết quả
     bot.sendMessage(
       chatId,
-      `🧮 ${expression} = ${formatSmart(result)}`
+      `${expression} = ${formatSmart(result)}`
     );
   } catch (error) {
     console.error('Error in handleMathExpression:', error);
-    bot.sendMessage(chatId, "处理数学表达式时出错。请稍后再试。");
+    bot.sendMessage(chatId, messages.errorProcessingMessage);
   }
 };
 
@@ -144,11 +145,11 @@ const handleTrc20Address = async (bot, chatId, address, senderName) => {
     // Gửi kết quả
     bot.sendMessage(
       chatId,
-      `🔍 USDT-TRC20 地址:\n\`${address}\``
+      `🔍 Địa chỉ USDT-TRC20:\n\`${address}\``
     );
   } catch (error) {
     console.error('Error in handleTrc20Address:', error);
-    bot.sendMessage(chatId, "处理TRC20地址时出错。请稍后再试。");
+    bot.sendMessage(chatId, messages.errorProcessingMessage);
   }
 };
 
@@ -160,7 +161,7 @@ const handleReportCommand = async (bot, chatId, senderName) => {
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
     if (!group) {
-      bot.sendMessage(chatId, "没有可用的数据。");
+      bot.sendMessage(chatId, "Không có dữ liệu khả dụng.");
       return;
     }
     
@@ -250,7 +251,7 @@ const handleReportCommand = async (bot, chatId, senderName) => {
     
   } catch (error) {
     console.error('Error in handleReportCommand:', error);
-    bot.sendMessage(chatId, "处理报告命令时出错。请稍后再试。");
+    bot.sendMessage(chatId, messages.errorProcessingMessage);
   }
 };
 
@@ -260,89 +261,65 @@ const handleReportCommand = async (bot, chatId, senderName) => {
 const handleHelpCommand = async (bot, chatId) => {
   try {
     const helpMessage = `
-📖 *记账机器人使用说明* 📖
+*Hướng dẫn sử dụng Bot*
 
-🔒 *权限分级:*
-👑 机器人所有者 | 🔰 管理员 | 🔹 操作员 | 👤 普通成员
+*Lệnh cơ bản:*
+/start - Bắt đầu sử dụng bot
+/help - Hiển thị hướng dẫn này
+/off - Kết thúc phiên làm việc
 
--------------------------
-*基础命令:*
-/start - 启动机器人
-/help - 查看帮助
-/off - 结束会话
-/u - 查看当前USDT地址
-/report - 查看交易报告
-/users - 用户列表
-/ops - 操作员列表
+*Lệnh chuyển đổi tiền tệ:*
+/t [số] - Chuyển đổi VND sang USDT
+/v [số] - Chuyển đổi USDT sang VND
 
--------------------------
-*汇率与费率:*
-/t [金额] - VND转USDT (例: /t 1000000)
-/v [金额] - USDT转VND (例: /v 100)
-/d [费率]/[汇率] - 临时设置费率和汇率 (例: /d 2/14600)
-设置费率 [数值] - 设置费率 (例: 设置费率2)
-设置汇率 [数值] - 设置汇率 (例: 设置汇率14600)
+*Lệnh quản lý:*
+/m [đơn vị] - Đặt đơn vị tiền tệ (VND/USDT)
+/d [tỷ lệ] - Đặt tỷ lệ và tỷ giá
+/x [ID] - Ẩn thẻ
+/sx [ID] - Hiện thẻ
+/hiddenCards - Xem danh sách thẻ ẩn
+/delete [ID] - Xóa thẻ
 
--------------------------
-*交易命令（操作员）:*
-+ [金额] [备注/卡号] [额度] - 添加入金 (例: +1000000 ABC123 50000)
-- [金额] [备注/卡号] - 添加出金 (例: -500000 ABC123)
-下发 [USDT] [卡号] - 标记已支付 (例: 下发100 ABC123)
-上课 - 清空今日交易
-/delete [ID] - 删除交易记录
-/skip [ID] - 跳过某条交易
+*Lệnh quản trị:*
+/ad [username] - Thêm quản trị viên
+/removead [username] - Xóa quản trị viên
+/admins - Xem danh sách quản trị viên
+/op [username] - Thêm người điều hành
+/removeop [username] - Xóa người điều hành
+/ops - Xem danh sách người điều hành
 
--------------------------
-*银行卡管理:*
-/x [卡号] - 隐藏银行卡
-/sx [卡号] - 显示银行卡
-/hiddenCards - 查看所有隐藏卡
-
--------------------------
-*自定义按钮:*
-/inline [按钮]|[命令] - 添加按钮
-/removeinline [按钮] - 删除按钮
-/buttons - 查看所有按钮
-
--------------------------
-*管理员命令:*
-/usdt [地址] - 设置USDT地址
-/op @用户名 - 添加操作员
-/removeop @用户名 - 移除操作员
-/listgroups - 查看所有群组
-
--------------------------
-*所有者命令:*
-/ad @用户名 - 添加管理员
-/removead @用户名 - 移除管理员
-/admins - 管理员列表
-/setowner @用户名 - 转让所有者
-/remove @用户名 - 移除用户
-/migrate - 数据迁移
-
--------------------------
-*其他功能:*
-/c - 从图片提取银行信息
-输入数学表达式如 2+2 直接计算
-输入TRC20地址自动格式化显示
-
--------------------------
-💡 如有疑问请联系群管理员。
+*Lệnh khác:*
+/u - Xem địa chỉ USDT
+/users - Xem danh sách người dùng
+/report - Xem báo cáo
 `;
     bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
   } catch (error) {
     console.error('Error in handleHelpCommand:', error);
-    bot.sendMessage(chatId, "显示帮助信息时出错。请稍后再试。");
+    bot.sendMessage(chatId, messages.errorDisplayHelp);
   }
 };
 
 const handleStartCommand = async (bot, chatId) => {
   try {
-    const startMessage = `欢迎使用记账机器人！\n\n开始新账单/ 上课\n记账入账▫️+10000 或者 +数字 [卡号] [额度]\n代付减账▫️-10000\n撤回▫️撤回id\n下发▫️下发 100  或者 %数字 [卡号] [额度]\n设置费率▫️设置汇率1600  或者 | 价格 费率/汇率\n设置操作▫️@群成员  （群成员 必须在设置之前发送消息）\n删除操作▫️@群成员  （群成员 必须在设置之前发送消息）\n操作人 ▫️ 查看被授权人员名单\n\n+0▫️\n结束| /report`;
+    const startMessage = `Chào mừng sử dụng bot kế toán!
+
+Bắt đầu hóa đơn mới / 上课
+Ghi nợ▫️+10000 hoặc +số [mã thẻ] [hạn mức]
+Thanh toán▫️-10000
+Hủy▫️撤回id
+Phát hành▫️下发 100 hoặc %số [mã thẻ] [hạn mức]
+Thiết lập tỷ lệ▫️设置汇率1600 hoặc | giá tỷ lệ/tỷ giá
+Thiết lập người điều hành▫️@thành viên (thành viên phải gửi tin nhắn trước khi thiết lập)
+Xóa người điều hành▫️@thành viên (thành viên phải gửi tin nhắn trước khi xóa)
+Danh sách người điều hành ▫️ xem danh sách người được ủy quyền
+
++0▫️
+Kết thúc| /report`;
     bot.sendMessage(chatId, startMessage);
   } catch (error) {
     console.error('Error in handleStartCommand:', error);
-    bot.sendMessage(chatId, "显示账单帮助信息时出错。请稍后再试。");
+    bot.sendMessage(chatId, messages.errorProcessingMessage);
   }
 };
 

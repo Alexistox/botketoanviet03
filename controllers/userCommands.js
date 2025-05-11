@@ -33,21 +33,21 @@ const handleAddAdminCommand = async (bot, msg) => {
     
     // Chỉ Owner mới có quyền thêm Admin
     if (!await isUserOwner(userId)) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者才能添加管理员！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu bot mới có quyền thêm quản trị viên!");
       return;
     }
     
     // Phân tích tin nhắn
     const parts = messageText.split('/ad ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /ad @username1 @username2 @username3");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /ad @username1 @username2 @username3");
       return;
     }
     
     // Tách các username
     const usernames = parts[1].trim().split(' ').filter(u => u.startsWith('@'));
     if (usernames.length === 0) {
-      bot.sendMessage(chatId, "/ad || 添加管理员。例如: /ad @username1 @username2");
+      bot.sendMessage(chatId, "/ad || Thêm quản trị viên. Ví dụ: /ad @username1 @username2");
       return;
     }
 
@@ -65,7 +65,7 @@ const handleAddAdminCommand = async (bot, msg) => {
       
       // Kiểm tra nếu đã là admin
       if (targetUser.isAdmin) {
-        message += `⚠️ 用户 @${targetUser.username} (ID: ${targetUser.userId}) 已经是管理员了。\n`;
+        message += `⚠️ Người dùng @${targetUser.username} (ID: ${targetUser.userId}) đã là quản trị viên.\n`;
         failCount++;
         continue;
       }
@@ -73,17 +73,17 @@ const handleAddAdminCommand = async (bot, msg) => {
       // Cập nhật quyền Admin
       targetUser.isAdmin = true;
       await targetUser.save();
-      message += `✅ 用户 @${targetUser.username} (ID: ${targetUser.userId}) 已被设置为管理员\n`;
+      message += `✅ Người dùng @${targetUser.username} (ID: ${targetUser.userId}) đã được đặt làm quản trị viên\n`;
       successCount++;
     }
 
     // Thêm thống kê vào cuối tin nhắn
-    message += `\n📊 统计: 成功 ${successCount} 个, 失败 ${failCount} 个`;
+    message += `\n📊 Thống kê: Thành công ${successCount}, Thất bại ${failCount}`;
     
     bot.sendMessage(chatId, message);
   } catch (error) {
     console.error('Error in handleAddAdminCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理添加管理员命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thêm quản trị viên bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -98,21 +98,21 @@ const handleRemoveAdminCommand = async (bot, msg) => {
     
     // Chỉ Owner mới có quyền xóa Admin
     if (!await isUserOwner(userId)) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者才能移除管理员！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu bot mới có quyền xóa quản trị viên!");
       return;
     }
     
     // Phân tích tin nhắn
     const parts = messageText.split('/removead ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /removead @username1 @username2 @username3");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /removead @username1 @username2 @username3");
       return;
     }
     
     // Tách các username
     const usernames = parts[1].trim().split(' ').filter(u => u.startsWith('@'));
     if (usernames.length === 0) {
-      bot.sendMessage(chatId, "/removead || 删除管理员。例如: /removead @username1 @username2");
+      bot.sendMessage(chatId, "/removead || Xóa quản trị viên. Ví dụ: /removead @username1 @username2");
       return;
     }
 
@@ -130,14 +130,14 @@ const handleRemoveAdminCommand = async (bot, msg) => {
       
       // Kiểm tra nếu là owner
       if (targetUser.isOwner) {
-        message += `⛔ 不能移除机器人所有者的管理员权限！\n`;
+        message += `⛔ Không thể xóa quyền quản trị viên của chủ sở hữu bot!\n`;
         failCount++;
         continue;
       }
       
       // Kiểm tra nếu không phải admin
       if (!targetUser.isAdmin) {
-        message += `⚠️ 用户 @${targetUser.username} (ID: ${targetUser.userId}) 不是管理员。\n`;
+        message += `⚠️ Người dùng @${targetUser.username} (ID: ${targetUser.userId}) không phải là quản trị viên.\n`;
         failCount++;
         continue;
       }
@@ -145,17 +145,17 @@ const handleRemoveAdminCommand = async (bot, msg) => {
       // Cập nhật quyền Admin
       targetUser.isAdmin = false;
       await targetUser.save();
-      message += `✅ 已移除用户 @${targetUser.username} (ID: ${targetUser.userId}) 的管理员权限\n`;
+      message += `✅ Đã xóa quyền quản trị viên của người dùng @${targetUser.username} (ID: ${targetUser.userId})\n`;
       successCount++;
     }
 
     // Thêm thống kê vào cuối tin nhắn
-    message += `\n📊 统计: 成功 ${successCount} 个, 失败 ${failCount} 个`;
+    message += `\n📊 Thống kê: Thành công ${successCount}, Thất bại ${failCount}`;
     
     bot.sendMessage(chatId, message);
   } catch (error) {
     console.error('Error in handleRemoveAdminCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理移除管理员命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh xóa quản trị viên bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -169,7 +169,7 @@ const handleListAdminsCommand = async (bot, msg) => {
     
     // Chỉ Owner mới có quyền xem danh sách Admin
     if (!await isUserOwner(userId)) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者才能查看管理员列表！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu bot mới có quyền xem danh sách quản trị viên!");
       return;
     }
     
@@ -179,22 +179,22 @@ const handleListAdminsCommand = async (bot, msg) => {
     }).sort({ isOwner: -1 }); // Owner hiển thị trước
     
     if (admins.length === 0) {
-      bot.sendMessage(chatId, "⚠️ 尚未设置任何管理员或所有者。");
+      bot.sendMessage(chatId, "⚠️ Chưa thiết lập quản trị viên hoặc chủ sở hữu nào.");
       return;
     }
     
     // Tạo danh sách hiển thị
-    let message = '👑 管理员列表:\n\n';
+    let message = '👑 Danh sách quản trị viên:\n\n';
     
     admins.forEach(admin => {
-      const role = admin.isOwner ? '👑 所有者' : '🔰 管理员';
+      const role = admin.isOwner ? '👑 Chủ sở hữu' : '🔰 Quản trị viên';
       message += `${role}: @${admin.username} (ID: ${admin.userId})\n`;
     });
     
     bot.sendMessage(chatId, message);
   } catch (error) {
     console.error('Error in handleListAdminsCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理查看管理员列表命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh xem danh sách quản trị viên bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -210,21 +210,21 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
     
     // Chỉ Admin và Owner có quyền thêm Operator
     if (!await isUserAdmin(userId)) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者和管理员才能添加操作员！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền thêm điều hành viên!");
       return;
     }
     
     // Phân tích tin nhắn
     const parts = messageText.split('/op ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /op @username1 @username2 @username3");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /op @username1 @username2 @username3");
       return;
     }
     
     // Tách các username
     const usernames = parts[1].trim().split(' ').filter(u => u.startsWith('@'));
     if (usernames.length === 0) {
-      bot.sendMessage(chatId, "/op || 设置操作。例如: /op @username1 @username2");
+      bot.sendMessage(chatId, "/op || Thiết lập điều hành viên. Ví dụ: /op @username1 @username2");
       return;
     }
 
@@ -252,7 +252,7 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
       // Kiểm tra xem đã là operator chưa
       const existingOperator = group.operators.find(op => op.userId === targetUser.userId);
       if (existingOperator) {
-        message += `⚠️ 用户 @${targetUser.username} (ID: ${targetUser.userId}) 已经是此群组的操作员。\n`;
+        message += `⚠️ Người dùng @${targetUser.username} (ID: ${targetUser.userId}) đã là điều hành viên của nhóm này.\n`;
         failCount++;
         continue;
       }
@@ -276,7 +276,7 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
       }
       
       await targetUser.save();
-      message += `✅ 用户 @${targetUser.username} (ID: ${targetUser.userId}) 已被添加为此群组的操作员\n`;
+      message += `✅ Người dùng @${targetUser.username} (ID: ${targetUser.userId}) đã được thêm làm điều hành viên của nhóm này\n`;
       successCount++;
     }
 
@@ -284,12 +284,12 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
     await group.save();
 
     // Thêm thống kê vào cuối tin nhắn
-    message += `\n📊 统计: 成功 ${successCount} 个, 失败 ${failCount} 个`;
+    message += `\n📊 Thống kê: Thành công ${successCount}, Thất bại ${failCount}`;
     
     bot.sendMessage(chatId, message);
   } catch (error) {
     console.error('Error in handleAddOperatorInGroupCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理添加操作员命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thêm điều hành viên bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -304,28 +304,28 @@ const handleRemoveOperatorInGroupCommand = async (bot, msg) => {
     
     // Chỉ Admin và Owner có quyền xóa Operator
     if (!await isUserAdmin(userId)) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者和管理员才能移除操作员！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền xóa điều hành viên!");
       return;
     }
     
     // Phân tích tin nhắn
     const parts = messageText.split('/removeop ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "语法无效。例如: /removeop @username1 @username2 @username3");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /removeop @username1 @username2 @username3");
       return;
     }
     
     // Tách các username
     const usernames = parts[1].trim().split(' ').filter(u => u.startsWith('@'));
     if (usernames.length === 0) {
-      bot.sendMessage(chatId, "用 /removeop || 删除操作。例如: /removeop @username1 @username2");
+      bot.sendMessage(chatId, "Sử dụng /removeop || Xóa điều hành viên. Ví dụ: /removeop @username1 @username2");
       return;
     }
 
     // Tìm thông tin nhóm
     let group = await Group.findOne({ chatId: chatId.toString() });
     if (!group || !group.operators || group.operators.length === 0) {
-      bot.sendMessage(chatId, `⚠️ 此群组尚未设置任何操作员。`);
+      bot.sendMessage(chatId, `⚠️ Nhóm này chưa thiết lập điều hành viên nào.`);
       return;
     }
 
@@ -344,14 +344,14 @@ const handleRemoveOperatorInGroupCommand = async (bot, msg) => {
       // Kiểm tra xem có trong danh sách không
       const operatorIndex = group.operators.findIndex(op => op.userId === targetUser.userId);
       if (operatorIndex === -1) {
-        message += `⚠️ 用户 @${targetUser.username} (ID: ${targetUser.userId}) 不是此群组的操作员。\n`;
+        message += `⚠️ Người dùng @${targetUser.username} (ID: ${targetUser.userId}) không phải là điều hành viên của nhóm này.\n`;
         failCount++;
         continue;
       }
       
       // Kiểm tra nếu là owner/admin
       if (targetUser.isOwner || targetUser.isAdmin) {
-        message += `⛔ 不能移除所有者或管理员的操作员权限！\n`;
+        message += `⛔ Không thể xóa quyền điều hành viên của chủ sở hữu hoặc quản trị viên!\n`;
         failCount++;
         continue;
       }
@@ -366,7 +366,7 @@ const handleRemoveOperatorInGroupCommand = async (bot, msg) => {
         await targetUser.save();
       }
       
-      message += `✅ 已移除用户 @${targetUser.username} (ID: ${targetUser.userId}) 的操作员权限\n`;
+      message += `✅ Đã xóa quyền điều hành viên của người dùng @${targetUser.username} (ID: ${targetUser.userId})\n`;
       successCount++;
     }
 
@@ -374,12 +374,12 @@ const handleRemoveOperatorInGroupCommand = async (bot, msg) => {
     await group.save();
 
     // Thêm thống kê vào cuối tin nhắn
-    message += `\n📊 统计: 成功 ${successCount} 个, 失败 ${failCount} 个`;
+    message += `\n📊 Thống kê: Thành công ${successCount}, Thất bại ${failCount}`;
     
     bot.sendMessage(chatId, message);
   } catch (error) {
     console.error('Error in handleRemoveOperatorInGroupCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理移除操作员命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh xóa điều hành viên bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -394,7 +394,7 @@ const handleListOperatorsCommand = async (bot, msg) => {
     const group = await Group.findOne({ chatId: chatId.toString() });
     
     if (!group || !group.operators || group.operators.length === 0) {
-      bot.sendMessage(chatId, `⚠️ 此群组尚未设置任何操作员。`);
+      bot.sendMessage(chatId, `⚠️ Nhóm này chưa thiết lập điều hành viên nào.`);
       return;
     }
     
@@ -404,7 +404,7 @@ const handleListOperatorsCommand = async (bot, msg) => {
     );
     
     // Tạo danh sách hiển thị
-    let message = '👥 此群组的操作员列表:\n\n';
+    let message = '👥 Danh sách điều hành viên của nhóm này:\n\n';
     
     for (const op of sortedOperators) {
       const user = await User.findOne({ userId: op.userId });
@@ -428,7 +428,7 @@ const handleListOperatorsCommand = async (bot, msg) => {
     bot.sendMessage(chatId, message);
   } catch (error) {
     console.error('Error in handleListOperatorsCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理查看操作员列表命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh xem danh sách điều hành viên bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -441,9 +441,9 @@ const handleListUsersCommand = async (bot, msg) => {
     const owners = await User.find({ isOwner: true });
     let ownersList = '';
     if (owners.length > 0) {
-      ownersList = '🔑 所有者列表:\n' + owners.map(o => `@${o.username}: ${o.userId}`).join('\n');
+      ownersList = '🔑 Danh sách chủ sở hữu:\n' + owners.map(o => `@${o.username}: ${o.userId}`).join('\n');
     } else {
-      ownersList = '🔑 尚未设置机器人所有者';
+      ownersList = '🔑 Chưa thiết lập chủ sở hữu bot';
     }
     
     // Tìm thông tin nhóm và danh sách operators
@@ -456,16 +456,16 @@ const handleListUsersCommand = async (bot, msg) => {
         new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0)
       );
       
-      operatorsList = '👥 此群组的操作人列表:\n' + sortedOperators.map(op => `@${op.username}: ${op.userId}`).join('\n');
+      operatorsList = '👥 Danh sách điều hành viên của nhóm này:\n' + sortedOperators.map(op => `@${op.username}: ${op.userId}`).join('\n');
     } else {
-      operatorsList = '👥 此群组尚未有操作人';
+      operatorsList = '👥 Nhóm này chưa có điều hành viên';
     }
     
     // Send both lists
     bot.sendMessage(chatId, `${ownersList}\n\n${operatorsList}`);
   } catch (error) {
     console.error('Error in handleListUsersCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理列出用户命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh liệt kê người dùng bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -480,13 +480,13 @@ const handleCurrencyUnitCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('/m ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：/m 币种名称");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: /m tên tiền tệ");
       return;
     }
     
     const currencyUnit = parts[1].trim().toUpperCase();
     if (!currencyUnit) {
-      bot.sendMessage(chatId, "请指定一个币种名称。");
+      bot.sendMessage(chatId, "Vui lòng chỉ định tên tiền tệ.");
       return;
     }
     
@@ -503,10 +503,10 @@ const handleCurrencyUnitCommand = async (bot, msg) => {
     }
     
     await config.save();
-    bot.sendMessage(chatId, `✅ 已设置币种为 ${currencyUnit}`);
+    bot.sendMessage(chatId, `✅ Đã thiết lập tiền tệ là ${currencyUnit}`);
   } catch (error) {
     console.error('Error in handleCurrencyUnitCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理设置币种命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thiết lập tiền tệ bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -521,13 +521,13 @@ const handleSetUsdtAddressCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('/usdt ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "ℹ️ 语法: /usdt <TRC20地址>");
+      bot.sendMessage(chatId, "ℹ️ Cú pháp: /usdt <địa chỉ TRC20>");
       return;
     }
     
     const address = parts[1].trim();
     if (!isTrc20Address(address)) {
-      bot.sendMessage(chatId, "❌ TRC20地址无效！地址必须以字母T开头并且有34个字符。");
+      bot.sendMessage(chatId, "❌ Địa chỉ TRC20 không hợp lệ! Địa chỉ phải bắt đầu bằng chữ T và có 34 ký tự.");
       return;
     }
     
@@ -547,13 +547,13 @@ const handleSetUsdtAddressCommand = async (bot, msg) => {
     await config.save();
     
     if (oldAddress) {
-      bot.sendMessage(chatId, "🔄 已更新USDT-TRC20地址:\n`" + address + "`");
+      bot.sendMessage(chatId, "🔄 Đã cập nhật địa chỉ USDT-TRC20:\n`" + address + "`");
     } else {
-      bot.sendMessage(chatId, "✅ 已保存全局USDT-TRC20地址:\n`" + address + "`");
+      bot.sendMessage(chatId, "✅ Đã lưu địa chỉ USDT-TRC20 toàn cục:\n`" + address + "`");
     }
   } catch (error) {
     console.error('Error in handleSetUsdtAddressCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理设置USDT地址命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thiết lập địa chỉ USDT bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -568,18 +568,18 @@ const handleGetUsdtAddressCommand = async (bot, msg) => {
     const config = await Config.findOne({ key: 'USDT_ADDRESS' });
     
     if (!config || !config.value) {
-      bot.sendMessage(chatId, "⚠️ 尚未设置USDT-TRC20地址。请使用 /usdt 命令设置。");
+      bot.sendMessage(chatId, "⚠️ Chưa thiết lập địa chỉ USDT-TRC20. Vui lòng sử dụng lệnh /usdt để thiết lập.");
       return;
     }
     
-    const responseMsg = "💰 *USDT-TRC20地址* 💰\n\n" +
+    const responseMsg = "💰 *Địa chỉ USDT-TRC20* 💰\n\n" +
                        "`" + config.value + "`\n\n" +
-                       "💵 交易前请向多人确认！ 💱";
+                       "💵 Vui lòng xác nhận với nhiều người trước khi giao dịch! 💱";
 
     bot.sendMessage(chatId, responseMsg, { parse_mode: 'Markdown' });
   } catch (error) {
     console.error('Error in handleGetUsdtAddressCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理获取USDT地址命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh lấy địa chỉ USDT bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -595,14 +595,14 @@ const handleSetOwnerCommand = async (bot, msg) => {
     // Chỉ cho phép owner hiện tại thêm owner khác
     const isCurrentUserOwner = await isUserOwner(senderId.toString());
     if (!isCurrentUserOwner) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者才能使用此命令！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu bot mới có quyền sử dụng lệnh này!");
       return;
     }
     
     // Phân tích tin nhắn
     const parts = messageText.split('/setowner ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：/setowner @username");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: /setowner @username");
       return;
     }
     
@@ -611,7 +611,7 @@ const handleSetOwnerCommand = async (bot, msg) => {
     const username = usernameText.replace('@', '');
     
     if (!username) {
-      bot.sendMessage(chatId, "请指定一个用户名。");
+      bot.sendMessage(chatId, "Vui lòng chỉ định tên người dùng.");
       return;
     }
     
@@ -629,18 +629,18 @@ const handleSetOwnerCommand = async (bot, msg) => {
         isAllowed: true
       });
       await user.save();
-      bot.sendMessage(chatId, `✅ 已将新用户 @${username} 设置为机器人所有者。`);
+      bot.sendMessage(chatId, `✅ Đã đặt người dùng mới @${username} làm chủ sở hữu bot.`);
     } else if (user.isOwner) {
-      bot.sendMessage(chatId, `⚠️ 用户 @${username} 已是机器人所有者。`);
+      bot.sendMessage(chatId, `⚠️ Người dùng @${username} đã là chủ sở hữu bot.`);
     } else {
       user.isOwner = true;
       user.isAllowed = true;
       await user.save();
-      bot.sendMessage(chatId, `✅ 已将用户 @${username} 设置为机器人所有者。`);
+      bot.sendMessage(chatId, `✅ Đã đặt người dùng @${username} làm chủ sở hữu bot.`);
     }
   } catch (error) {
     console.error('Error in handleSetOwnerCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理设置所有者命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thiết lập chủ sở hữu bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -655,22 +655,22 @@ const handleMigrateDataCommand = async (bot, msg) => {
     // Chỉ cho phép owner thực hiện việc chuyển đổi dữ liệu
     const isCurrentUserOwner = await isUserOwner(userId.toString());
     if (!isCurrentUserOwner) {
-      bot.sendMessage(chatId, "⛔ 只有机器人所有者才能使用此命令！");
+      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu bot mới có quyền sử dụng lệnh này!");
       return;
     }
     
-    bot.sendMessage(chatId, "🔄 开始数据迁移，请稍后...");
+    bot.sendMessage(chatId, "🔄 Đang bắt đầu chuyển đổi dữ liệu, vui lòng đợi...");
     
     const result = await migrateUserGroupsToOperators();
     
     if (result.success) {
-      bot.sendMessage(chatId, "✅ 数据迁移成功！用户权限已从旧结构转移到新结构。");
+      bot.sendMessage(chatId, "✅ Chuyển đổi dữ liệu thành công! Quyền người dùng đã được chuyển từ cấu trúc cũ sang cấu trúc mới.");
     } else {
-      bot.sendMessage(chatId, `❌ 数据迁移失败: ${result.error}`);
+      bot.sendMessage(chatId, `❌ Chuyển đổi dữ liệu thất bại: ${result.error}`);
     }
   } catch (error) {
     console.error('Error in handleMigrateDataCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理数据迁移命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh chuyển đổi dữ liệu bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -683,7 +683,7 @@ const handleListGroupsCommand = async (bot, msg) => {
     
     // Chỉ cho phép owner hoặc admin sử dụng lệnh này
     if (!(await isUserAdmin(userId))) {
-      bot.sendMessage(msg.chat.id, "⛔ 只有机器人所有者和管理员才能使用此命令！");
+      bot.sendMessage(msg.chat.id, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền sử dụng lệnh này!");
       return;
     }
     
@@ -691,22 +691,22 @@ const handleListGroupsCommand = async (bot, msg) => {
     const groups = await Group.find({});
     
     if (groups.length === 0) {
-      bot.sendMessage(msg.chat.id, "机器人还没有加入任何群组。");
+      bot.sendMessage(msg.chat.id, "Bot chưa tham gia nhóm nào.");
       return;
     }
     
     // Format danh sách nhóm
-    let message = "*🔄 机器人加入的群组列表:*\n\n";
+    let message = "*🔄 Danh sách các nhóm bot đã tham gia:*\n\n";
     
     for (const group of groups) {
       // Lấy thông tin tên nhóm nếu có
-      let groupTitle = "未知群组";
+      let groupTitle = "Nhóm không xác định";
       try {
         const chatInfo = await bot.getChat(group.chatId);
         groupTitle = chatInfo.title || `Chat ID: ${group.chatId}`;
       } catch (error) {
         // Không lấy được thông tin chat, có thể bot đã bị đá khỏi nhóm
-        groupTitle = `未知群组 (ID: ${group.chatId})`;
+        groupTitle = `Nhóm không xác định (ID: ${group.chatId})`;
       }
       
       // Đếm số lượng giao dịch trong nhóm
@@ -730,7 +730,7 @@ const handleListGroupsCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleListGroupsCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理列出群组命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh liệt kê nhóm bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -745,20 +745,20 @@ const handleAddInlineCommand = async (bot, msg) => {
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
       return;
     }
     
     // Phân tích cú pháp tin nhắn
     const parts = messageText.split('/inline ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：/inline 按钮文字|命令内容");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: /inline nội dung nút|lệnh");
       return;
     }
     
     const inputParts = parts[1].split('|');
     if (inputParts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：/inline 按钮文字|命令内容");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: /inline nội dung nút|lệnh");
       return;
     }
     
@@ -766,7 +766,7 @@ const handleAddInlineCommand = async (bot, msg) => {
     const commandText = inputParts[1].trim();
     
     if (!buttonText || !commandText) {
-      bot.sendMessage(chatId, "按钮文字和命令内容不能为空。");
+      bot.sendMessage(chatId, "Nội dung nút và lệnh không được để trống.");
       return;
     }
     
@@ -793,11 +793,11 @@ const handleAddInlineCommand = async (bot, msg) => {
     if (existingButtonIndex >= 0) {
       // Cập nhật nút hiện có
       buttons[existingButtonIndex] = { text: buttonText, command: commandText };
-      bot.sendMessage(chatId, `✅ 已更新现有按钮 "${buttonText}"`);
+      bot.sendMessage(chatId, `✅ Đã cập nhật nút "${buttonText}"`);
     } else {
       // Thêm nút mới
       buttons.push({ text: buttonText, command: commandText });
-      bot.sendMessage(chatId, `✅ 已添加新按钮 "${buttonText}"`);
+      bot.sendMessage(chatId, `✅ Đã thêm nút mới "${buttonText}"`);
     }
     
     // Lưu cấu hình
@@ -809,7 +809,7 @@ const handleAddInlineCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleAddInlineCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理添加按钮命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh thêm nút bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -824,21 +824,21 @@ const handleRemoveInlineCommand = async (bot, msg) => {
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
       return;
     }
     
     // Phân tích cú pháp tin nhắn
     const parts = messageText.split('/removeinline ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "指令无效。格式为：/removeinline 按钮文字");
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: /removeinline nội dung nút");
       return;
     }
     
     const buttonText = parts[1].trim();
     
     if (!buttonText) {
-      bot.sendMessage(chatId, "按钮文字不能为空。");
+      bot.sendMessage(chatId, "Nội dung nút không được để trống.");
       return;
     }
     
@@ -846,7 +846,7 @@ const handleRemoveInlineCommand = async (bot, msg) => {
     const inlineConfig = await Config.findOne({ key: 'INLINE_BUTTONS_GLOBAL' });
     
     if (!inlineConfig) {
-      bot.sendMessage(chatId, "还没有设置任何按钮。");
+      bot.sendMessage(chatId, "Chưa thiết lập nút nào.");
       return;
     }
     
@@ -854,7 +854,7 @@ const handleRemoveInlineCommand = async (bot, msg) => {
     try {
       buttons = JSON.parse(inlineConfig.value);
     } catch (error) {
-      bot.sendMessage(chatId, "按钮配置无效。");
+      bot.sendMessage(chatId, "Cấu hình nút không hợp lệ.");
       return;
     }
     
@@ -866,9 +866,9 @@ const handleRemoveInlineCommand = async (bot, msg) => {
       // Lưu cấu hình mới
       inlineConfig.value = JSON.stringify(buttons);
       await inlineConfig.save();
-      bot.sendMessage(chatId, `✅ 已删除按钮 "${buttonText}"`);
+      bot.sendMessage(chatId, `✅ Đã xóa nút "${buttonText}"`);
     } else {
-      bot.sendMessage(chatId, `❌ 未找到按钮 "${buttonText}"`);
+      bot.sendMessage(chatId, `❌ Không tìm thấy nút "${buttonText}"`);
     }
     
     // Hiển thị danh sách các nút hiện tại
@@ -876,7 +876,7 @@ const handleRemoveInlineCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleRemoveInlineCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理删除按钮命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh xóa nút bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -889,7 +889,7 @@ const displayInlineButtons = async (bot, chatId) => {
     const inlineConfig = await Config.findOne({ key: 'INLINE_BUTTONS_GLOBAL' });
     
     if (!inlineConfig) {
-      bot.sendMessage(chatId, "还没有设置任何按钮。");
+      bot.sendMessage(chatId, "Chưa thiết lập nút nào.");
       return;
     }
     
@@ -897,21 +897,21 @@ const displayInlineButtons = async (bot, chatId) => {
     try {
       buttons = JSON.parse(inlineConfig.value);
     } catch (error) {
-      bot.sendMessage(chatId, "按钮配置无效。");
+      bot.sendMessage(chatId, "Cấu hình nút không hợp lệ.");
       return;
     }
     
     if (buttons.length === 0) {
-      bot.sendMessage(chatId, "还没有设置任何按钮。");
+      bot.sendMessage(chatId, "Chưa thiết lập nút nào.");
       return;
     }
     
     // Hiển thị danh sách nút
-    let message = "*当前按钮列表:*\n\n";
+    let message = "*Danh sách nút hiện tại:*\n\n";
     
     buttons.forEach((button, index) => {
-      message += `${index + 1}. 文字: *${button.text}*\n`;
-      message += `   命令: \`${button.command}\`\n\n`;
+      message += `${index + 1}. Nội dung: *${button.text}*\n`;
+      message += `   Lệnh: \`${button.command}\`\n\n`;
     });
     
     // Tạo keyboard inline
@@ -929,7 +929,7 @@ const displayInlineButtons = async (bot, chatId) => {
     
   } catch (error) {
     console.error('Error in displayInlineButtons:', error);
-    bot.sendMessage(chatId, "显示按钮列表时出错。请稍后再试。");
+    bot.sendMessage(chatId, "Hiển thị danh sách nút bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -947,7 +947,7 @@ const handleInlineButtonCallback = async (bot, callbackQuery) => {
     
     // Kiểm tra quyền người dùng
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ 您无权使用此功能！需要操作员权限。");
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng chức năng này! Cần quyền điều hành viên.");
       return;
     }
     
@@ -979,7 +979,7 @@ const handleEnableButtonsCommand = async (bot, msg) => {
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
       return;
     }
     
@@ -996,11 +996,11 @@ const handleEnableButtonsCommand = async (bot, msg) => {
     }
     
     await buttonsConfig.save();
-    bot.sendMessage(chatId, "✅ 已启用所有消息的按钮显示");
+    bot.sendMessage(chatId, "✅ Đã bật hiển thị nút cho tất cả tin nhắn");
     
   } catch (error) {
     console.error('Error in handleEnableButtonsCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -1014,7 +1014,7 @@ const handleDisableButtonsCommand = async (bot, msg) => {
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
       return;
     }
     
@@ -1031,11 +1031,11 @@ const handleDisableButtonsCommand = async (bot, msg) => {
     }
     
     await buttonsConfig.save();
-    bot.sendMessage(chatId, "✅ 已禁用所有消息的按钮显示");
+    bot.sendMessage(chatId, "✅ Đã tắt hiển thị nút cho tất cả tin nhắn");
     
   } catch (error) {
     console.error('Error in handleDisableButtonsCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -1102,7 +1102,7 @@ const handleAddInline2Command = async (bot, msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   if (!(await isUserOperator(userId, chatId))) {
-    bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+    bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
     return;
   }
   const args = msg.text.split(' ');
@@ -1127,7 +1127,7 @@ const handleRemoveInline2Command = async (bot, msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   if (!(await isUserOperator(userId, chatId))) {
-    bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+    bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
     return;
   }
   const args = msg.text.split(' ');
@@ -1174,7 +1174,7 @@ const handleChatWithButtons2Command = async (bot, msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   if (!(await isUserOperator(userId, chatId))) {
-    bot.sendMessage(chatId, "⛔ 您无权使用此命令！需要操作员权限。");
+    bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
     return;
   }
   const buttons = readButtons2();

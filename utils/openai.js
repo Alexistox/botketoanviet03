@@ -71,14 +71,16 @@ const extractBankInfoFromImage = async (imageBuffer) => {
           accountName: null
         };
         
-        // Tìm thông tin ngân hàng từ văn bản
-        if (content.includes("银行") || content.includes("bank")) {
+        // Kiểm tra nếu nội dung có chứa thông tin ngân hàng
+        if (content.includes("ngân hàng") || content.includes("bank")) {
+          // Xử lý thông tin ngân hàng
           const bankMatch = content.match(/(?:ngân hàng|bank)[:\s]+([^\n.,]+)/i);
           if (bankMatch) bankInfo.bankName = bankMatch[1].trim();
         }
         
-        // Tìm tên ngân hàng tiếng Anh
-        if (content.includes("英文") || content.includes("English")) {
+        // Kiểm tra nếu nội dung có chứa thông tin tiếng Anh
+        if (content.includes("tiếng Anh") || content.includes("English")) {
+          // Xử lý thông tin tiếng Anh
           const bankEnglishMatch = content.match(/(?:tiếng Anh|English)[:\s]+([^\n.,]+)/i);
           if (bankEnglishMatch) bankInfo.bankNameEnglish = bankEnglishMatch[1].trim();
         }

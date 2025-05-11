@@ -104,7 +104,7 @@ const formatTelegramMessage = (jsonData) => {
   // Deposits section
   if (jsonData.depositData && jsonData.depositData.entries && jsonData.depositData.entries.length > 0) {
     const depositCount = jsonData.depositData.totalCount || jsonData.depositData.entries.length;
-    output += `*已入账* (${depositCount}笔):\n`;
+    output += `*Tiền đã nạp* (${depositCount} Đơn):\n`;
     
     // Format giao dịch với ID và link
     jsonData.depositData.entries.forEach((entry) => {
@@ -112,18 +112,18 @@ const formatTelegramMessage = (jsonData) => {
       const id = entry.id || (entry.index + 1);
       if (entry.messageId && entry.chatLink) {
         // Tạo link đến tin nhắn gốc với ID là phần clickable
-        output += `${entry.details} (id[${id}](${entry.chatLink}))\n`;
+        output += `([${id}](${entry.chatLink})) ${entry.details}\n`;
       }
     });
     output += '\n';
   } else {
-    output += "*已入账*(0笔):\n\n";
+    output += "*Tiền đã nạp* (0 Đơn):\n\n";
   }
   
   // Payments section
   if (jsonData.paymentData && jsonData.paymentData.entries && jsonData.paymentData.entries.length > 0) {
     const paymentCount = jsonData.paymentData.totalCount || jsonData.paymentData.entries.length;
-    output += `*已下发* (${paymentCount}笔):\n`;
+    output += `*Đã thanh toán* (${paymentCount} Đơn):\n`;
     
     // Format giao dịch với ID và link
     jsonData.paymentData.entries.forEach((entry) => {
@@ -137,28 +137,28 @@ const formatTelegramMessage = (jsonData) => {
     });
     output += '\n';
   } else {
-    output += "*已下发*(0笔):\n\n";
+    output += "*Tiền đã thanh toán* (0 Đơn):\n\n";
   }
-  output += `总入款💰: ${jsonData.totalAmount}\n`;
+  output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}\n`;
   // Rate information
-  const rateInfo = `费率： ${jsonData.rate}\n汇率： ${jsonData.exchangeRate}\n`;
+  const rateInfo = `Phí: ${jsonData.rate}\nTỷ giá: ${jsonData.exchangeRate}\n`;
  
   // Thêm ví dụ nếu có
   let rateInfoWithExample = rateInfo;
   if (jsonData.example) {
-    rateInfoWithExample += `\n例如: 100000 = ${jsonData.example} ${jsonData.currencyUnit || 'USDT'}`;
+    rateInfoWithExample += `\nVD: 100000 = ${jsonData.example} ${jsonData.currencyUnit || 'USDT'}`;
   }
   
   output += `${rateInfoWithExample}\n`;
   
   // Summary section
-  output += `应下发 : ${jsonData.totalUSDT}  ${jsonData.currencyUnit || 'USDT'}\n`;
-  output += `已下发 : ${jsonData.paidUSDT}  ${jsonData.currencyUnit || 'USDT'}\n`;
-  output += `未下发 : ${jsonData.remainingUSDT}  ${jsonData.currencyUnit || 'USDT'}`;
+  output += `*Tiền phải trả*: ${jsonData.totalUSDT}  ${jsonData.currencyUnit || 'USDT'}\n`;
+  output += `*Tiền đã trả*: ${jsonData.paidUSDT}  ${jsonData.currencyUnit || 'USDT'}\n`;
+  output += `*Tiền còn lại*: ${jsonData.remainingUSDT}  ${jsonData.currencyUnit || 'USDT'}`;
   
   // Cards section (if present)
   if (jsonData.cards && jsonData.cards.length > 0) {
-    output += `\n卡额度 💳:\n${jsonData.cards.join("\n")}`;
+    output += `\n*Hạn mức thẻ 💳* :\n${jsonData.cards.join("\n")}`;
   }
   
   return output;

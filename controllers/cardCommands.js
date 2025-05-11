@@ -13,7 +13,7 @@ const handleHideCardCommand = async (bot, msg) => {
     const cardCode = messageText.substring(3).trim().toUpperCase();
     
     if (!cardCode) {
-      bot.sendMessage(chatId, "语法无效。例如: /x ABC123");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /x ABC123");
       return;
     }
     
@@ -22,7 +22,7 @@ const handleHideCardCommand = async (bot, msg) => {
       const cards = await Card.find({ chatId: chatId.toString() });
       
       if (cards.length === 0) {
-        bot.sendMessage(chatId, "暂无任何卡片信息。");
+        bot.sendMessage(chatId, "Không có thông tin thẻ nào.");
         return;
       }
       
@@ -36,24 +36,24 @@ const handleHideCardCommand = async (bot, msg) => {
       
       await Promise.all(updatePromises);
       
-      bot.sendMessage(chatId, `已隐藏所有卡密 ${cardCodes.length} 张: ${cardCodes.join(', ')}`);
+      bot.sendMessage(chatId, `Đã ẩn tất cả ${cardCodes.length} thẻ: ${cardCodes.join(', ')}`);
     } else {
       // Tìm và ẩn thẻ cụ thể
       const card = await Card.findOne({ chatId: chatId.toString(), cardCode });
       
       if (!card) {
-        bot.sendMessage(chatId, `未找到卡号 ${cardCode}`);
+        bot.sendMessage(chatId, `Không tìm thấy thẻ với mã ${cardCode}`);
         return;
       }
       
       card.hidden = true;
       await card.save();
       
-      bot.sendMessage(chatId, `已隐藏卡密: ${cardCode}`);
+      bot.sendMessage(chatId, `Đã ẩn thẻ: ${cardCode}`);
     }
   } catch (error) {
     console.error('Error in handleHideCardCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理隐藏卡片命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh ẩn thẻ. Vui lòng thử lại sau.");
   }
 };
 
@@ -69,7 +69,7 @@ const handleShowCardCommand = async (bot, msg) => {
     const cardCode = messageText.substring(4).trim().toUpperCase();
     
     if (!cardCode) {
-      bot.sendMessage(chatId, "语法无效。例如: /sx ABC123");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /sx ABC123");
       return;
     }
     
@@ -78,7 +78,7 @@ const handleShowCardCommand = async (bot, msg) => {
       const hiddenCards = await Card.find({ chatId: chatId.toString(), hidden: true });
       
       if (hiddenCards.length === 0) {
-        bot.sendMessage(chatId, "没有隐藏的卡片。");
+        bot.sendMessage(chatId, "Không có thẻ nào bị ẩn.");
         return;
       }
       
@@ -92,29 +92,29 @@ const handleShowCardCommand = async (bot, msg) => {
       
       await Promise.all(updatePromises);
       
-      bot.sendMessage(chatId, `已重新显示所有卡密: ${cardCodes.join(', ')}`);
+      bot.sendMessage(chatId, `Đã hiển thị lại tất cả thẻ: ${cardCodes.join(', ')}`);
     } else {
       // Tìm và hiển thị thẻ cụ thể
       const card = await Card.findOne({ chatId: chatId.toString(), cardCode });
       
       if (!card) {
-        bot.sendMessage(chatId, `未找到卡号 ${cardCode}`);
+        bot.sendMessage(chatId, `Không tìm thấy thẻ với mã ${cardCode}`);
         return;
       }
       
       if (!card.hidden) {
-        bot.sendMessage(chatId, `卡号 ${cardCode} 已经是可见状态。`);
+        bot.sendMessage(chatId, `Thẻ ${cardCode} đã ở trạng thái hiển thị.`);
         return;
       }
       
       card.hidden = false;
       await card.save();
       
-      bot.sendMessage(chatId, `已重新显示卡密: ${cardCode}`);
+      bot.sendMessage(chatId, `Đã hiển thị lại thẻ: ${cardCode}`);
     }
   } catch (error) {
     console.error('Error in handleShowCardCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理显示卡片命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh hiển thị thẻ. Vui lòng thử lại sau.");
   }
 };
 
@@ -129,16 +129,16 @@ const handleListHiddenCardsCommand = async (bot, msg) => {
     const hiddenCards = await Card.find({ chatId: chatId.toString(), hidden: true });
     
     if (hiddenCards.length === 0) {
-      bot.sendMessage(chatId, "没有隐藏的卡片。");
+      bot.sendMessage(chatId, "Không có thẻ nào bị ẩn.");
       return;
     }
     
     const cardCodes = hiddenCards.map(card => card.cardCode);
-    bot.sendMessage(chatId, `当前隐藏的卡片: ${cardCodes.join(', ')}`);
+    bot.sendMessage(chatId, `Các thẻ đang bị ẩn: ${cardCodes.join(', ')}`);
     
   } catch (error) {
     console.error('Error in handleListHiddenCardsCommand:', error);
-    bot.sendMessage(msg.chat.id, "处理列出隐藏卡片命令时出错。请稍后再试。");
+    bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi xử lý lệnh liệt kê thẻ ẩn. Vui lòng thử lại sau.");
   }
 };
 

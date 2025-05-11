@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { extractBankInfoFromImage } = require('../utils/openai');
 const { getDownloadLink } = require('../utils/telegramUtils');
+const messages = require('../src/messages/vi');
 
 /**
  * Xử lý lệnh trích xuất thông tin ngân hàng từ ảnh
@@ -12,7 +13,7 @@ const handleImageBankInfo = async (bot, msg) => {
     const chatId = msg.chat.id;
     
     // Thông báo cho người dùng biết đang xử lý
-    bot.sendMessage(chatId, "⏳ 正在获取银行账户信息…");
+    bot.sendMessage(chatId, messages.bankInfoProcessing);
     
     // Lấy ảnh có độ phân giải cao nhất
     const photos = msg.photo;
@@ -22,7 +23,7 @@ const handleImageBankInfo = async (bot, msg) => {
     const downloadUrl = await getDownloadLink(photoFileId, process.env.TELEGRAM_BOT_TOKEN);
     
     if (!downloadUrl) {
-      bot.sendMessage(chatId, "❌ 无法获取图片文件信息.");
+      bot.sendMessage(chatId, "❌ Không thể lấy thông tin file ảnh.");
       return;
     }
     
@@ -44,18 +45,18 @@ const handleImageBankInfo = async (bot, msg) => {
       // Tạo tin nhắn
       const formattedMessage = 
         `${uniqueCode} - ${currentDate}\n` +
-        `${bankInfo.bankName || "[未找到]"}\n` +
-        `${bankInfo.bankNameEnglish || "[未找到]"}\n` +
-        `${bankInfo.accountNumber || "[未找到]"}\n` +
-        `${bankInfo.accountName || "[未找到]"}`;
+        `${bankInfo.bankName || "[Không tìm thấy]"}\n` +
+        `${bankInfo.bankNameEnglish || "[Không tìm thấy]"}\n` +
+        `${bankInfo.accountNumber || "[Không tìm thấy]"}\n` +
+        `${bankInfo.accountName || "[Không tìm thấy]"}`;
       
       bot.sendMessage(chatId, formattedMessage);
     } else {
-      bot.sendMessage(chatId, "❌ 无法从该图片识别出银行账户信息.");
+      bot.sendMessage(chatId, messages.bankInfoNotFound);
     }
   } catch (error) {
     console.error('Error in handleImageBankInfo:', error);
-    bot.sendMessage(msg.chat.id, "处理图片时出错，请重试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingImage);
   }
 };
 
@@ -68,12 +69,12 @@ const handleReplyImageBankInfo = async (bot, msg) => {
     
     // Kiểm tra nếu tin nhắn được reply có chứa ảnh
     if (!msg.reply_to_message || !msg.reply_to_message.photo) {
-      bot.sendMessage(chatId, "❌ 请回复一条含有图片的消息。");
+      bot.sendMessage(chatId, "❌ Vui lòng reply vào tin nhắn có chứa ảnh.");
       return;
     }
     
     // Thông báo cho người dùng biết đang xử lý
-    bot.sendMessage(chatId, "⏳ 正在获取银行账户信息…");
+    bot.sendMessage(chatId, messages.bankInfoProcessing);
     
     // Lấy ảnh có độ phân giải cao nhất từ tin nhắn được reply
     const photos = msg.reply_to_message.photo;
@@ -83,7 +84,7 @@ const handleReplyImageBankInfo = async (bot, msg) => {
     const downloadUrl = await getDownloadLink(photoFileId, process.env.TELEGRAM_BOT_TOKEN);
     
     if (!downloadUrl) {
-      bot.sendMessage(chatId, "❌ 无法获取图片文件信息.");
+      bot.sendMessage(chatId, "❌ Không thể lấy thông tin file ảnh.");
       return;
     }
     
@@ -105,18 +106,18 @@ const handleReplyImageBankInfo = async (bot, msg) => {
       // Tạo tin nhắn
       const formattedMessage = 
         `${uniqueCode} - ${currentDate}\n` +
-        `${bankInfo.bankName || "[未找到]"}\n` +
-        `${bankInfo.bankNameEnglish || "[未找到]"}\n` +
-        `${bankInfo.accountNumber || "[未找到]"}\n` +
-        `${bankInfo.accountName || "[未找到]"}`;
+        `${bankInfo.bankName || "[Không tìm thấy]"}\n` +
+        `${bankInfo.bankNameEnglish || "[Không tìm thấy]"}\n` +
+        `${bankInfo.accountNumber || "[Không tìm thấy]"}\n` +
+        `${bankInfo.accountName || "[Không tìm thấy]"}`;
       
       bot.sendMessage(chatId, formattedMessage);
     } else {
-      bot.sendMessage(chatId, "❌ 无法从该图片识别出银行账户信息.");
+      bot.sendMessage(chatId, messages.bankInfoNotFound);
     }
   } catch (error) {
     console.error('Error in handleReplyImageBankInfo:', error);
-    bot.sendMessage(msg.chat.id, "处理图片时出错，请重试。");
+    bot.sendMessage(msg.chat.id, messages.errorProcessingImage);
   }
 };
 
