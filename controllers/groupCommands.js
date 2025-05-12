@@ -5,6 +5,7 @@ const Config = require('../models/Config');
 const { formatSmart, formatRateValue, formatTelegramMessage, formatDateUS } = require('../utils/formatter');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
+const { getCurrencyForGroup } = require('../utils/permissions');
 
 /**
  * Xử lý lệnh clear (上课) - Reset các giá trị về 0
@@ -62,7 +63,7 @@ const handleClearCommand = async (bot, msg) => {
     }
     
     // Lấy đơn vị tiền tệ
-    const currencyUnit = group.currencyUnit || 'USDT';
+    const currencyUnit = await getCurrencyForGroup(msg.chat.id);
     
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
@@ -113,16 +114,6 @@ const handleRateCommand = async (bot, msg) => {
     const senderName = msg.from.first_name;
     const messageText = msg.text;
     
-    // Tìm group
-    const groupInfo = await Group.findOne({ chatId: chatId.toString() });
-    if (!groupInfo) {
-      bot.sendMessage(chatId, "Không tìm thấy thông tin nhóm.");
-      return;
-    }
-    
-    // Lấy đơn vị tiền tệ
-    const currencyUnit = groupInfo.currencyUnit || 'USDT';
-    
     // Trích xuất giá trị rate từ tin nhắn
     const inputText = messageText.substring(4).trim();
     
@@ -171,6 +162,9 @@ const handleRateCommand = async (bot, msg) => {
       exampleValue = (100000 / group.exchangeRate) * (1 - xValue / 100);
     }
     
+    // Lấy đơn vị tiền tệ
+    const currencyUnit = await getCurrencyForGroup(chatId);
+    
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
@@ -199,7 +193,7 @@ const handleRateCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleRateCommand:', error);
-    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
+    bot.sendMessage(msg.chat.id, messages.errorProcessingRate);
   }
 };
 
@@ -211,16 +205,6 @@ const handleExchangeRateCommand = async (bot, msg) => {
     const chatId = msg.chat.id;
     const senderName = msg.from.first_name;
     const messageText = msg.text;
-    
-    // Tìm group
-    const groupInfo = await Group.findOne({ chatId: chatId.toString() });
-    if (!groupInfo) {
-      bot.sendMessage(chatId, "Không tìm thấy thông tin nhóm.");
-      return;
-    }
-    
-    // Lấy đơn vị tiền tệ
-    const currencyUnit = groupInfo.currencyUnit || 'USDT';
     
     // Trích xuất giá trị tỷ giá từ tin nhắn
     const inputText = messageText.substring(4).trim();
@@ -270,6 +254,9 @@ const handleExchangeRateCommand = async (bot, msg) => {
       exampleValue = (100000 / yValue) * (1 - group.rate / 100);
     }
     
+    // Lấy đơn vị tiền tệ
+    const currencyUnit = await getCurrencyForGroup(chatId);
+    
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
@@ -298,7 +285,7 @@ const handleExchangeRateCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleExchangeRateCommand:', error);
-    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
+    bot.sendMessage(msg.chat.id, messages.errorProcessingExchangeRate);
   }
 };
 
@@ -368,7 +355,7 @@ const handleDualRateCommand = async (bot, msg) => {
     const exampleValue = (100000 / newExRate) * (1 - newRate / 100);
     
     // Lấy đơn vị tiền tệ
-    const currencyUnit = group.currencyUnit || 'USDT';
+    const currencyUnit = await getCurrencyForGroup(chatId);
     
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();

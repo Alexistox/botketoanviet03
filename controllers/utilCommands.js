@@ -6,6 +6,7 @@ const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, for
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
+const { getCurrencyForGroup } = require('../utils/permissions');
 
 /**
  * Xử lý lệnh tính toán USDT (/t)
@@ -18,31 +19,31 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('/t ');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /t 50000");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /t 1000000");
       return;
     }
     
     // Lấy số tiền VND
-    const amount = parseFloat(parts[1].trim());
+    const amount = parseFloat(parts[1].trim().replace(/,/g, ''));
     if (isNaN(amount)) {
       bot.sendMessage(chatId, "Số tiền không hợp lệ.");
       return;
     }
     
     // Tìm group
-    const groupInfo = await Group.findOne({ chatId: chatId.toString() });
-    if (!groupInfo || !groupInfo.exchangeRate || !groupInfo.rate) {
+    const group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group || !group.exchangeRate || !group.rate) {
       bot.sendMessage(chatId, "Vui lòng thiết lập tỷ giá và tỷ lệ trước.");
       return;
     }
     
     // Tính toán
-    const xValue = groupInfo.rate;
-    const yValue = groupInfo.exchangeRate;
+    const xValue = group.rate;
+    const yValue = group.exchangeRate;
     const usdtValue = (amount / yValue) * (1 - xValue / 100);
     
-    // Lấy đơn vị tiền tệ
-    const currencyUnit = groupInfo.currencyUnit || 'USDT';
+    // Lấy đơn vị tiền tệ cho nhóm
+    const currencyUnit = await getCurrencyForGroup(chatId);
     
     // Gửi kết quả
     bot.sendMessage(
@@ -79,19 +80,19 @@ const handleCalculateVndCommand = async (bot, msg) => {
     }
     
     // Tìm group
-    const groupInfo = await Group.findOne({ chatId: chatId.toString() });
-    if (!groupInfo || !groupInfo.exchangeRate || !groupInfo.rate) {
+    const group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group || !group.exchangeRate || !group.rate) {
       bot.sendMessage(chatId, "Vui lòng thiết lập tỷ giá và tỷ lệ trước.");
       return;
     }
     
     // Tính toán
-    const xValue = groupInfo.rate;
-    const yValue = groupInfo.exchangeRate;
+    const xValue = group.rate;
+    const yValue = group.exchangeRate;
     const vndValue = (amount / (1 - xValue / 100)) * yValue;
     
-    // Lấy đơn vị tiền tệ
-    const currencyUnit = groupInfo.currencyUnit || 'USDT';
+    // Lấy đơn vị tiền tệ cho nhóm
+    const currencyUnit = await getCurrencyForGroup(chatId);
     
     // Gửi kết quả
     bot.sendMessage(
@@ -157,18 +158,18 @@ const handleTrc20Address = async (bot, chatId, address, senderName) => {
 const handleReportCommand = async (bot, chatId, senderName) => {
   try {
     // Tìm group
-    const groupInfo = await Group.findOne({ chatId: chatId.toString() });
-    if (!groupInfo) {
+    const group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
       bot.sendMessage(chatId, "Không có dữ liệu khả dụng.");
       return;
     }
     
-    // Lấy đơn vị tiền tệ
-    const currencyUnit = groupInfo.currencyUnit || 'USDT';
+    // Lấy đơn vị tiền tệ cho nhóm
+    const currencyUnit = await getCurrencyForGroup(chatId);
     
     // Lấy thông tin tất cả các giao dịch trong ngày
     const todayDate = new Date();
-    const lastClearDate = groupInfo.lastClearDate;
+    const lastClearDate = group.lastClearDate;
     
     // Lấy tất cả các giao dịch deposit/withdraw
     const depositTransactions = await Transaction.find({
@@ -224,12 +225,12 @@ const handleReportCommand = async (bot, chatId, senderName) => {
         entries: paymentEntries, 
         totalCount: paymentEntries.length 
       },
-      rate: formatRateValue(groupInfo.rate) + "%",
-      exchangeRate: formatRateValue(groupInfo.exchangeRate),
-      totalAmount: formatSmart(groupInfo.totalVND),
-      totalUSDT: formatSmart(groupInfo.totalUSDT),
-      paidUSDT: formatSmart(groupInfo.usdtPaid),
-      remainingUSDT: formatSmart(groupInfo.remainingUSDT),
+      rate: formatRateValue(group.rate) + "%",
+      exchangeRate: formatRateValue(group.exchangeRate),
+      totalAmount: formatSmart(group.totalVND),
+      totalUSDT: formatSmart(group.totalUSDT),
+      paidUSDT: formatSmart(group.usdtPaid),
+      remainingUSDT: formatSmart(group.remainingUSDT),
       currencyUnit,
       cards: cardSummary
     };
@@ -270,7 +271,7 @@ const handleHelpCommand = async (bot, chatId) => {
 /v [số] - Chuyển đổi USDT sang VND
 
 *Lệnh quản lý:*
-/m [đơn vị] - Đặt đơn vị tiền tệ (VND/USDT)
+/m [đơn vị] - Đặt đơn vị tiền tệ cho nhóm này (VND/USDT)
 /d [tỷ lệ] - Đặt tỷ lệ và tỷ giá
 /x [ID] - Ẩn thẻ
 /sx [ID] - Hiện thẻ

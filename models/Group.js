@@ -30,12 +30,12 @@ const GroupSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  currencyUnit: {
+  currency: {
     type: String,
     default: 'USDT'
   },
   lastClearDate: {
-    type: Date,
+    type: Date, 
     default: Date.now
   },
   operators: {

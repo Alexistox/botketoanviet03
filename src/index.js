@@ -260,19 +260,8 @@ bot.onText(/^\/m/, async (msg) => {
       return;
     }
 
-    const newUnit = msg.text.substring(3).trim();
-    if (!newUnit) {
-      await bot.sendMessage(chatId, "Vui lòng chỉ định đơn vị tiền tệ mới.");
-      return;
-    }
-
-    await Settings.findOneAndUpdate(
-      { key: 'CURRENCY_UNIT' },
-      { value: newUnit },
-      { upsert: true }
-    );
-
-    await bot.sendMessage(chatId, `Đơn vị tiền tệ đã được thay đổi thành: ${newUnit}`);
+    // Delegate to the proper currency handler in userCommands.js
+    await handleMessage(msg);
   } catch (error) {
     console.error('Error handling currency unit change:', error);
     await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi thay đổi đơn vị tiền tệ, vui lòng thử lại.");

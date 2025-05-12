@@ -5,6 +5,7 @@ const Config = require('../models/Config');
 const { formatSmart, formatRateValue, formatTelegramMessage, isSingleNumber, formatDateUS, formatTimeString } = require('../utils/formatter');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
+const { getCurrencyForGroup } = require('../utils/permissions');
 
 /**
  * Xử lý lệnh thêm tiền (+)
@@ -58,8 +59,8 @@ const handlePlusCommand = async (bot, msg) => {
       bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
       return;
     }
-    // Lấy đơn vị tiền tệ
-    const currencyUnit = group.currencyUnit || 'USDT';
+    // Lấy đơn vị tiền tệ cho nhóm
+    const currencyUnit = await getCurrencyForGroup(chatId);
 
     // Bỏ qua giao dịch +0
     if (amountVND === 0) {
@@ -282,7 +283,7 @@ const handleMinusCommand = async (bot, msg) => {
     await group.save();
     
     // Lấy đơn vị tiền tệ
-    const currencyUnit = group.currencyUnit || 'USDT';
+    const currencyUnit = await getCurrencyForGroup(chatId);
     
     // Tạo chi tiết giao dịch
     let details;
@@ -449,7 +450,7 @@ const handlePercentCommand = async (bot, msg) => {
     }
     
     // Lấy đơn vị tiền tệ
-    const currencyUnit = group.currencyUnit || 'USDT';
+    const currencyUnit = await getCurrencyForGroup(chatId);
     
     // Cập nhật group
     group.usdtPaid += payUSDT;

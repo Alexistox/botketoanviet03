@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Group = require('../models/Group');
+const Config = require('../models/Config');
 
 /**
  * Kiểm tra quyền hạn owner
@@ -96,9 +97,39 @@ const extractUserFromCommand = async (input) => {
   }
 };
 
+/**
+ * Lấy đơn vị tiền tệ cho một nhóm cụ thể
+ * @param {string} chatId - ID của chat/nhóm
+ * @returns {Promise<string>} - Đơn vị tiền tệ của nhóm, mặc định là 'VND' nếu không tìm thấy
+ */
+const getCurrencyForGroup = async (chatId) => {
+  try {
+    // Tìm nhóm với chatId cụ thể
+    const group = await Group.findOne({ chatId: chatId.toString() });
+    
+    // Nếu tìm thấy nhóm và có thiết lập currency, trả về giá trị đó
+    if (group && group.currency) {
+      return group.currency;
+    }
+    
+    // Nếu không tìm thấy, kiểm tra cài đặt global để tương thích ngược
+    const configCurrency = await Config.findOne({ key: 'CURRENCY_UNIT' });
+    if (configCurrency && configCurrency.value) {
+      return configCurrency.value;
+    }
+    
+    // Trả về giá trị mặc định nếu không tìm thấy cài đặt nào
+    return 'VND';
+  } catch (error) {
+    console.error('Error in getCurrencyForGroup:', error);
+    return 'VND';
+  }
+};
+
 module.exports = {
   isUserOwner,
   isUserAdmin,
   isUserOperator,
-  extractUserFromCommand
+  extractUserFromCommand,
+  getCurrencyForGroup
 }; 
