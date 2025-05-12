@@ -490,23 +490,22 @@ const handleCurrencyUnitCommand = async (bot, msg) => {
       return;
     }
     
-    // Tìm config đã tồn tại hoặc tạo mới
-    let config = await Config.findOne({ key: 'CURRENCY_UNIT' });
-    
-    if (!config) {
-      config = new Config({
-        key: 'CURRENCY_UNIT',
-        value: currencyUnit
+    // Tìm hoặc tạo group
+    let group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
+      group = new Group({
+        chatId: chatId.toString(),
+        currencyUnit: currencyUnit
       });
     } else {
-      config.value = currencyUnit;
+      group.currencyUnit = currencyUnit;
     }
     
-    await config.save();
+    await group.save();
     bot.sendMessage(chatId, `✅ Đã thiết lập tiền tệ là ${currencyUnit}`);
   } catch (error) {
     console.error('Error in handleCurrencyUnitCommand:', error);
-    bot.sendMessage(msg.chat.id, "Xử lý lệnh thiết lập tiền tệ bị lỗi. Vui lòng thử lại sau.");
+    bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi thiết lập tiền tệ, vui lòng thử lại.");
   }
 };
 

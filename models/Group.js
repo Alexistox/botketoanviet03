@@ -30,6 +30,10 @@ const GroupSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  currencyUnit: {
+    type: String,
+    default: 'USDT'
+  },
   lastClearDate: {
     type: Date,
     default: Date.now
