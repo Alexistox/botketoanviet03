@@ -32,10 +32,6 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
     
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
-    if (!group || !group.exchangeRate || !group.rate) {
-      bot.sendMessage(chatId, "Vui lòng thiết lập tỷ giá và tỷ lệ trước.");
-      return;
-    }
     
     // Tính toán
     const xValue = group.rate;
@@ -48,8 +44,7 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
     // Gửi kết quả
     bot.sendMessage(
       chatId,
-      `🔄 ${formatSmart(amount)} ➡️ ${currencyUnit} ${formatSmart(usdtValue)}\n` +
-      `(汇率: ${formatRateValue(yValue)}, 费率: ${formatRateValue(xValue)}%)`
+      ` ${formatSmart(amount)} =  ${formatSmart(usdtValue)} ${currencyUnit}\n`
     );
   } catch (error) {
     console.error('Error in handleCalculateUsdtCommand:', error);
@@ -81,11 +76,6 @@ const handleCalculateVndCommand = async (bot, msg) => {
     
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
-    if (!group || !group.exchangeRate || !group.rate) {
-      bot.sendMessage(chatId, "Vui lòng thiết lập tỷ giá và tỷ lệ trước.");
-      return;
-    }
-    
     // Tính toán
     const xValue = group.rate;
     const yValue = group.exchangeRate;
@@ -97,8 +87,7 @@ const handleCalculateVndCommand = async (bot, msg) => {
     // Gửi kết quả
     bot.sendMessage(
       chatId,
-      `🔄 ${currencyUnit} ${formatSmart(amount)} ➡️ ${formatSmart(vndValue)}\n` +
-      `(汇率: ${formatRateValue(yValue)}, 费率: ${formatRateValue(xValue)}%)`
+      ` ${currencyUnit} ${formatSmart(amount)} = ${formatSmart(vndValue)}\n`
     );
   } catch (error) {
     console.error('Error in handleCalculateVndCommand:', error);
