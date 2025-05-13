@@ -117,9 +117,9 @@ const handlePlusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\` [${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} =[${formatSmart(newUSDT)}](https://t.me/@id7590104666) (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\` [${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT)}* (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\` [${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} =[${formatSmart(newUSDT)}](https://t.me/@id7590104666)`;
+      details = `\`${formatTimeString(new Date())}\` [${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT)}*`;
     }
     
     // Lưu giao dịch mới
@@ -288,9 +288,9 @@ const handleMinusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\` [-${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} =[-${formatSmart(minusUSDT)}](https://t.me/@id7590104666) (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\` [-${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT)}* (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\` [-${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} =[-${formatSmart(minusUSDT)}](https://t.me/@id7590104666)`;
+      details = `\`${formatTimeString(new Date())}\` [-${formatSmart(amountVND)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT)}*`;
     }
     // Lưu giao dịch mới
     const transaction = new Transaction({
