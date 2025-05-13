@@ -131,7 +131,7 @@ const formatTelegramMessage = (jsonData) => {
       // Sử dụng ID từ entry thay vì tạo ID mới
       const id = `!${entry.id || (entry.index + 1)}`;
       if (entry.messageId && entry.chatLink) {
-        // Tạo link đến tin nhắn gốc với ID là phần clickable
+        // Tạo link đến tin nhắn gốc với ID là phần clickable ok
         output += `${entry.details} ([${id}](${entry.chatLink}))\n`;
       }
     });
