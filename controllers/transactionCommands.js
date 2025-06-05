@@ -615,14 +615,16 @@ const handleSkipCommand = async (bot, msg) => {
     
     // Lấy giao dịch cần skip - vì ID là số thứ tự trong mảng (bắt đầu từ 1), nên cần trừ 1
     const transaction = transactions[id - 1];
-    
+    if (!transaction) {
+      bot.sendMessage(chatId, "Không tìm thấy giao dịch cần skip.");
+      return;
+    }
     // Bắt đầu xử lý skip dựa trên loại giao dịch
     if (transaction.type === 'deposit') {
       // Revert deposit: trừ VND và USDT
       group.totalVND -= transaction.amount;
       group.totalUSDT -= transaction.usdtAmount;
       group.remainingUSDT = group.totalUSDT - group.usdtPaid;
-      
       // Nếu có mã thẻ, cập nhật thẻ
       if (transaction.cardCode) {
         const card = await Card.findOne({ chatId: chatId.toString(), cardCode: transaction.cardCode });
@@ -636,7 +638,6 @@ const handleSkipCommand = async (bot, msg) => {
       group.totalVND += Math.abs(transaction.amount);
       group.totalUSDT += Math.abs(transaction.usdtAmount);
       group.remainingUSDT = group.totalUSDT - group.usdtPaid;
-      
       // Nếu có mã thẻ, cập nhật thẻ
       if (transaction.cardCode) {
         const card = await Card.findOne({ chatId: chatId.toString(), cardCode: transaction.cardCode });
@@ -649,7 +650,6 @@ const handleSkipCommand = async (bot, msg) => {
       // Revert payment: trừ USDT đã thanh toán
       group.usdtPaid -= transaction.usdtAmount;
       group.remainingUSDT = group.totalUSDT - group.usdtPaid;
-      
       // Nếu có mã thẻ, cập nhật thẻ
       if (transaction.cardCode) {
         const card = await Card.findOne({ chatId: chatId.toString(), cardCode: transaction.cardCode });
@@ -659,15 +659,12 @@ const handleSkipCommand = async (bot, msg) => {
         }
       }
     }
-    
     // Lưu thay đổi vào group
     await group.save();
-    
     // Đánh dấu giao dịch là đã skip
     transaction.skipped = true;
     transaction.skipReason = `Skipped by ${senderName} at ${new Date().toLocaleString()}`;
     await transaction.save();
-    
     // Lưu transaction mới về lệnh skip
     const skipTransaction = new Transaction({
       chatId: chatId.toString(),
@@ -677,15 +674,14 @@ const handleSkipCommand = async (bot, msg) => {
       senderName,
       timestamp: new Date()
     });
-    
     await skipTransaction.save();
-    
     // Lấy thông tin giao dịch gần đây sau khi skip
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
     const paymentData = await getPaymentHistory(chatId);
     const cardSummary = await getCardSummary(chatId);
-    
+    // Bổ sung lấy đơn vị tiền tệ cho group
+    const currencyUnit = await getCurrencyForGroup(chatId);
     // Tạo response JSON
     const responseData = {
       date: formatDateUS(todayDate),
@@ -700,19 +696,15 @@ const handleSkipCommand = async (bot, msg) => {
       currencyUnit,
       cards: cardSummary
     };
-    
     // Format và gửi tin nhắn
     const response = formatTelegramMessage(responseData);
-    
     // Kiểm tra trạng thái hiển thị buttons
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
-    
     bot.sendMessage(chatId, `✅ Đã xóa thành công bản ghi giao dịch có ID ${id}${isPaymentId ? '!' : ''}.`, { 
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
-    
     bot.sendMessage(chatId, response, { 
       parse_mode: 'Markdown',
       reply_markup: keyboard
