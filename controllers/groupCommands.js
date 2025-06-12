@@ -2,7 +2,7 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, formatDateUS } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatTelegramMessage, formatDateUS, getNumberFormat } = require('../utils/formatter');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
 const { getCurrencyForGroup } = require('../utils/permissions');
@@ -62,14 +62,15 @@ const handleClearCommand = async (bot, msg) => {
       exampleValue = (100000 / currentExRate) * (1 - currentRate / 100);
     }
     
-    // Lấy đơn vị tiền tệ
+    // Lấy đơn vị tiền tệ và định dạng số
     const currencyUnit = await getCurrencyForGroup(msg.chat.id);
+    const numberFormat = await getNumberFormat(msg.chat.id);
     
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(msg.chat.id);
     const paymentData = await getPaymentHistory(msg.chat.id);
-    const cardSummary = await getCardSummary(msg.chat.id);
+    const cardSummary = await getCardSummary(msg.chat.id, numberFormat);
     
     // Tạo response JSON
     const responseData = {
@@ -78,12 +79,13 @@ const handleClearCommand = async (bot, msg) => {
       paymentData,
       rate: formatRateValue(currentRate) + "%",
       exchangeRate: formatRateValue(currentExRate),
-      example: formatSmart(exampleValue),
+      example: formatSmart(exampleValue, numberFormat),
       totalAmount: "0",
       totalUSDT: "0",
       paidUSDT: "0",
       remainingUSDT: "0",
       currencyUnit,
+      numberFormat,
       cards: [] // Empty after clear
     };
     
@@ -162,14 +164,15 @@ const handleRateCommand = async (bot, msg) => {
       exampleValue = (100000 / group.exchangeRate) * (1 - xValue / 100);
     }
     
-    // Lấy đơn vị tiền tệ
+    // Lấy đơn vị tiền tệ và định dạng số
     const currencyUnit = await getCurrencyForGroup(chatId);
+    const numberFormat = await getNumberFormat(chatId);
     
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
     const paymentData = await getPaymentHistory(chatId);
-    const cardSummary = await getCardSummary(chatId);
+    const cardSummary = await getCardSummary(chatId, numberFormat);
     
     // Tạo response JSON
     const responseData = {
@@ -178,12 +181,13 @@ const handleRateCommand = async (bot, msg) => {
       paymentData,
       rate: formatRateValue(xValue) + "%",
       exchangeRate: formatRateValue(group.exchangeRate),
-      example: formatSmart(exampleValue),
-      totalAmount: formatSmart(group.totalVND),
-      totalUSDT: formatSmart(group.totalUSDT),
-      paidUSDT: formatSmart(group.usdtPaid),
-      remainingUSDT: formatSmart(group.remainingUSDT),
+      example: formatSmart(exampleValue, numberFormat),
+      totalAmount: formatSmart(group.totalVND, numberFormat),
+      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
+      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
+      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
       currencyUnit,
+      numberFormat,
       cards: cardSummary
     };
     
@@ -254,14 +258,15 @@ const handleExchangeRateCommand = async (bot, msg) => {
       exampleValue = (100000 / yValue) * (1 - group.rate / 100);
     }
     
-    // Lấy đơn vị tiền tệ
+    // Lấy đơn vị tiền tệ và định dạng số
     const currencyUnit = await getCurrencyForGroup(chatId);
+    const numberFormat = await getNumberFormat(chatId);
     
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
     const paymentData = await getPaymentHistory(chatId);
-    const cardSummary = await getCardSummary(chatId);
+    const cardSummary = await getCardSummary(chatId, numberFormat);
     
     // Tạo response JSON
     const responseData = {
@@ -270,12 +275,13 @@ const handleExchangeRateCommand = async (bot, msg) => {
       paymentData,
       rate: formatRateValue(group.rate) + "%",
       exchangeRate: formatRateValue(yValue),
-      example: formatSmart(exampleValue),
-      totalAmount: formatSmart(group.totalVND),
-      totalUSDT: formatSmart(group.totalUSDT),
-      paidUSDT: formatSmart(group.usdtPaid),
-      remainingUSDT: formatSmart(group.remainingUSDT),
+      example: formatSmart(exampleValue, numberFormat),
+      totalAmount: formatSmart(group.totalVND, numberFormat),
+      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
+      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
+      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
       currencyUnit,
+      numberFormat,
       cards: cardSummary
     };
     
@@ -354,14 +360,15 @@ const handleDualRateCommand = async (bot, msg) => {
     // Tính toán giá trị ví dụ
     const exampleValue = (100000 / newExRate) * (1 - newRate / 100);
     
-    // Lấy đơn vị tiền tệ
+    // Lấy đơn vị tiền tệ và định dạng số
     const currencyUnit = await getCurrencyForGroup(chatId);
+    const numberFormat = await getNumberFormat(chatId);
     
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
     const paymentData = await getPaymentHistory(chatId);
-    const cardSummary = await getCardSummary(chatId);
+    const cardSummary = await getCardSummary(chatId, numberFormat);
     
     // Tạo response JSON
     const responseData = {
@@ -370,12 +377,13 @@ const handleDualRateCommand = async (bot, msg) => {
       paymentData,
       rate: formatRateValue(newRate) + "%",
       exchangeRate: formatRateValue(newExRate),
-      example: formatSmart(exampleValue),
-      totalAmount: formatSmart(group.totalVND),
-      totalUSDT: formatSmart(group.totalUSDT),
-      paidUSDT: formatSmart(group.usdtPaid),
-      remainingUSDT: formatSmart(group.remainingUSDT),
+      example: formatSmart(exampleValue, numberFormat),
+      totalAmount: formatSmart(group.totalVND, numberFormat),
+      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
+      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
+      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
       currencyUnit,
+      numberFormat,
       cards: cardSummary
     };
     
@@ -524,7 +532,7 @@ const getPaymentHistory = async (chatId) => {
 /**
  * Hàm lấy thông tin các thẻ
  */
-const getCardSummary = async (chatId) => {
+const getCardSummary = async (chatId, numberFormat) => {
   try {
     // Lấy tất cả thẻ của nhóm không bị ẩn
     const cards = await Card.find({
@@ -538,20 +546,25 @@ const getCardSummary = async (chatId) => {
     const group = await Group.findOne({ chatId: chatId.toString() });
     const showRemaining = (group && group.rate === 0 && group.exchangeRate === 1);
     
+    // Nếu không có numberFormat được truyền vào, lấy từ database
+    if (!numberFormat) {
+      numberFormat = await getNumberFormat(chatId);
+    }
+    
     // Format thông tin từng thẻ
     const summary = cards.map(card => {
-      let cardInfo = `${card.cardCode}=[${formatSmart(card.total)}](https://t.me/@id7590104666)`;
+      let cardInfo = `${card.cardCode}=[${formatSmart(card.total, numberFormat)}](https://t.me/@id7590104666)`;
       
       // Thêm thông tin limit nếu có
       if (card.limit > 0) {
         const remaining = card.limit - card.total;
-        cardInfo += `|Hạn mức:[${formatSmart(remaining)}](https://t.me/@id7590104666)`;
+        cardInfo += `|Hạn mức:[${formatSmart(remaining, numberFormat)}](https://t.me/@id7590104666)`;
       }
       
       // Thêm thông tin thanh toán còn lại nếu rate=0 và exchange rate=1
       if (showRemaining) {
         const remainingPayment = card.total - card.paid;
-        cardInfo += `|\nSố dư trong thẻ:[${formatSmart(remainingPayment)}](https://t.me/@id7590104666)`;
+        cardInfo += `|\nSố dư trong thẻ:[${formatSmart(remainingPayment, numberFormat)}](https://t.me/@id7590104666)`;
       }
       
       return cardInfo;

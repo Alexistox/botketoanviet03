@@ -25,13 +25,61 @@ const {
   handleMathExpression,
   handleReportCommand,
   handleHelpCommand,
-  handleStartCommand
+  handleStartCommand,
+  handleFormatCommand
 } = require('./utilCommands');
 
 const {
   handleImageBankInfo,
   handleReplyImageBankInfo
 } = require('./imageCommands');
+
+const {
+  handlePlusCommand,
+  handleMinusCommand,
+  handlePercentCommand,
+  handleSkipCommand
+} = require('./transactionCommands');
+
+const {
+  handleClearCommand,
+  handleRateCommand,
+  handleExchangeRateCommand,
+  handleDualRateCommand,
+  handleDeleteCommand
+} = require('./groupCommands');
+
+const {
+  handleAddAdminCommand,
+  handleRemoveAdminCommand,
+  handleListAdminsCommand,
+  handleAddOperatorInGroupCommand,
+  handleRemoveOperatorInGroupCommand,
+  handleListOperatorsCommand,
+  handleListUsersCommand,
+  handleCurrencyUnitCommand,
+  handleSetUsdtAddressCommand,
+  handleGetUsdtAddressCommand,
+  handleSetOwnerCommand,
+  handleMigrateDataCommand,
+  handleListGroupsCommand,
+  handleAddInlineCommand,
+  handleRemoveInlineCommand,
+  displayInlineButtons,
+  handleEnableButtonsCommand,
+  handleDisableButtonsCommand,
+  handleAddInline2Command,
+  handleRemoveInline2Command,
+  handleButtons2Command,
+  handleChatWithButtons2Command,
+  handleRemoveCommand
+} = require('./userCommands');
+
+const {
+  handleHideCardCommand,
+  handleShowCardCommand,
+  handleListHiddenCardsCommand
+} = require('./cardCommands');
 
 // Hàm xử lý tin nhắn chính
 const handleMessage = async (bot, msg, cache) => {
@@ -281,6 +329,11 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText.startsWith('/v ')) {
         await handleCalculateVndCommand(bot, msg);
+        return;
+      }
+      
+      if (messageText.startsWith('/format')) {
+        await handleFormatCommand(bot, msg);
         return;
       }
       
@@ -589,53 +642,7 @@ const sendWelcomeMessage = async (bot, chatId, member) => {
   bot.sendMessage(chatId, welcomeMessage);
 };
 
-// Phần còn lại của file sẽ import các controller khác
-const { 
-  handleClearCommand,
-  handleRateCommand,
-  handleExchangeRateCommand,
-  handleDualRateCommand,
-  handleDeleteCommand
-} = require('./groupCommands');
 
-const {
-  handlePlusCommand,
-  handleMinusCommand,
-  handlePercentCommand,
-  handleSkipCommand
-} = require('./transactionCommands');
-
-const {
-  handleHideCardCommand,
-  handleShowCardCommand,
-  handleListHiddenCardsCommand
-} = require('./cardCommands');
-
-const {
-  handleListUsersCommand,
-  handleCurrencyUnitCommand,
-  handleSetUsdtAddressCommand,
-  handleSetOwnerCommand,
-  handleRemoveCommand,
-  handleMigrateDataCommand,
-  handleAddAdminCommand,
-  handleRemoveAdminCommand,
-  handleListAdminsCommand,
-  handleAddOperatorInGroupCommand,
-  handleRemoveOperatorInGroupCommand,
-  handleListOperatorsCommand,
-  handleListGroupsCommand,
-  handleAddInlineCommand,
-  handleRemoveInlineCommand,
-  displayInlineButtons,
-  handleGetUsdtAddressCommand,
-  handleEnableButtonsCommand,
-  handleDisableButtonsCommand,
-  handleAddInline2Command,
-  handleRemoveInline2Command,
-  handleButtons2Command,
-  handleChatWithButtons2Command
-} = require('./userCommands');
 
 module.exports = {
   handleMessage

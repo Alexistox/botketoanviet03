@@ -2,11 +2,51 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat } = require('../utils/formatter');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
 const { getCurrencyForGroup } = require('../utils/permissions');
+
+/**
+ * Xử lý lệnh định dạng số (/format)
+ */
+const handleFormatCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const messageText = msg.text.trim();
+    
+    // Tìm hoặc tạo group
+    let group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
+      group = new Group({
+        chatId: chatId.toString(),
+        numberFormat: 'default'
+      });
+      await group.save();
+    }
+    
+    // Kiểm tra định dạng lệnh
+    if (messageText === '/format') {
+      // Quay lại format ban đầu
+      group.numberFormat = 'default';
+      await group.save();
+      bot.sendMessage(chatId, "✅ Đã chuyển về định dạng số ban đầu (không có dấu phẩy)");
+    } else if (messageText.toLowerCase() === '/format a') {
+      // Chuyển sang format có dấu phẩy
+      group.numberFormat = 'comma';
+      await group.save();
+      bot.sendMessage(chatId, "✅ Đã chuyển sang định dạng số có dấu phẩy phân cách hàng nghìn");
+    } else {
+      // Lệnh không hợp lệ
+      bot.sendMessage(chatId, "❌ Cú pháp không hợp lệ.\n\n📝 Cách sử dụng:\n• `/format A` - Bật định dạng số có dấu phẩy\n• `/format` - Quay lại định dạng ban đầu");
+    }
+    
+  } catch (error) {
+    console.error('Error in handleFormatCommand:', error);
+    bot.sendMessage(msg.chat.id, "❌ Xử lý lệnh định dạng số bị lỗi. Vui lòng thử lại sau.");
+  }
+};
 
 /**
  * Xử lý lệnh tính toán USDT (/t)
@@ -153,8 +193,9 @@ const handleReportCommand = async (bot, chatId, senderName) => {
       return;
     }
     
-    // Lấy đơn vị tiền tệ cho nhóm
+    // Lấy đơn vị tiền tệ cho nhóm và định dạng số
     const currencyUnit = await getCurrencyForGroup(chatId);
+    const numberFormat = await getNumberFormat(chatId);
     
     // Lấy thông tin tất cả các giao dịch trong ngày
     const todayDate = new Date();
@@ -201,7 +242,7 @@ const handleReportCommand = async (bot, chatId, senderName) => {
     });
     
     // Lấy thông tin thẻ
-    const cardSummary = await getCardSummary(chatId);
+    const cardSummary = await getCardSummary(chatId, numberFormat);
     
     // Tạo response JSON với tất cả giao dịch
     const responseData = {
@@ -216,11 +257,12 @@ const handleReportCommand = async (bot, chatId, senderName) => {
       },
       rate: formatRateValue(group.rate) + "%",
       exchangeRate: formatRateValue(group.exchangeRate),
-      totalAmount: formatSmart(group.totalVND),
-      totalUSDT: formatSmart(group.totalUSDT),
-      paidUSDT: formatSmart(group.usdtPaid),
-      remainingUSDT: formatSmart(group.remainingUSDT),
+      totalAmount: formatSmart(group.totalVND, numberFormat),
+      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
+      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
+      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
       currencyUnit,
+      numberFormat,
       cards: cardSummary
     };
     
@@ -258,6 +300,10 @@ const handleHelpCommand = async (bot, chatId) => {
 *Lệnh chuyển đổi tiền tệ:*
 /t [số] - Chuyển đổi VND sang USDT
 /v [số] - Chuyển đổi USDT sang VND
+
+*Lệnh định dạng số:*
+/format A - Bật định dạng số có dấu phẩy (ví dụ: 1,000,000)
+/format - Quay lại định dạng số ban đầu (ví dụ: 1000000)
 
 *Lệnh quản lý:*
 /m [đơn vị] - Đặt đơn vị tiền tệ cho nhóm này (VND/USDT)
@@ -317,5 +363,6 @@ module.exports = {
   handleTrc20Address,
   handleReportCommand,
   handleHelpCommand,
-  handleStartCommand
+  handleStartCommand,
+  handleFormatCommand
 }; 

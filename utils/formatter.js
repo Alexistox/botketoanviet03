@@ -1,9 +1,37 @@
 /**
- * Định dạng số thông minh: không có dấu phẩy phần nghìn, dấu chấm phần thập phân
+ * Định dạng số với dấu phẩy phân cách hàng nghìn
  * @param {Number} num - Số cần định dạng
+ * @returns {String} - Chuỗi đã định dạng với dấu phẩy
+ */
+const formatWithComma = (num) => {
+  const floorVal = Math.floor(Math.abs(num));
+  const fraction = Math.abs(num) - floorVal;
+  
+  if (fraction < 1e-9) {
+    // Số nguyên: thêm dấu phẩy phân cách hàng nghìn
+    const formatted = Math.round(num).toLocaleString('en-US');
+    return formatted;
+  } else {
+    // Số thập phân: hiển thị với 2 chữ số sau dấu chấm và dấu phẩy phân cách
+    const formatted = num.toFixed(2);
+    const parts = formatted.split('.');
+    parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+    return parts.join('.');
+  }
+};
+
+/**
+ * Định dạng số thông minh dựa trên numberFormat của nhóm
+ * @param {Number} num - Số cần định dạng
+ * @param {String} numberFormat - Định dạng số ('default' hoặc 'comma')
  * @returns {String} - Chuỗi đã định dạng
  */
-const formatSmart = (num) => {
+const formatSmart = (num, numberFormat = 'default') => {
+  if (numberFormat === 'comma') {
+    return formatWithComma(num);
+  }
+  
+  // Default format (giữ nguyên logic cũ)
   const floorVal = Math.floor(Math.abs(num));
   const fraction = Math.abs(num) - floorVal;
   
@@ -96,6 +124,12 @@ const formatTimeString = (date) => {
 const formatTelegramMessage = (jsonData) => {
   let output = '';
   
+  // Lấy định dạng số từ jsonData hoặc sử dụng default
+  const numberFormat = jsonData.numberFormat || 'default';
+  
+  // Helper function để format số với định dạng của nhóm
+  const formatNumber = (num) => formatSmart(num, numberFormat);
+  
   // Date header - using US format (MM/DD/YYYY)
   const currentDate = new Date();
   const formattedDate = formatDateUS(currentDate);
@@ -164,13 +198,48 @@ const formatTelegramMessage = (jsonData) => {
   return output;
 };
 
+/**
+ * Định dạng số thông minh với tự động lấy định dạng của nhóm
+ * @param {Number} num - Số cần định dạng
+ * @param {String} chatId - ID của chat/nhóm
+ * @returns {Promise<String>} - Chuỗi đã định dạng
+ */
+const formatSmartWithGroup = async (num, chatId) => {
+  try {
+    const numberFormat = await getNumberFormat(chatId);
+    return formatSmart(num, numberFormat);
+  } catch (error) {
+    console.error('Error in formatSmartWithGroup:', error);
+    return formatSmart(num, 'default');
+  }
+};
+
+/**
+ * Lấy định dạng số của nhóm
+ * @param {String} chatId - ID của chat/nhóm
+ * @returns {Promise<String>} - Định dạng số của nhóm ('default' hoặc 'comma')
+ */
+const getNumberFormat = async (chatId) => {
+  try {
+    const Group = require('../models/Group');
+    const group = await Group.findOne({ chatId: chatId.toString() });
+    return group && group.numberFormat ? group.numberFormat : 'default';
+  } catch (error) {
+    console.error('Error in getNumberFormat:', error);
+    return 'default';
+  }
+};
+
 module.exports = {
   formatSmart,
+  formatWithComma,
+  formatSmartWithGroup,
   formatRateValue,
   isMathExpression,
   isSingleNumber,
   isTrc20Address,
   formatTelegramMessage,
   formatDateUS,
-  formatTimeString
+  formatTimeString,
+  getNumberFormat
 }; 

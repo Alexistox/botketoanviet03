@@ -34,6 +34,11 @@ const GroupSchema = new mongoose.Schema({
     type: String,
     default: 'USDT'
   },
+  numberFormat: {
+    type: String,
+    enum: ['default', 'comma'],
+    default: 'default'
+  },
   lastClearDate: {
     type: Date, 
     default: Date.now
