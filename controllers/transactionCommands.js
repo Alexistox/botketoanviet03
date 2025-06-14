@@ -614,9 +614,14 @@ const handleSkipCommand = async (bot, msg) => {
       }).sort({ timestamp: 1 });
     }
     
+    // Kiểm tra xem có giao dịch nào không
+    if (!transactions || transactions.length === 0) {
+      bot.sendMessage(chatId, `Không có giao dịch nào để skip trong bản ghi ${isPaymentId ? 'thanh toán' : 'nạp/rút tiền'}.`);
+      return;
+    }
     // Kiểm tra xem ID có hợp lệ không
     if (id > transactions.length) {
-      bot.sendMessage(chatId, `ID không hợp lệ. Chỉ có ${transactions.length} mục trong bản ghi ${isPaymentId ? 'thanh toán' : 'nạp tiền'}.`);
+      bot.sendMessage(chatId, `ID không hợp lệ. Chỉ có ${transactions.length} mục trong bản ghi ${isPaymentId ? 'thanh toán' : 'nạp/rút tiền'}.`);
       return;
     }
     
@@ -626,6 +631,13 @@ const handleSkipCommand = async (bot, msg) => {
       bot.sendMessage(chatId, "Không tìm thấy giao dịch cần skip.");
       return;
     }
+    // Kiểm tra kiểu dữ liệu các trường số
+    if (typeof group.totalVND !== 'number') group.totalVND = 0;
+    if (typeof group.totalUSDT !== 'number') group.totalUSDT = 0;
+    if (typeof group.usdtPaid !== 'number') group.usdtPaid = 0;
+    if (typeof group.remainingUSDT !== 'number') group.remainingUSDT = 0;
+    if (typeof transaction.amount !== 'number') transaction.amount = 0;
+    if (typeof transaction.usdtAmount !== 'number') transaction.usdtAmount = 0;
     // Bắt đầu xử lý skip dựa trên loại giao dịch
     if (transaction.type === 'deposit') {
       // Revert deposit: trừ VND và USDT
@@ -638,6 +650,8 @@ const handleSkipCommand = async (bot, msg) => {
         if (card) {
           card.total -= transaction.amount;
           await card.save();
+        } else {
+          console.warn(`Không tìm thấy thẻ với mã ${transaction.cardCode} khi revert deposit.`);
         }
       }
     } else if (transaction.type === 'withdraw') {
@@ -651,6 +665,8 @@ const handleSkipCommand = async (bot, msg) => {
         if (card) {
           card.total += Math.abs(transaction.amount);
           await card.save();
+        } else {
+          console.warn(`Không tìm thấy thẻ với mã ${transaction.cardCode} khi revert withdraw.`);
         }
       }
     } else if (transaction.type === 'payment') {
@@ -663,14 +679,19 @@ const handleSkipCommand = async (bot, msg) => {
         if (card) {
           card.paid -= transaction.usdtAmount;
           await card.save();
+        } else {
+          console.warn(`Không tìm thấy thẻ với mã ${transaction.cardCode} khi revert payment.`);
         }
       }
+    } else {
+      bot.sendMessage(chatId, `Loại giao dịch không hợp lệ: ${transaction.type}`);
+      return;
     }
     // Lưu thay đổi vào group
     await group.save();
     // Đánh dấu giao dịch là đã skip
     transaction.skipped = true;
-    transaction.skipReason = `Skipped by ${senderName} at ${new Date().toLocaleString()}`;
+    transaction.skipReason = `Skipped by ${senderName} at ${(new Date()).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`;
     await transaction.save();
     // Lưu transaction mới về lệnh skip
     const skipTransaction = new Transaction({
@@ -684,19 +705,19 @@ const handleSkipCommand = async (bot, msg) => {
     await skipTransaction.save();
     // Lấy thông tin giao dịch gần đây sau khi skip
     const todayDate = new Date();
+    // Lấy numberFormat và currencyUnit trước khi gọi các hàm phụ thuộc
+    const numberFormat = await getNumberFormat(chatId);
+    const currencyUnit = await getCurrencyForGroup(chatId);
     const depositData = await getDepositHistory(chatId);
     const paymentData = await getPaymentHistory(chatId);
     const cardSummary = await getCardSummary(chatId, numberFormat);
-    // Bổ sung lấy đơn vị tiền tệ cho group và định dạng số
-    const currencyUnit = await getCurrencyForGroup(chatId);
-    const numberFormat = await getNumberFormat(chatId);
     // Tạo response JSON
     const responseData = {
       date: formatDateUS(todayDate),
       depositData,
       paymentData,
-      rate: formatRateValue(group.rate) + "%",
-      exchangeRate: formatRateValue(group.exchangeRate),
+      rate: group.rate !== undefined ? formatRateValue(group.rate) + "%" : '',
+      exchangeRate: group.exchangeRate !== undefined ? formatRateValue(group.exchangeRate) : '',
       totalAmount: formatSmart(group.totalVND, numberFormat),
       totalUSDT: formatSmart(group.totalUSDT, numberFormat),
       paidUSDT: formatSmart(group.usdtPaid, numberFormat),
@@ -710,11 +731,11 @@ const handleSkipCommand = async (bot, msg) => {
     // Kiểm tra trạng thái hiển thị buttons
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
-    bot.sendMessage(chatId, `✅ Đã xóa thành công bản ghi giao dịch có ID ${id}${isPaymentId ? '!' : ''}.`, { 
+    await bot.sendMessage(chatId, `✅ Đã xóa thành công bản ghi giao dịch có ID ${id}${isPaymentId ? '!' : ''}.`, { 
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
-    bot.sendMessage(chatId, response, { 
+    await bot.sendMessage(chatId, response, { 
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
