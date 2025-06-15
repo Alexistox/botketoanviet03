@@ -325,6 +325,7 @@ const handleHelpCommand = async (bot, chatId) => {
 /u - Xem địa chỉ USDT
 /users - Xem danh sách người dùng
 /report - Xem báo cáo
+/repeat [text] - Lặp lại text (ví dụ: /repeat Hello World)
 `;
     bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
   } catch (error) {

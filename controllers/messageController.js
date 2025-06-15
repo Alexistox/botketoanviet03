@@ -448,6 +448,17 @@ const handleMessage = async (bot, msg, cache) => {
         return;
       }
       
+      // Lệnh repeat - lặp lại text
+      if (messageText.startsWith('/repeat ')) {
+        const textToRepeat = messageText.substring(8).trim(); // Lấy text sau "/repeat "
+        if (textToRepeat) {
+          bot.sendMessage(chatId, textToRepeat);
+        } else {
+          bot.sendMessage(chatId, "Vui lòng nhập text cần lặp lại. Ví dụ: /repeat Hello World");
+        }
+        return;
+      }
+      
       if (messageText === '/report') {
         await handleReportCommand(bot, chatId, firstName);
         return;
