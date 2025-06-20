@@ -257,52 +257,8 @@ const commandPermissions = {
   '结束': 'user'
 };
 
-// Hàm xử lý tin nhắn với kiểm tra quyền
-const handleMessage = async (bot, msg, cache) => {
-  try {
-    // ... code hiện tại ...
-    
-    // Kiểm tra quyền cho các lệnh
-    let command = '';
-    let requiredPermission = 'user';
-    
-    if (messageText.startsWith('/')) {
-      // Lấy phần lệnh (ví dụ: "/usdt" từ "/usdt address")
-      command = messageText.split(' ')[0];
-      requiredPermission = commandPermissions[command] || 'operator';
-    } else if (messageText.startsWith('+') || messageText.startsWith('-')) {
-      // Lệnh + hoặc -
-      command = messageText[0];
-      requiredPermission = commandPermissions[command] || 'operator';
-    } else {
-      // Lệnh tiếng Trung
-      for (const cmd of Object.keys(commandPermissions)) {
-        if (messageText.startsWith(cmd)) {
-          command = cmd;
-          requiredPermission = commandPermissions[cmd];
-          break;
-        }
-      }
-    }
-    
-    // Kiểm tra quyền nếu không phải lệnh dành cho user
-    if (requiredPermission !== 'user' && !await checkPermission(userId, chatId, requiredPermission)) {
-      const permissionMessages = {
-        'owner': '⛔ 只有机器人所有者才能使用此命令',
-        'admin': '⛔ 只有管理员才能使用此命令',
-        'operator': '⛔ 只有操作员才能使用此命令'
-      };
-      
-      bot.sendMessage(chatId, permissionMessages[requiredPermission]);
-      return;
-    }
-    
-    // Tiếp tục xử lý tin nhắn như hiện tại
-    // ...
-  } catch (error) {
-    console.error('Error in handleMessage:', error);
-  }
-};
+// REMOVED: handleMessage function should not be in model files
+// This function has been moved to controllers/messageController.js
 
 // Liệt kê admins
 const handleListAdminsCommand = async (bot, msg) => {

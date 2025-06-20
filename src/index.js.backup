@@ -11,6 +11,9 @@ const { handleReportCommand, handleClearCommand, handleDualCommand, handleCalcul
 const { handleUserManagement, handleCardManagement, isUsernameAllowed } = require('./handlers/userHandler');
 const Settings = require('./models/Settings');
 
+// THIS FILE IS DISABLED TO AVOID CONFLICTS WITH app.js
+// KEEPING AS BACKUP ONLY
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
@@ -199,13 +202,6 @@ bot.onText(/^\/d/, async (msg) => {
 bot.onText(/^\/[tv]/, async (msg) => {
   try {
     const chatId = msg.chat.id;
-    const username = msg.from.username;
-    
-    if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
-      return;
-    }
-
     await handleCalculateCommand(chatId, msg.text, bot);
   } catch (error) {
     console.error('Error handling calculate command:', error);
@@ -213,8 +209,8 @@ bot.onText(/^\/[tv]/, async (msg) => {
   }
 });
 
-// Handle user management commands
-bot.onText(/^(加操作人|移除操作人|\/users)$/, async (msg) => {
+// Handle user management
+bot.onText(/^(加操作人|移除操作人)/, async (msg) => {
   try {
     const chatId = msg.chat.id;
     const username = msg.from.username;
@@ -231,8 +227,8 @@ bot.onText(/^(加操作人|移除操作人|\/users)$/, async (msg) => {
   }
 });
 
-// Handle card management commands
-bot.onText(/^(\/x|\/sx|\/hiddenCards)/, async (msg) => {
+// Handle card management  
+bot.onText(/^\/[sx]/, async (msg) => {
   try {
     const chatId = msg.chat.id;
     const username = msg.from.username;
@@ -249,58 +245,39 @@ bot.onText(/^(\/x|\/sx|\/hiddenCards)/, async (msg) => {
   }
 });
 
-// Handle currency unit change
-bot.onText(/^\/m/, async (msg) => {
-  try {
-    const chatId = msg.chat.id;
-    const username = msg.from.username;
-    
-    if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
-      return;
-    }
-
-    // Delegate to the proper currency handler in userCommands.js
-    await handleMessage(msg);
-  } catch (error) {
-    console.error('Error handling currency unit change:', error);
-    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi thay đổi đơn vị tiền tệ, vui lòng thử lại.");
-  }
-});
-
-// Handle end session command
-bot.onText(/^\/off/, async (msg) => {
-  try {
-    const chatId = msg.chat.id;
-    const username = msg.from.username;
-    
-    if (!await isUsernameAllowed(username)) {
-      await bot.sendMessage(chatId, "Bạn không có quyền sử dụng lệnh này.");
-      return;
-    }
-
-    await bot.sendMessage(chatId, "Tạm biệt!");
-  } catch (error) {
-    console.error('Error handling end session command:', error);
-    await bot.sendMessage(msg.chat.id, "Đã xảy ra lỗi khi kết thúc phiên, vui lòng thử lại.");
-  }
-});
-
-// Handle all messages for logging
+// Handle miscellaneous messages
 bot.on('message', async (msg) => {
   try {
+    // Log message
     await handleMessage(msg);
+    
+    // Handle other patterns that don't match specific commands
+    const text = msg.text;
+    if (!text) return;
+    
+    const chatId = msg.chat.id;
+    const username = msg.from.username;
+    
+    if (!await isUsernameAllowed(username)) {
+      return; // Silently ignore for non-allowed users
+    }
+    
+    // Handle Chinese commands
+    if (text === '上课') {
+      await handleClearCommand(chatId, username, bot);
+    } else if (text === '结束') {
+      await handleReportCommand(chatId, bot);
+    } else if (text.startsWith('设置费率') || text.startsWith('设置汇率')) {
+      await handleDualCommand(chatId, text, username, bot);
+    }
   } catch (error) {
-    console.error('Error handling message:', error);
+    console.error('Error handling general message:', error);
   }
 });
 
-// Error handling for polling
-bot.on('polling_error', (error) => {
-  console.error('Polling error:', error);
+// Start server
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
 
-// Start Express server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-}); 
+module.exports = { bot }; 

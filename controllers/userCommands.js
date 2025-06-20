@@ -1234,6 +1234,39 @@ const handleChatWithButtons2Command = async (bot, msg) => {
   await bot.sendMessage(chatId, content, { reply_markup });
 };
 
+// Add missing handleRemoveCommand function
+const handleRemoveCommand = async (bot, msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  
+  if (!(await isUserOwner(userId))) {
+    bot.sendMessage(chatId, "⛔ Chỉ owner mới có thể sử dụng lệnh này!");
+    return;
+  }
+  
+  const args = msg.text.split(' ');
+  if (args.length < 2) {
+    bot.sendMessage(chatId, 'Cú pháp: /remove [userID]');
+    return;
+  }
+  
+  const targetUserId = args[1];
+  
+  try {
+    // Remove user from User collection
+    const result = await User.findOneAndDelete({ userId: targetUserId });
+    
+    if (result) {
+      bot.sendMessage(chatId, `✅ Đã xóa người dùng ${result.username || targetUserId} khỏi hệ thống`);
+    } else {
+      bot.sendMessage(chatId, `❌ Không tìm thấy người dùng với ID: ${targetUserId}`);
+    }
+  } catch (error) {
+    console.error('Error in handleRemoveCommand:', error);
+    bot.sendMessage(chatId, '❌ Có lỗi xảy ra khi xóa người dùng');
+  }
+};
+
 module.exports = {
   handleListUsersCommand,
   handleCurrencyUnitCommand,
@@ -1259,5 +1292,6 @@ module.exports = {
   handleAddInline2Command,
   handleRemoveInline2Command,
   handleButtons2Command,
-  handleChatWithButtons2Command
+  handleChatWithButtons2Command,
+  handleRemoveCommand
 }; 
