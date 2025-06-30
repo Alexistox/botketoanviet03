@@ -173,7 +173,7 @@ const formatTelegramMessage = (jsonData) => {
   } else {
     output += "*Đã thanh toán* ([0](https://t.me/@id7590104666) Đơn):\n\n";
   }
-  output += `*Tổng tiền nạp💰*: [${jsonData.totalAmount}](https://t.me/@id7590104666)\n`;
+  output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}\n`;
   // Rate information
   const rateInfo = `Phí: [${jsonData.rate}](https://t.me/@id7590104666)|  Tỷ giá: [${jsonData.exchangeRate}](https://t.me/@id7590104666)\n`;
  
@@ -187,9 +187,9 @@ const formatTelegramMessage = (jsonData) => {
   output += `${rateInfoWithExample}\n`;
  
   // Summary section
-  output += `*Tiền phải trả*: [${jsonData.totalUSDT}](https://t.me/@id7590104666)   ${jsonData.currencyUnit || 'USDT'}\n`;
-  output += `*Tiền đã trả*: [${jsonData.paidUSDT}](https://t.me/@id7590104666)   ${jsonData.currencyUnit || 'USDT'}\n`;
-  output += `*Tiền còn lại*: [${jsonData.remainingUSDT}](https://t.me/@id7590104666)   ${jsonData.currencyUnit || 'USDT'}\n`;
+  output += `*Tiền phải trả*: ${jsonData.totalUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
+  output += `*Tiền đã trả*: ${jsonData.paidUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
+  output += `*Tiền còn lại*: ${jsonData.remainingUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
   
    // Cards section (if present)
    if (jsonData.cards && jsonData.cards.length > 0) {
