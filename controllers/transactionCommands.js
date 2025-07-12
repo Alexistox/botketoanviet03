@@ -2,7 +2,7 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, isSingleNumber, formatDateUS, formatTimeString, getNumberFormat } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatTelegramMessage, isSingleNumber, formatDateUS, formatTimeString, getNumberFormat, parseNumberWithUnits, preprocessMathExpression } = require('../utils/formatter');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const { getCurrencyForGroup } = require('../utils/permissions');
@@ -34,13 +34,16 @@ const handlePlusCommand = async (bot, msg) => {
     let amountVND;
     if (!isSingleNumber(expr)) {
       try {
-        amountVND = eval(expr);
+        // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
+        const preprocessedExpr = preprocessMathExpression(expr);
+        amountVND = eval(preprocessedExpr);
       } catch(err) {
         bot.sendMessage(chatId, "Thử lại đi, sai rồi.");
         return;
       }
     } else {
-      amountVND = parseFloat(expr);
+      // Sử dụng parseNumberWithUnits để xử lý cả số thường và số có đơn vị viết tắt
+      amountVND = parseNumberWithUnits(expr);
     }
     
     if (isNaN(amountVND)) {
@@ -119,9 +122,9 @@ const handlePlusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\` [${formatSmart(amountVND, numberFormat)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)}\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\` [${formatSmart(amountVND, numberFormat)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT, numberFormat)}*`;
+      details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)}\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT, numberFormat)}*`;
     }
     
     // Lưu giao dịch mới
@@ -243,13 +246,16 @@ const handleMinusCommand = async (bot, msg) => {
     let amountVND;
     if (!isSingleNumber(expr)) {
       try {
-        amountVND = eval(expr);
+        // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
+        const preprocessedExpr = preprocessMathExpression(expr);
+        amountVND = eval(preprocessedExpr);
       } catch(err) {
         bot.sendMessage(chatId, "Thử lại đi, sai rồi.");
         return;
       }
     } else {
-      amountVND = parseFloat(expr);
+      // Sử dụng parseNumberWithUnits để xử lý cả số thường và số có đơn vị viết tắt
+      amountVND = parseNumberWithUnits(expr);
     }
     
     if (isNaN(amountVND)) {
@@ -292,9 +298,9 @@ const handleMinusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      details = `\`${formatTimeString(new Date())}\` [-${formatSmart(amountVND, numberFormat)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode})`;
+      details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)}\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode})`;
     } else {
-      details = `\`${formatTimeString(new Date())}\` [-${formatSmart(amountVND, numberFormat)}](https://t.me/@id7590104666)\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}*`;
+      details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)}\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}*`;
     }
     // Lưu giao dịch mới
     const transaction = new Transaction({
@@ -421,13 +427,16 @@ const handlePercentCommand = async (bot, msg) => {
     let payUSDT;
     if (!isSingleNumber(expr)) {
       try {
-        payUSDT = eval(expr);
+        // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
+        const preprocessedExpr = preprocessMathExpression(expr);
+        payUSDT = eval(preprocessedExpr);
       } catch(err) {
         bot.sendMessage(chatId, "Thử lại đi, sai rồi.");
         return;
       }
     } else {
-      payUSDT = parseFloat(expr);
+      // Sử dụng parseNumberWithUnits để xử lý cả số thường và số có đơn vị viết tắt
+      payUSDT = parseNumberWithUnits(expr);
     }
     
     if (isNaN(payUSDT)) {

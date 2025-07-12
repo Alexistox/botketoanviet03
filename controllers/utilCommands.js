@@ -2,7 +2,7 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression } = require('../utils/formatter');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
@@ -140,10 +140,13 @@ const handleCalculateVndCommand = async (bot, msg) => {
  */
 const handleMathExpression = async (bot, chatId, expression, senderName) => {
   try {
+    // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
+    const preprocessedExpression = preprocessMathExpression(expression);
+    
     // Tính toán kết quả
     let result;
     try {
-      result = eval(expression);
+      result = eval(preprocessedExpression);
     } catch (error) {
       bot.sendMessage(chatId, "Biểu thức không hợp lệ, vui lòng thử lại.");
       return;

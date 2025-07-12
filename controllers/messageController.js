@@ -10,6 +10,7 @@ const {
   formatTelegramMessage
 } = require('../utils/formatter');
 const { isUserOwner, isUserAdmin, isUserOperator } = require('../utils/permissions');
+const { parseBankTransferMessage, isBankTransferMessage } = require('../utils/bankParser');
 const messages = require('../src/messages/vi');
 
 const Group = require('../models/Group');
@@ -126,6 +127,12 @@ const handleMessage = async (bot, msg, cache) => {
     // Xử lý khi người dùng reply một tin nhắn có ảnh
     if (msg.reply_to_message && msg.reply_to_message.photo && msg.text && msg.text === ('/c')) {
       await handleReplyImageBankInfo(bot, msg);
+      return;
+    }
+    
+    // Xử lý reply "1" vào tin nhắn thông báo chuyển tiền ngân hàng
+    if (msg.reply_to_message && msg.reply_to_message.text && messageText.trim() === '1') {
+      await handleBankTransferReply(bot, msg);
       return;
     }
     
@@ -607,6 +614,64 @@ const handleMessage = async (bot, msg, cache) => {
     }
   } catch (error) {
     console.error('Error in handleMessage:', error);
+  }
+};
+
+/**
+ * Xử lý reply "1" vào tin nhắn thông báo chuyển tiền ngân hàng
+ */
+const handleBankTransferReply = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const firstName = msg.from.first_name || '';
+    
+    // Kiểm tra quyền người dùng - phải có quyền Operator
+    if (!(await isUserOperator(userId, chatId))) {
+      bot.sendMessage(chatId,);
+      return;
+    }
+    
+    const repliedMessage = msg.reply_to_message.text;
+    
+    
+    // Parse số tiền từ tin nhắn
+    const bankInfo = parseBankTransferMessage(repliedMessage);
+    
+    if (!bankInfo) {
+      bot.sendMessage(chatId,);
+      return;
+    }
+    
+    // Tạo tin nhắn giả lập lệnh +[số tiền]
+    const simulatedMsg = {
+      ...msg,
+      text: `+${bankInfo.amount}`,
+      message_id: msg.message_id // Giữ nguyên message ID để tracking
+    };
+    
+    // Gọi handlePlusCommand để xử lý tự động
+    const { handlePlusCommand } = require('./transactionCommands');
+    
+    // Thông báo cho người dùng biết đang xử lý
+    const confirmMessage = await bot.sendMessage(
+      chatId, 
+      `✅ Đã nhận lệnh tự động: +${formatSmart(bankInfo.amount)}\n🔄 Đang xử lý...`
+    );
+    
+    // Thực hiện lệnh cộng tiền
+    await handlePlusCommand(bot, simulatedMsg);
+    
+    // Xóa tin nhắn thông báo tạm thời sau 3 giây
+    setTimeout(() => {
+      bot.deleteMessage(chatId, confirmMessage.message_id).catch(() => {
+        // Ignore error if message already deleted
+      });
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Error in handleBankTransferReply:', error);
+    bot.sendMessage(msg.chat.id,);
   }
 };
 
