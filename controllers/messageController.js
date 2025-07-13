@@ -64,6 +64,7 @@ const {
   handleSetOwnerCommand,
   handleMigrateDataCommand,
   handleListGroupsCommand,
+  handleGroupsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
   displayInlineButtons,
@@ -302,6 +303,11 @@ const handleMessage = async (bot, msg, cache) => {
         return;
       }
       
+      if (messageText === '/groups') {
+        await handleGroupsCommand(bot, msg);
+        return;
+      }
+
       // Các lệnh quản lý operator - admin và owner
       if (messageText.startsWith('/op ')) {
         await handleAddOperatorInGroupCommand(bot, msg);

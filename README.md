@@ -13,10 +13,12 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 - Currency conversion utilities
 - Mathematical expressions evaluation
 - TRC20 address formatting
+- **NEW: Groups Dashboard Website** - View all groups information in a beautiful web interface
 - **NEW: Number format with abbreviated units (k, tr, m), combined formats, mixed units and comma-separated numbers**
 
 ## Recent Updates
 
+- **🆕 LATEST: Groups Dashboard Website**: Use `/groups` command to get a link to a beautiful web dashboard showing all bot groups information with statistics, financial data, and operators list.
 - **🆕 LATEST: Auto Bank Transfer Processing**: Reply "1" to bank transfer notification messages to automatically execute `+[amount]` command! Bot intelligently parses bank notifications and extracts amounts automatically.
 - **Added support for abbreviated number formats in mathematical expressions**: Now you can use expressions like `2k+500`, `1tr*2`, `3m/2+4k`, etc. All number formats (k, tr, m, comma-separated) are supported in math calculations.
 - **Added support for mixed unit formats**: 4m2k = 4,002,000, 5tr3k = 5,003,000, 1m500k = 1,500,000, etc.
@@ -34,6 +36,10 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 - `/start` - Start the bot
 - `/help` - Display help information
 - `/off` - End session message
+
+### Group Management
+- `/groups` - Get link to web dashboard with all groups information (admin only)
+- `/listgroups` - List all groups in text format (admin only)
 
 ### Transaction Recording
 - `+ [amount] [note]` - Add deposit record (supports abbreviated, combined, mixed units, and comma-separated formats)
@@ -104,6 +110,28 @@ The bot now supports multiple number formats:
   - `2tr543k-1m` = 1,543,000 (2,543,000 - 1,000,000)
   - All number formats (k, tr, m, comma-separated, combined, mixed units) work in calculations
 
+### 🌐 Groups Dashboard Website
+**NEW FEATURE**: Beautiful web interface to view all groups information!
+
+**How to use:**
+1. Use `/groups` command (admin only)
+2. Bot will send you a link to the web dashboard
+3. Click the link to view:
+   - 📊 **Overview Statistics**: Total groups, transactions, and members
+   - 👥 **Group Details**: Individual group information cards
+   - 💰 **Financial Data**: VND/USDT totals, rates, and exchange rates
+   - 👨‍💼 **Operators**: List of operators in each group
+   - 📅 **Activity**: Last clear date and transaction counts
+   - 🔄 **Auto-refresh**: Data updates every 5 minutes
+
+**Features:**
+- ✅ Responsive design for mobile and desktop
+- ✅ Real-time data from MongoDB
+- ✅ Beautiful gradient design
+- ✅ Easy-to-read cards layout
+- ✅ Manual refresh button
+- ✅ Automatic data updates
+
 ### 🏦 Auto Bank Transfer Processing
 **NEW FEATURE**: Automatically process bank transfer notifications!
 
@@ -138,9 +166,45 @@ The bot now supports multiple number formats:
 ### TRC20 Address Recognition
 - Enter TRC20 address for formatted display
 
+## Setup
+
+### Environment Variables
+Create a `.env` file in the root directory with:
+
+```env
+# Telegram Bot Token
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+
+# Server URL for website links (required for /groups command)
+SERVER_URL=https://your-server-domain.com
+# For local development: SERVER_URL=http://localhost:3003
+
+# MongoDB Connection
+MONGODB_URI=mongodb://localhost:27017/your_database_name
+
+# Port for Express server (default: 3003)
+PORT=3003
+
+# OpenAI API Key (for image processing)
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+### Installation
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables in `.env` file
+4. Start the bot: `npm start`
+
+### Important Notes
+- The `SERVER_URL` environment variable is required for the `/groups` command to work properly
+- Make sure your server is accessible from the internet if you want to use the groups dashboard
+- For local development, use `http://localhost:3003` as SERVER_URL
+- For production, use your actual domain name (e.g., `https://yourbot.herokuapp.com`)
+
 ## Tech Stack
 
 - Node.js
 - MongoDB with Mongoose
 - Telegram Bot API
 - OpenAI API for image processing
+- Express.js for web dashboard

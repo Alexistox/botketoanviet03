@@ -735,6 +735,53 @@ const handleListGroupsCommand = async (bot, msg) => {
 };
 
 /**
+ * Xử lý lệnh gửi link website hiển thị danh sách nhóm
+ */
+const handleGroupsCommand = async (bot, msg) => {
+  try {
+    const userId = msg.from.id;
+    
+    // Chỉ cho phép owner hoặc admin sử dụng lệnh này
+    if (!(await isUserAdmin(userId))) {
+      bot.sendMessage(msg.chat.id, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền sử dụng lệnh này!");
+      return;
+    }
+    
+    // Tạo URL website
+    const serverUrl = process.env.SERVER_URL || 'https://your-server.com';
+    const websiteUrl = `${serverUrl}/groups`;
+    
+    // Tạo message với link
+    const message = `
+📊 *Danh sách nhóm Bot*
+
+🔗 Xem tất cả thông tin các nhóm tại:
+${websiteUrl}
+
+📱 Website này hiển thị:
+• Tổng quan thống kê
+• Thông tin chi tiết từng nhóm
+• Số lượng thành viên và giao dịch
+• Rate và tỷ giá hiện tại
+• Danh sách operators
+• Lịch sử làm sạch
+
+🔄 Dữ liệu được cập nhật tự động mỗi 5 phút
+    `;
+    
+    // Gửi tin nhắn
+    bot.sendMessage(msg.chat.id, message.trim(), { 
+      parse_mode: 'Markdown',
+      disable_web_page_preview: false
+    });
+    
+  } catch (error) {
+    console.error('Error in handleGroupsCommand:', error);
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh gửi link website bị lỗi. Vui lòng thử lại sau.");
+  }
+};
+
+/**
  * Xử lý lệnh thêm nút inline keyboard
  */
 const handleAddInlineCommand = async (bot, msg) => {
@@ -1281,10 +1328,11 @@ module.exports = {
   handleRemoveOperatorInGroupCommand,
   handleListOperatorsCommand,
   handleListGroupsCommand,
+  handleGroupsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
-  handleInlineButtonCallback,
   displayInlineButtons,
+  handleInlineButtonCallback,
   handleEnableButtonsCommand,
   handleDisableButtonsCommand,
   getButtonsStatus,
