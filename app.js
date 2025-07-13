@@ -861,189 +861,6 @@ app.get('/groups', (req, res) => {
                 background: #2980b9;
             }
             
-            .message-btn {
-                background: #27ae60;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.9em;
-                margin-left: 5px;
-            }
-            
-            .message-btn:hover {
-                background: #229954;
-            }
-            
-            /* Modal styles */
-            .modal {
-                display: none;
-                position: fixed;
-                z-index: 1000;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0,0,0,0.5);
-            }
-            
-            .modal-content {
-                background-color: white;
-                margin: 2% auto;
-                padding: 0;
-                border-radius: 8px;
-                width: 90%;
-                max-width: 1000px;
-                height: 85vh;
-                display: flex;
-                flex-direction: column;
-            }
-            
-            .modal-header {
-                background: #2c3e50;
-                color: white;
-                padding: 20px;
-                border-radius: 8px 8px 0 0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            
-            .modal-header h2 {
-                margin: 0;
-                font-size: 1.5em;
-            }
-            
-            .close {
-                color: white;
-                font-size: 28px;
-                font-weight: bold;
-                cursor: pointer;
-                line-height: 1;
-            }
-            
-            .close:hover {
-                color: #bdc3c7;
-            }
-            
-            .modal-body {
-                flex: 1;
-                padding: 20px;
-                overflow-y: auto;
-            }
-            
-            .messages-search {
-                background: #f8f9fa;
-                padding: 15px;
-                border-radius: 6px;
-                margin-bottom: 20px;
-                display: flex;
-                gap: 10px;
-                align-items: center;
-            }
-            
-            .messages-search input {
-                flex: 1;
-                padding: 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 0.9em;
-            }
-            
-            .messages-search button {
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-            
-            .message-date {
-                background: #2c3e50;
-                color: white;
-                padding: 10px;
-                margin: 20px 0 10px 0;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            
-            .message-item {
-                background: white;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                margin-bottom: 10px;
-                padding: 15px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            
-            .message-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-                padding-bottom: 8px;
-                border-bottom: 1px solid #eee;
-            }
-            
-            .message-sender {
-                font-weight: bold;
-                color: #2c3e50;
-            }
-            
-            .message-time {
-                color: #7f8c8d;
-                font-size: 0.9em;
-            }
-            
-            .message-content {
-                color: #333;
-                line-height: 1.5;
-                word-wrap: break-word;
-            }
-            
-            .message-media {
-                margin-top: 10px;
-            }
-            
-            .message-media img {
-                max-width: 300px;
-                border-radius: 4px;
-            }
-            
-            .message-media a {
-                color: #3498db;
-                text-decoration: none;
-                margin-right: 10px;
-            }
-            
-            .modal-pagination {
-                text-align: center;
-                padding: 15px;
-                border-top: 1px solid #ddd;
-                background: #f8f9fa;
-            }
-            
-            .modal-pagination button {
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                margin: 0 5px;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-            
-            .modal-pagination button:hover {
-                background: #2980b9;
-            }
-            
-            .modal-pagination button:disabled {
-                background: #bdc3c7;
-                cursor: not-allowed;
-            }
-            
             .refresh-btn {
                 position: fixed;
                 bottom: 20px;
@@ -1125,11 +942,6 @@ app.get('/groups', (req, res) => {
                 return new Date(dateString).toLocaleDateString('vi-VN');
             }
             
-            function formatDateTime(dateString) {
-                if (!dateString) return 'Chưa có';
-                return new Date(dateString).toLocaleString('vi-VN');
-            }
-            
             async function loadGroups() {
                 try {
                     const response = await fetch('/api/groups');
@@ -1176,7 +988,7 @@ app.get('/groups', (req, res) => {
                                 <th>Tỷ giá</th>
                                 <th>Tổng VND</th>
                                 <th>Tổng USDT</th>
-                                <th>Thao tác</th>
+                                <th>Chi tiết</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1193,9 +1005,6 @@ app.get('/groups', (req, res) => {
                                         <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
                                             Chi tiết
                                         </button>
-                                        <button class="message-btn" onclick="viewMessages('\${group.chatId}')">
-                                            Tin nhắn
-                                        </button>
                                     </td>
                                 </tr>
                             \`).join('')}
@@ -1210,167 +1019,687 @@ app.get('/groups', (req, res) => {
                 window.location.href = \`/groups/\${chatId}\`;
             }
             
-            function viewMessages(chatId) {
-                // Open the modal
-                document.getElementById('modal').style.display = 'block';
-                // Load messages for the selected group
-                loadMessages(chatId);
-            }
-            
-            let currentMessagesPage = 1;
-            let currentChatId = '';
-            
-            async function loadMessages(chatId, page = 1, search = '') {
-                currentChatId = chatId;
-                currentMessagesPage = page;
-                
-                try {
-                    const params = new URLSearchParams({
-                        page: page.toString(),
-                        limit: '20'
-                    });
-                    
-                    if (search) {
-                        params.append('search', search);
-                    }
-                    
-                    const response = await fetch(\`/api/groups/\${chatId}/messages?\${params}\`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        displayMessages(data);
-                        updatePagination(data.currentPage, data.totalPages);
-                    } else {
-                        document.getElementById('messagesContainer').innerHTML = 
-                            '<div class="error">❌ Không thể tải tin nhắn</div>';
-                    }
-                } catch (error) {
-                    document.getElementById('messagesContainer').innerHTML = 
-                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
-                }
-            }
-            
-            function displayMessages(data) {
-                if (data.totalMessages === 0) {
-                    document.getElementById('messagesContainer').innerHTML = 
-                        '<div class="error">📭 Không tìm thấy tin nhắn nào</div>';
-                    return;
-                }
-                
-                const messagesHTML = \`
-                    <div class="messages-summary">
-                        <p>Tổng: \${formatNumber(data.totalMessages)} tin nhắn (Trang \${data.currentPage}/\${data.totalPages})</p>
-                    </div>
-                    
-                    \${Object.keys(data.messagesByDate).map(date => \`
-                        <div class="message-date">
-                            📅 \${formatDate(date)} (\${data.messagesByDate[date].length} tin nhắn)
-                        </div>
-                        \${data.messagesByDate[date].map(message => \`
-                            <div class="message-item">
-                                <div class="message-header">
-                                    <span class="message-sender">\${message.senderName}</span>
-                                    <span class="message-time">\${formatDateTime(message.timestamp)}</span>
-                                </div>
-                                <div class="message-content">
-                                    \${message.content || '<em>Tin nhắn không có nội dung</em>'}
-                                </div>
-                                \${message.photoUrl || message.videoUrl || message.voiceUrl || message.documentUrl ? \`
-                                    <div class="message-media">
-                                        \${message.photoUrl ? \`<a href="\${message.photoUrl}" target="_blank">📷 Ảnh</a>\` : ''}
-                                        \${message.videoUrl ? \`<a href="\${message.videoUrl}" target="_blank">🎥 Video</a>\` : ''}
-                                        \${message.voiceUrl ? \`<a href="\${message.voiceUrl}" target="_blank">🎤 Voice</a>\` : ''}
-                                        \${message.documentUrl ? \`<a href="\${message.documentUrl}" target="_blank">📄 File</a>\` : ''}
-                                    </div>
-                                \` : ''}
-                            </div>
-                        \`).join('')}
-                    \`).join('')}
-                \`;
-                
-                document.getElementById('messagesContainer').innerHTML = messagesHTML;
-            }
-            
-            function updatePagination(current, total) {
-                document.getElementById('currentPage').textContent = current;
-                document.getElementById('totalPages').textContent = total;
-                
-                const prevBtn = document.querySelector('.modal-pagination button:first-child');
-                const nextBtn = document.querySelector('.modal-pagination button:last-child');
-                
-                prevBtn.disabled = current === 1;
-                nextBtn.disabled = current === total;
-            }
-            
-            function previousPage() {
-                if (currentMessagesPage > 1) {
-                    const search = document.getElementById('searchInput').value;
-                    loadMessages(currentChatId, currentMessagesPage - 1, search);
-                }
-            }
-            
-            function nextPage() {
-                const totalPages = parseInt(document.getElementById('totalPages').textContent);
-                if (currentMessagesPage < totalPages) {
-                    const search = document.getElementById('searchInput').value;
-                    loadMessages(currentChatId, currentMessagesPage + 1, search);
-                }
-            }
-            
-            function searchMessages() {
-                const search = document.getElementById('searchInput').value;
-                loadMessages(currentChatId, 1, search);
-            }
-            
-            function closeModal() {
-                document.getElementById('modal').style.display = 'none';
-            }
-            
-            // Close modal when clicking outside of it
-            window.onclick = function(event) {
-                const modal = document.getElementById('modal');
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
-            }
-            
-            // Handle enter key in search input
-            document.addEventListener('DOMContentLoaded', function() {
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                    searchInput.addEventListener('keyup', function(event) {
-                        if (event.key === 'Enter') {
-                            searchMessages();
-                        }
-                    });
-                }
-            });
-            
             // Tải dữ liệu khi trang được load
             loadGroups();
             
             // Tự động làm mới mỗi 5 phút
             setInterval(loadGroups, 300000);
         </script>
-        
-        <!-- Modal -->
-        <div id="modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Tin nhắn</h2>
-                    <span class="close" onclick="closeModal()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <div class="messages-search">
-                        <input type="text" id="searchInput" placeholder="Tìm kiếm tin nhắn...">
-                        <button onclick="searchMessages()">Tìm</button>
-                    </div>
-                    <div id="messagesContainer"></div>
-                    <div class="modal-pagination">
-                        <button onclick="previousPage()" disabled>Trước</button>
-                        <span id="currentPage">1</span> / <span id="totalPages">1</span>
-                        <button onclick="nextPage()">Sau</button>
-                    </div>
+    </body>
+    </html>
+  `);
+});
+
+// Route hiển thị chi tiết một nhóm
+app.get('/groups/:chatId', async (req, res) => {
+  const { chatId } = req.params;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Chi tiết nhóm</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+                color: #333;
+            }
+            
+            .container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                overflow: hidden;
+            }
+            
+            .header {
+                background: #2c3e50;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+                margin-bottom: 5px;
+            }
+            
+            .back-btn {
+                background: #34495e;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-bottom: 15px;
+            }
+            
+            .back-btn:hover {
+                background: #2c3e50;
+            }
+            
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                padding: 20px;
+            }
+            
+            .info-card {
+                background: #ecf0f1;
+                padding: 15px;
+                border-radius: 6px;
+                border-left: 4px solid #3498db;
+            }
+            
+            .info-card h3 {
+                color: #2c3e50;
+                margin-bottom: 10px;
+                font-size: 1.1em;
+            }
+            
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .info-item:last-child {
+                border-bottom: none;
+            }
+            
+            .info-label {
+                font-weight: 500;
+                color: #7f8c8d;
+            }
+            
+            .info-value {
+                color: #2c3e50;
+                font-weight: bold;
+            }
+            
+            .section {
+                margin: 20px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 6px;
+            }
+            
+            .section h2 {
+                color: #2c3e50;
+                margin-bottom: 15px;
+                font-size: 1.3em;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+                margin-top: 15px;
+            }
+            
+            .members-table,
+            .transactions-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+                background: white;
+                border-radius: 6px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .members-table th,
+            .members-table td,
+            .transactions-table th,
+            .transactions-table td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .members-table th,
+            .transactions-table th {
+                background: #34495e;
+                color: white;
+                font-weight: normal;
+                cursor: pointer;
+                user-select: none;
+            }
+            
+            .members-table th:hover,
+            .transactions-table th:hover {
+                background: #2c3e50;
+            }
+            
+            .members-table tr:hover,
+            .transactions-table tr:hover {
+                background: #f8f9fa;
+            }
+            
+            .telegram-link {
+                color: #3498db;
+                text-decoration: none;
+                font-weight: 500;
+                padding: 4px 8px;
+                border-radius: 4px;
+                border: 1px solid #3498db;
+                transition: all 0.3s ease;
+            }
+            
+            .telegram-link:hover {
+                background: #3498db;
+                color: white;
+            }
+            
+            .no-link {
+                color: #7f8c8d;
+                font-style: italic;
+            }
+            
+            .role-badge {
+                background: #3498db;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                font-weight: 500;
+            }
+            
+            .role-badge.operator {
+                background: #e67e22;
+            }
+            
+            .filters-container {
+                background: white;
+                padding: 20px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .filter-row {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .filter-row:last-child {
+                margin-bottom: 0;
+            }
+            
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                min-width: 150px;
+            }
+            
+            .filter-group.search-group {
+                min-width: 300px;
+                flex: 1;
+            }
+            
+            .filter-group label {
+                font-weight: 500;
+                color: #2c3e50;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input,
+            .filter-group select {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input:focus,
+            .filter-group select:focus {
+                outline: none;
+                border-color: #3498db;
+                box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            }
+            
+            .search-group {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .search-input-container {
+                display: flex;
+                gap: 5px;
+                align-items: center;
+            }
+            
+            .search-input-container input {
+                flex: 1;
+            }
+            
+            .search-btn,
+            .clear-btn {
+                padding: 8px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: all 0.3s ease;
+            }
+            
+            .search-btn {
+                background: #3498db;
+                color: white;
+            }
+            
+            .search-btn:hover {
+                background: #2980b9;
+            }
+            
+            .clear-btn {
+                background: #e74c3c;
+                color: white;
+            }
+            
+            .clear-btn:hover {
+                background: #c0392b;
+            }
+            
+            .export-btn {
+                background: #2ecc71;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: all 0.3s ease;
+            }
+            
+            .export-btn:hover {
+                background: #27ae60;
+            }
+            
+            .export-btn:active {
+                transform: translateY(1px);
+            }
+            
+            .transaction-summary {
+                color: #7f8c8d;
+                font-size: 0.9em;
+                margin-bottom: 10px;
+            }
+            
+            .sort-icon {
+                font-size: 0.8em;
+                margin-left: 5px;
+                opacity: 0.7;
+            }
+            
+            .transaction-type {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                font-weight: 500;
+            }
+            
+            .transaction-type.plus,
+            .transaction-type.deposit {
+                background: #2ecc71;
+                color: white;
+            }
+            
+            .transaction-type.minus,
+            .transaction-type.withdraw {
+                background: #e74c3c;
+                color: white;
+            }
+            
+            .transaction-type.percent,
+            .transaction-type.payment {
+                background: #f39c12;
+                color: white;
+            }
+            
+            .transaction-type.clear {
+                background: #95a5a6;
+                color: white;
+            }
+            
+            .amount {
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .amount.positive {
+                color: #27ae60;
+            }
+            
+            .amount.negative {
+                color: #e74c3c;
+            }
+            
+            .amount.paid {
+                color: #f39c12;
+            }
+            
+            .amount.remaining {
+                color: #3498db;
+            }
+            
+            .summary-section {
+                margin: 20px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 6px;
+                border: 2px solid #3498db;
+            }
+            
+            .summary-section h3 {
+                color: #2c3e50;
+                margin-bottom: 15px;
+                font-size: 1.2em;
+            }
+            
+            .summary-filters {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+            }
+            
+            .summary-table {
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 6px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .summary-table th {
+                background: #3498db;
+                color: white;
+                padding: 12px;
+                text-align: left;
+                font-weight: normal;
+            }
+            
+            .summary-table td {
+                padding: 10px 12px;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .summary-table tr:hover {
+                background: #f8f9fa;
+            }
+            
+            .summary-table .total-row {
+                background: #ecf0f1;
+                font-weight: bold;
+                border-top: 2px solid #3498db;
+            }
+            
+            .summary-table .total-row:hover {
+                background: #d5dbdb;
+            }
+            
+            .transaction-count {
+                text-align: center;
+                color: #7f8c8d;
+                font-weight: 500;
+            }
+            
+            .transaction-summary-info {
+                display: flex;
+                justify-content: space-around;
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                flex-wrap: wrap;
+            }
+            
+            .summary-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+            }
+            
+            .summary-item .label {
+                font-size: 0.9em;
+                color: #7f8c8d;
+                font-weight: 500;
+            }
+            
+            .summary-item .value {
+                font-size: 1.2em;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .summary-item .value.paid {
+                color: #f39c12;
+            }
+            
+            .summary-item .value.remaining {
+                color: #3498db;
+            }
+            
+            .message {
+                max-width: 300px;
+                word-wrap: break-word;
+            }
+            
+            .members-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 10px;
+            }
+            
+            .member-item {
+                background: white;
+                padding: 10px;
+                border-radius: 4px;
+                border-left: 3px solid #3498db;
+            }
+            
+            .member-name {
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .member-role {
+                font-size: 0.9em;
+                color: #7f8c8d;
+            }
+            
+            .transactions-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }
+            
+            .transactions-table th,
+            .transactions-table td {
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .transactions-table th {
+                background: #34495e;
+                color: white;
+            }
+            
+            .transactions-table tr:hover {
+                background: #f8f9fa;
+            }
+            
+            .transaction-date {
+                background: #2c3e50;
+                color: white;
+                padding: 10px;
+                margin: 20px 0 10px 0;
+                border-radius: 4px;
+            }
+            
+            .pagination {
+                text-align: center;
+                margin: 20px 0;
+            }
+            
+            .pagination button {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                margin: 0 5px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            
+            .pagination button:hover {
+                background: #2980b9;
+            }
+            
+            .pagination button:disabled {
+                background: #bdc3c7;
+                cursor: not-allowed;
+            }
+            
+            .loading {
+                text-align: center;
+                padding: 40px;
+                color: #7f8c8d;
+            }
+            
+            .error {
+                text-align: center;
+                padding: 40px;
+                color: #e74c3c;
+            }
+            
+            @media (max-width: 768px) {
+                .info-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .members-list {
+                    grid-template-columns: 1fr;
+                }
+                
+                .filter-row {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .filter-group {
+                    min-width: auto;
+                }
+                
+                .filter-group.search-group {
+                    min-width: auto;
+                }
+                
+                .search-input-container {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .members-table,
+                .transactions-table,
+                .summary-table {
+                    font-size: 0.9em;
+                }
+                
+                .members-table th,
+                .members-table td,
+                .transactions-table th,
+                .transactions-table td,
+                .summary-table th,
+                .summary-table td {
+                    padding: 6px;
+                }
+                
+                .message {
+                    max-width: 150px;
+                }
+                
+                .telegram-link {
+                    font-size: 0.8em;
+                    padding: 3px 6px;
+                }
+                
+                .filters-container {
+                    padding: 15px;
+                }
+                
+                .summary-section {
+                    margin: 10px;
+                    padding: 15px;
+                }
+                
+                .summary-filters {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .transaction-summary-info {
+                    flex-direction: column;
+                    gap: 10px;
+                    padding: 10px;
+                }
+                
+                .summary-item {
+                    flex-direction: row;
+                    justify-content: space-between;
+                    padding: 8px;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                }
+                
+                .summary-item .value {
+                    font-size: 1em;
+                }
+                
+                .summary-table {
+                    display: block;
+                    overflow-x: auto;
+                    white-space: nowrap;
+                }
+                
+                .summary-table th,
+                .summary-table td {
+                    min-width: 80px;
+                    padding: 4px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <button class="back-btn" onclick="window.location.href='/groups'">← Quay lại</button>
+                <h1 id="groupTitle">Chi tiết nhóm</h1>
+            </div>
+            
+            <div id="content">
+                <div class="loading">
+                    <div>⏳ Đang tải dữ liệu...</div>
                 </div>
             </div>
         </div>
@@ -1378,8 +1707,6 @@ app.get('/groups', (req, res) => {
         <script>
             const chatId = '${chatId}';
             let currentPage = 1;
-            let totalPages = 1;
-            let messages = [];
             
             function formatNumber(num) {
                 if (num === 0) return '0';
@@ -1392,7 +1719,6 @@ app.get('/groups', (req, res) => {
             }
             
             function formatDateTime(dateString) {
-                if (!dateString) return 'Chưa có';
                 return new Date(dateString).toLocaleString('vi-VN');
             }
             
@@ -1543,7 +1869,6 @@ app.get('/groups', (req, res) => {
                         await loadDailySummary(filters);
                         currentPage = page;
                         currentFilters = filters;
-                        totalPages = Math.ceil(data.totalTransactions / 50);
                     }
                 } catch (error) {
                     console.error('Error loading transactions:', error);
@@ -1933,97 +2258,6 @@ app.get('/groups', (req, res) => {
     </body>
     </html>
   `);
-});
-
-// API endpoint để lấy tin nhắn của một nhóm
-app.get('/api/groups/:chatId/messages', async (req, res) => {
-  try {
-    const { chatId } = req.params;
-    const { page = 1, limit = 20, search } = req.query;
-    
-    // Lấy thông tin nhóm
-    const group = await Group.findOne({ chatId });
-    if (!group) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy nhóm'
-      });
-    }
-
-    let groupTitle = "Nhóm không xác định";
-    try {
-      const chatInfo = await bot.getChat(chatId);
-      groupTitle = chatInfo.title || `Chat ID: ${chatId}`;
-    } catch (error) {
-      groupTitle = `Nhóm không xác định (ID: ${chatId})`;
-    }
-
-    // Tạo filter query
-    const filter = { chatId };
-
-    // Tìm kiếm trong nội dung tin nhắn hoặc tên người gửi
-    if (search) {
-      filter.$or = [
-        { content: { $regex: search, $options: 'i' } },
-        { senderName: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Lấy tin nhắn với phân trang
-    const messages = await MessageLog.find(filter)
-      .sort({ timestamp: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
-
-    // Đếm tổng số tin nhắn
-    const totalMessages = await MessageLog.countDocuments(filter);
-
-    // Lấy danh sách người gửi unique
-    const uniqueSenders = await MessageLog.distinct('senderName', { chatId });
-
-    // Nhóm tin nhắn theo ngày
-    const messagesByDate = {};
-    messages.forEach(message => {
-      const date = message.timestamp.toISOString().split('T')[0];
-      if (!messagesByDate[date]) {
-        messagesByDate[date] = [];
-      }
-      messagesByDate[date].push({
-        id: message._id,
-        senderId: message.senderId,
-        senderName: message.senderName,
-        username: message.username,
-        content: message.content,
-        photoUrl: message.photoUrl,
-        videoUrl: message.videoUrl,
-        voiceUrl: message.voiceUrl,
-        documentUrl: message.documentUrl,
-        timestamp: message.timestamp,
-        createdAt: message.createdAt
-      });
-    });
-
-    res.json({
-      success: true,
-      chatId,
-      groupTitle,
-      totalMessages,
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(totalMessages / limit),
-      messagesByDate,
-      uniqueSenders,
-      filters: {
-        search: search || ''
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching group messages:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi khi lấy tin nhắn'
-    });
-  }
 });
 
 // Start server
