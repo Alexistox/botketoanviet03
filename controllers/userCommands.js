@@ -782,7 +782,7 @@ ${websiteUrl}
 };
 
 /**
- * Xử lý lệnh gửi link website hiển thị message logs
+ * Xử lý lệnh /messagelogs - gửi link website xem message logs
  */
 const handleMessageLogsCommand = async (bot, msg) => {
   try {
@@ -800,24 +800,24 @@ const handleMessageLogsCommand = async (bot, msg) => {
     
     // Tạo message với link
     const message = `
-📱 *Message Logs - Lịch sử tin nhắn*
+📋 *Message Logs - Nhật ký tin nhắn*
 
-🔗 Xem tất cả tin nhắn của các nhóm tại:
+🔗 Xem tất cả tin nhắn các nhóm tại:
 ${websiteUrl}
 
-📋 Website này hiển thị:
-• Danh sách tất cả nhóm có tin nhắn
-• Tin nhắn theo định dạng giống Telegram
-• Bộ lọc theo thời gian, người gửi, nội dung
-• Hiển thị ảnh, video, audio, file
-• Tìm kiếm trong nội dung tin nhắn
-• Phân trang và sắp xếp theo ngày
+📱 Website này hiển thị:
+• Danh sách tất cả các nhóm có tin nhắn
+• Thống kê số lượng tin nhắn theo nhóm
+• Chi tiết toàn bộ nội dung tin nhắn
+• Lọc theo ngày, người gửi, nội dung
+• Hỗ trợ tìm kiếm tin nhắn
+• Hiển thị media (ảnh, video, voice, file)
 
-🔍 Tính năng tìm kiếm:
-• Lọc theo khoảng thời gian
-• Lọc theo người gửi
-• Tìm kiếm từ khóa trong tin nhắn
-• Xem và tải media files
+🔍 Tính năng:
+• Filter theo thời gian và người gửi
+• Tìm kiếm trong nội dung tin nhắn
+• Phân trang dễ dàng
+• Responsive trên mobile
 
 🔄 Dữ liệu được cập nhật realtime
     `;
