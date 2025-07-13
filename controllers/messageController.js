@@ -27,8 +27,7 @@ const {
   handleReportCommand,
   handleHelpCommand,
   handleStartCommand,
-  handleFormatCommand,
-  handleReportLinkCommand
+  handleFormatCommand
 } = require('./utilCommands');
 
 const {
@@ -66,6 +65,7 @@ const {
   handleMigrateDataCommand,
   handleListGroupsCommand,
   handleGroupsCommand,
+  handleMessageLogsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
   displayInlineButtons,
@@ -309,8 +309,8 @@ const handleMessage = async (bot, msg, cache) => {
         return;
       }
 
-      if (messageText === '/report') {
-        await handleReportLinkCommand(bot, msg);
+      if (messageText === '/messagelogs') {
+        await handleMessageLogsCommand(bot, msg);
         return;
       }
 

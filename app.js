@@ -2260,6 +2260,1091 @@ app.get('/groups/:chatId', async (req, res) => {
   `);
 });
 
+// API endpoint để lấy danh sách nhóm có message logs
+app.get('/api/messagelogs/groups', async (req, res) => {
+  try {
+    // Lấy danh sách nhóm có message logs
+    const groups = await MessageLog.aggregate([
+      {
+        $group: {
+          _id: '$chatId',
+          groupName: { $first: '$groupName' },
+          messageCount: { $sum: 1 },
+          lastMessage: { $max: '$timestamp' },
+          firstMessage: { $min: '$timestamp' }
+        }
+      },
+      { $sort: { lastMessage: -1 } }
+    ]);
+
+    // Lấy thông tin chi tiết của từng nhóm
+    const groupsWithDetails = await Promise.all(
+      groups.map(async (group) => {
+        let groupTitle = group.groupName;
+        let memberCount = 0;
+        
+        try {
+          const chatInfo = await bot.getChat(group._id);
+          groupTitle = chatInfo.title || group.groupName;
+          memberCount = await bot.getChatMemberCount(group._id);
+        } catch (error) {
+          console.error('Error fetching group info:', error);
+        }
+
+        return {
+          chatId: group._id,
+          groupName: groupTitle,
+          messageCount: group.messageCount,
+          memberCount: memberCount,
+          lastMessage: group.lastMessage,
+          firstMessage: group.firstMessage
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      groups: groupsWithDetails
+    });
+  } catch (error) {
+    console.error('Error fetching message logs groups:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách nhóm'
+    });
+  }
+});
+
+// API endpoint để lấy message logs của một nhóm
+app.get('/api/messagelogs/:chatId', async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { 
+      page = 1, 
+      limit = 50, 
+      startDate, 
+      endDate, 
+      sender, 
+      search 
+    } = req.query;
+
+    // Tạo filter query
+    const filter = { chatId };
+
+    // Lọc theo ngày
+    if (startDate || endDate) {
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = new Date(startDate);
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        filter.timestamp.$lte = endDateTime;
+      }
+    }
+
+    // Lọc theo người gửi
+    if (sender && sender !== 'all') {
+      filter.senderName = { $regex: sender, $options: 'i' };
+    }
+
+    // Tìm kiếm trong nội dung
+    if (search) {
+      filter.$or = [
+        { content: { $regex: search, $options: 'i' } },
+        { senderName: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Lấy messages với phân trang
+    const messages = await MessageLog.find(filter)
+      .sort({ timestamp: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    // Đếm tổng số messages
+    const totalMessages = await MessageLog.countDocuments(filter);
+
+    // Lấy danh sách sender unique
+    const uniqueSenders = await MessageLog.distinct('senderName', { chatId });
+
+    // Lấy thông tin nhóm
+    let groupTitle = "Nhóm không xác định";
+    try {
+      const chatInfo = await bot.getChat(chatId);
+      groupTitle = chatInfo.title || `Chat ID: ${chatId}`;
+    } catch (error) {
+      groupTitle = `Nhóm không xác định (ID: ${chatId})`;
+    }
+
+    // Nhóm messages theo ngày
+    const messagesByDate = {};
+    const reversedMessages = messages.reverse(); // Đảo ngược để hiển thị từ cũ đến mới
+
+    reversedMessages.forEach(message => {
+      const date = message.timestamp.toISOString().split('T')[0];
+      if (!messagesByDate[date]) {
+        messagesByDate[date] = [];
+      }
+      messagesByDate[date].push({
+        _id: message._id,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        username: message.username,
+        timestamp: message.timestamp,
+        content: message.content,
+        photoUrl: message.photoUrl,
+        videoUrl: message.videoUrl,
+        voiceUrl: message.voiceUrl,
+        documentUrl: message.documentUrl
+      });
+    });
+
+    res.json({
+      success: true,
+      chatId,
+      groupTitle,
+      totalMessages,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalMessages / limit),
+      messagesByDate,
+      uniqueSenders,
+      filters: {
+        startDate: startDate || null,
+        endDate: endDate || null,
+        sender: sender || 'all',
+        search: search || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching message logs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy message logs'
+    });
+  }
+});
+
+// Route hiển thị danh sách nhóm message logs
+app.get('/messagelogs', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Message Logs - Danh sách nhóm</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f5f5f5;
+                color: #333;
+                line-height: 1.6;
+            }
+            
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 12px;
+                margin-bottom: 30px;
+                text-align: center;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            }
+            
+            .header h1 {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+                font-weight: 300;
+            }
+            
+            .header p {
+                font-size: 1.1em;
+                opacity: 0.9;
+            }
+            
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+            }
+            
+            .stat-card {
+                background: white;
+                padding: 25px;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                text-align: center;
+                transition: transform 0.3s ease;
+            }
+            
+            .stat-card:hover {
+                transform: translateY(-5px);
+            }
+            
+            .stat-number {
+                font-size: 2.5em;
+                font-weight: bold;
+                color: #667eea;
+                margin-bottom: 10px;
+            }
+            
+            .stat-label {
+                font-size: 1.1em;
+                color: #7f8c8d;
+                font-weight: 500;
+            }
+            
+            .groups-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+                gap: 20px;
+                margin-top: 30px;
+            }
+            
+            .group-card {
+                background: white;
+                border-radius: 12px;
+                padding: 25px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+                cursor: pointer;
+                border: 2px solid transparent;
+            }
+            
+            .group-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                border-color: #667eea;
+            }
+            
+            .group-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+            
+            .group-avatar {
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 1.2em;
+                font-weight: bold;
+                margin-right: 15px;
+            }
+            
+            .group-info h3 {
+                font-size: 1.3em;
+                margin-bottom: 5px;
+                color: #2c3e50;
+            }
+            
+            .group-meta {
+                display: flex;
+                justify-content: space-between;
+                font-size: 0.9em;
+                color: #7f8c8d;
+                margin-bottom: 15px;
+            }
+            
+            .group-stats {
+                display: flex;
+                justify-content: space-around;
+                padding-top: 15px;
+                border-top: 1px solid #ecf0f1;
+            }
+            
+            .stat-item {
+                text-align: center;
+            }
+            
+            .stat-value {
+                font-size: 1.4em;
+                font-weight: bold;
+                color: #667eea;
+            }
+            
+            .stat-text {
+                font-size: 0.9em;
+                color: #7f8c8d;
+            }
+            
+            .loading {
+                text-align: center;
+                padding: 60px;
+                color: #7f8c8d;
+                font-size: 1.1em;
+            }
+            
+            .error {
+                text-align: center;
+                padding: 60px;
+                color: #e74c3c;
+                font-size: 1.1em;
+            }
+            
+            .refresh-btn {
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 60px;
+                height: 60px;
+                font-size: 1.5em;
+                cursor: pointer;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                transition: all 0.3s ease;
+            }
+            
+            .refresh-btn:hover {
+                background: #764ba2;
+                transform: scale(1.1);
+            }
+            
+            @media (max-width: 768px) {
+                .container {
+                    padding: 10px;
+                }
+                
+                .header h1 {
+                    font-size: 2em;
+                }
+                
+                .groups-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .stats {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📱 Message Logs</h1>
+                <p>Xem lại toàn bộ tin nhắn của các nhóm</p>
+            </div>
+            
+            <div class="stats" id="statsContainer">
+                <!-- Stats will be loaded here -->
+            </div>
+            
+            <div id="content">
+                <div class="loading">
+                    <div>⏳ Đang tải dữ liệu...</div>
+                </div>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="loadGroups()">🔄</button>
+        
+        <script>
+            function formatNumber(num) {
+                return new Intl.NumberFormat('vi-VN').format(num);
+            }
+            
+            function formatDate(dateString) {
+                return new Date(dateString).toLocaleDateString('vi-VN');
+            }
+            
+            function getGroupInitials(groupName) {
+                return groupName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
+            }
+            
+            async function loadGroups() {
+                try {
+                    const response = await fetch('/api/messagelogs/groups');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayStats(data.groups);
+                        displayGroups(data.groups);
+                    } else {
+                        document.getElementById('content').innerHTML = 
+                            '<div class="error">❌ Lỗi: ' + data.message + '</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('content').innerHTML = 
+                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
+                }
+            }
+            
+            function displayStats(groups) {
+                const totalGroups = groups.length;
+                const totalMessages = groups.reduce((sum, group) => sum + group.messageCount, 0);
+                const totalMembers = groups.reduce((sum, group) => sum + group.memberCount, 0);
+                
+                const statsHTML = \`
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(totalGroups)}</div>
+                        <div class="stat-label">Nhóm</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(totalMessages)}</div>
+                        <div class="stat-label">Tin nhắn</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(totalMembers)}</div>
+                        <div class="stat-label">Thành viên</div>
+                    </div>
+                \`;
+                
+                document.getElementById('statsContainer').innerHTML = statsHTML;
+            }
+            
+            function displayGroups(groups) {
+                const groupsHTML = \`
+                    <div class="groups-grid">
+                        \${groups.map(group => \`
+                            <div class="group-card" onclick="openGroup('\${group.chatId}')">
+                                <div class="group-header">
+                                    <div class="group-avatar">
+                                        \${getGroupInitials(group.groupName)}
+                                    </div>
+                                    <div class="group-info">
+                                        <h3>\${group.groupName}</h3>
+                                        <div class="group-meta">
+                                            <span>📅 \${formatDate(group.lastMessage)}</span>
+                                            <span>🆔 \${group.chatId}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="group-stats">
+                                    <div class="stat-item">
+                                        <div class="stat-value">\${formatNumber(group.messageCount)}</div>
+                                        <div class="stat-text">Tin nhắn</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">\${formatNumber(group.memberCount)}</div>
+                                        <div class="stat-text">Thành viên</div>
+                                    </div>
+                                </div>
+                            </div>
+                        \`).join('')}
+                    </div>
+                \`;
+                
+                document.getElementById('content').innerHTML = groupsHTML;
+            }
+            
+            function openGroup(chatId) {
+                window.location.href = \`/messagelogs/\${chatId}\`;
+            }
+            
+            // Load groups when page loads
+            loadGroups();
+        </script>
+    </body>
+    </html>
+  `);
+});
+
+// Route hiển thị message logs của một nhóm
+app.get('/messagelogs/:chatId', (req, res) => {
+  const { chatId } = req.params;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Message Logs - Chi tiết nhóm</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f5f5f5;
+                color: #333;
+                line-height: 1.6;
+            }
+            
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .back-btn {
+                background: rgba(255,255,255,0.2);
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 1em;
+                transition: all 0.3s ease;
+            }
+            
+            .back-btn:hover {
+                background: rgba(255,255,255,0.3);
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+                font-weight: 300;
+            }
+            
+            .filters-container {
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            }
+            
+            .filter-row {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .filter-row:last-child {
+                margin-bottom: 0;
+            }
+            
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                min-width: 150px;
+            }
+            
+            .filter-group.search-group {
+                min-width: 300px;
+                flex: 1;
+            }
+            
+            .filter-group label {
+                font-weight: 500;
+                color: #2c3e50;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input,
+            .filter-group select {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                font-size: 0.9em;
+                transition: border-color 0.3s ease;
+            }
+            
+            .filter-group input:focus,
+            .filter-group select:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+            }
+            
+            .search-input-container {
+                display: flex;
+                gap: 5px;
+                align-items: center;
+            }
+            
+            .search-input-container input {
+                flex: 1;
+            }
+            
+            .search-btn,
+            .clear-btn {
+                padding: 8px 12px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: all 0.3s ease;
+            }
+            
+            .search-btn {
+                background: #667eea;
+                color: white;
+            }
+            
+            .search-btn:hover {
+                background: #764ba2;
+            }
+            
+            .clear-btn {
+                background: #e74c3c;
+                color: white;
+            }
+            
+            .clear-btn:hover {
+                background: #c0392b;
+            }
+            
+            .messages-container {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                min-height: 600px;
+            }
+            
+            .message-date {
+                text-align: center;
+                background: #ecf0f1;
+                color: #2c3e50;
+                padding: 10px;
+                border-radius: 20px;
+                margin: 20px 0;
+                font-weight: 500;
+            }
+            
+            .message-item {
+                display: flex;
+                margin-bottom: 15px;
+                padding: 15px;
+                border-radius: 12px;
+                background: #f8f9fa;
+                transition: background 0.3s ease;
+            }
+            
+            .message-item:hover {
+                background: #e9ecef;
+            }
+            
+            .message-avatar {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+                margin-right: 15px;
+                flex-shrink: 0;
+            }
+            
+            .message-content {
+                flex: 1;
+            }
+            
+            .message-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            
+            .message-sender {
+                font-weight: 600;
+                color: #2c3e50;
+                margin-right: 10px;
+            }
+            
+            .message-time {
+                font-size: 0.8em;
+                color: #7f8c8d;
+            }
+            
+            .message-text {
+                color: #2c3e50;
+                line-height: 1.5;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+            
+            .message-media {
+                margin-top: 10px;
+            }
+            
+            .media-photo {
+                max-width: 100%;
+                max-height: 300px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            
+            .media-video {
+                max-width: 100%;
+                max-height: 300px;
+                border-radius: 8px;
+            }
+            
+            .media-audio {
+                width: 100%;
+                margin-top: 10px;
+            }
+            
+            .media-document {
+                display: inline-block;
+                background: #667eea;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 8px;
+                text-decoration: none;
+                margin-top: 10px;
+            }
+            
+            .media-document:hover {
+                background: #764ba2;
+            }
+            
+            .pagination {
+                text-align: center;
+                margin: 20px 0;
+            }
+            
+            .pagination button {
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                margin: 0 5px;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: background 0.3s ease;
+            }
+            
+            .pagination button:hover {
+                background: #764ba2;
+            }
+            
+            .pagination button:disabled {
+                background: #bdc3c7;
+                cursor: not-allowed;
+            }
+            
+            .loading {
+                text-align: center;
+                padding: 40px;
+                color: #7f8c8d;
+            }
+            
+            .error {
+                text-align: center;
+                padding: 40px;
+                color: #e74c3c;
+            }
+            
+            @media (max-width: 768px) {
+                .container {
+                    padding: 10px;
+                }
+                
+                .header {
+                    flex-direction: column;
+                    gap: 15px;
+                }
+                
+                .filter-row {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .filter-group {
+                    min-width: auto;
+                }
+                
+                .filter-group.search-group {
+                    min-width: auto;
+                }
+                
+                .search-input-container {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .message-item {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .message-avatar {
+                    align-self: flex-start;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <button class="back-btn" onclick="window.location.href='/messagelogs'">← Danh sách nhóm</button>
+                <h1 id="groupTitle">Message Logs</h1>
+                <div></div>
+            </div>
+            
+            <div class="filters-container">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Từ ngày:</label>
+                        <input type="date" id="startDate" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Đến ngày:</label>
+                        <input type="date" id="endDate" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Người gửi:</label>
+                        <select id="senderFilter" onchange="applyFilters()">
+                            <option value="all">Tất cả</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group search-group">
+                        <label>Tìm kiếm:</label>
+                        <div class="search-input-container">
+                            <input type="text" id="searchInput" placeholder="Tìm trong nội dung tin nhắn..."
+                                   onkeyup="handleSearch(event)">
+                            <button onclick="applyFilters()" class="search-btn">🔍</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <button onclick="clearFilters()" class="clear-btn">🧹 Xóa bộ lọc</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="messages-container">
+                <div id="content">
+                    <div class="loading">
+                        <div>⏳ Đang tải tin nhắn...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            const chatId = '${chatId}';
+            let currentPage = 1;
+            let currentFilters = {};
+            
+            function formatDate(dateString) {
+                return new Date(dateString).toLocaleDateString('vi-VN');
+            }
+            
+            function formatDateTime(dateString) {
+                return new Date(dateString).toLocaleString('vi-VN');
+            }
+            
+            function getUserInitials(name) {
+                return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
+            }
+            
+            async function loadMessages(page = 1, filters = {}) {
+                try {
+                    const params = new URLSearchParams({
+                        page: page.toString(),
+                        limit: '50',
+                        ...filters
+                    });
+                    
+                    const response = await fetch(\`/api/messagelogs/\${chatId}?\${params}\`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayMessages(data);
+                        updateSenderFilter(data.uniqueSenders);
+                        document.getElementById('groupTitle').textContent = data.groupTitle;
+                        currentPage = page;
+                        currentFilters = filters;
+                    }
+                } catch (error) {
+                    document.getElementById('content').innerHTML = 
+                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
+                }
+            }
+            
+            function updateSenderFilter(uniqueSenders) {
+                const senderFilter = document.getElementById('senderFilter');
+                const currentValue = senderFilter.value;
+                
+                senderFilter.innerHTML = '<option value="all">Tất cả</option>';
+                uniqueSenders.forEach(sender => {
+                    const option = document.createElement('option');
+                    option.value = sender;
+                    option.textContent = sender;
+                    if (sender === currentValue) {
+                        option.selected = true;
+                    }
+                    senderFilter.appendChild(option);
+                });
+            }
+            
+            function displayMessages(data) {
+                let messagesHTML = '';
+                
+                if (Object.keys(data.messagesByDate).length === 0) {
+                    messagesHTML = '<div class="error">Không có tin nhắn nào phù hợp với bộ lọc</div>';
+                } else {
+                    Object.keys(data.messagesByDate).forEach(date => {
+                        messagesHTML += \`
+                            <div class="message-date">
+                                📅 \${formatDate(date)} (\${data.messagesByDate[date].length} tin nhắn)
+                            </div>
+                        \`;
+                        
+                        data.messagesByDate[date].forEach(message => {
+                            messagesHTML += \`
+                                <div class="message-item">
+                                    <div class="message-avatar">
+                                        \${getUserInitials(message.senderName)}
+                                    </div>
+                                    <div class="message-content">
+                                        <div class="message-header">
+                                            <span class="message-sender">\${message.senderName}</span>
+                                            <span class="message-time">\${formatDateTime(message.timestamp)}</span>
+                                        </div>
+                                        \${message.content ? \`<div class="message-text">\${message.content}</div>\` : ''}
+                                        \${generateMediaHTML(message)}
+                                    </div>
+                                </div>
+                            \`;
+                        });
+                    });
+                }
+                
+                // Add pagination
+                if (data.totalPages > 1) {
+                    messagesHTML += \`
+                        <div class="pagination">
+                            <button onclick="loadMessages(\${Math.max(1, data.currentPage - 1)}, currentFilters)" 
+                                    \${data.currentPage === 1 ? 'disabled' : ''}>
+                                ← Trước
+                            </button>
+                            <span>Trang \${data.currentPage} / \${data.totalPages}</span>
+                            <button onclick="loadMessages(\${Math.min(data.totalPages, data.currentPage + 1)}, currentFilters)" 
+                                    \${data.currentPage === data.totalPages ? 'disabled' : ''}>
+                                Sau →
+                            </button>
+                        </div>
+                    \`;
+                }
+                
+                document.getElementById('content').innerHTML = messagesHTML;
+            }
+            
+            function generateMediaHTML(message) {
+                let mediaHTML = '';
+                
+                if (message.photoUrl) {
+                    mediaHTML += \`
+                        <div class="message-media">
+                            <img src="\${message.photoUrl}" alt="Photo" class="media-photo">
+                        </div>
+                    \`;
+                }
+                
+                if (message.videoUrl) {
+                    mediaHTML += \`
+                        <div class="message-media">
+                            <video controls class="media-video">
+                                <source src="\${message.videoUrl}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                    \`;
+                }
+                
+                if (message.voiceUrl) {
+                    mediaHTML += \`
+                        <div class="message-media">
+                            <audio controls class="media-audio">
+                                <source src="\${message.voiceUrl}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </div>
+                    \`;
+                }
+                
+                if (message.documentUrl) {
+                    mediaHTML += \`
+                        <div class="message-media">
+                            <a href="\${message.documentUrl}" target="_blank" class="media-document">
+                                📄 Tải file
+                            </a>
+                        </div>
+                    \`;
+                }
+                
+                return mediaHTML;
+            }
+            
+            function applyFilters() {
+                const filters = {
+                    startDate: document.getElementById('startDate').value,
+                    endDate: document.getElementById('endDate').value,
+                    sender: document.getElementById('senderFilter').value,
+                    search: document.getElementById('searchInput').value
+                };
+                
+                // Remove empty filters
+                Object.keys(filters).forEach(key => {
+                    if (!filters[key] || filters[key] === 'all') {
+                        delete filters[key];
+                    }
+                });
+                
+                loadMessages(1, filters);
+            }
+            
+            function clearFilters() {
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+                document.getElementById('senderFilter').value = 'all';
+                document.getElementById('searchInput').value = '';
+                loadMessages(1, {});
+            }
+            
+            function handleSearch(event) {
+                if (event.key === 'Enter') {
+                    applyFilters();
+                }
+            }
+            
+            // Load messages when page loads
+            loadMessages();
+        </script>
+    </body>
+    </html>
+  `);
+});
+
 // Start server
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {

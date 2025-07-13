@@ -288,27 +288,6 @@ const handleReportCommand = async (bot, chatId, senderName) => {
 };
 
 /**
- * Xử lý lệnh /report - gửi link report
- */
-const handleReportLinkCommand = async (bot, msg) => {
-  try {
-    const chatId = msg.chat.id;
-    const serverUrl = process.env.SERVER_URL || 'http://159.223.49.204:3003';
-    const reportUrl = `${serverUrl}/groups/${chatId}`;
-    
-    // Gửi link report
-    bot.sendMessage(chatId, `📊 Báo cáo chi tiết nhóm:\n${reportUrl}`, {
-      parse_mode: 'Markdown',
-      disable_web_page_preview: false
-    });
-    
-  } catch (error) {
-    console.error('Error in handleReportLinkCommand:', error);
-    bot.sendMessage(msg.chat.id, "❌ Lỗi khi tạo link báo cáo. Vui lòng thử lại sau.");
-  }
-};
-
-/**
  * Xử lý lệnh trợ giúp (/help)
  */
 const handleHelpCommand = async (bot, chatId) => {
@@ -389,6 +368,5 @@ module.exports = {
   handleReportCommand,
   handleHelpCommand,
   handleStartCommand,
-  handleFormatCommand,
-  handleReportLinkCommand
+  handleFormatCommand
 }; 
