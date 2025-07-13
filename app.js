@@ -5,6 +5,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const NodeCache = require('node-cache');
 const path = require('path');
+const ExcelJS = require('exceljs');
 
 // Import controllers và utils
 const { handleMessage } = require('./controllers/messageController');
@@ -12,6 +13,9 @@ const { handleInlineButtonCallback } = require('./controllers/userCommands');
 const { connectDB } = require('./config/db');
 const Group = require('./models/Group');
 const Transaction = require('./models/Transaction');
+const User = require('./models/User');
+const Card = require('./models/Card');
+const MessageLog = require('./models/MessageLog');
 
 // Khởi tạo cache
 const cache = new NodeCache({ stdTTL: 21600 }); // Cache in 6 hours
@@ -496,6 +500,248 @@ app.get('/api/groups/:chatId/daily-summary', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi khi lấy tổng kết theo ngày'
+    });
+  }
+});
+
+// API endpoint để export giao dịch ra Excel
+app.get('/api/groups/:chatId/export-excel', async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { 
+      startDate, 
+      endDate, 
+      type, 
+      senderName, 
+      search 
+    } = req.query;
+    
+    // Lấy thông tin nhóm
+    const group = await Group.findOne({ chatId });
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhóm'
+      });
+    }
+
+    let groupTitle = "Nhóm không xác định";
+    try {
+      const chatInfo = await bot.getChat(chatId);
+      groupTitle = chatInfo.title || `Chat ID: ${chatId}`;
+    } catch (error) {
+      groupTitle = `Nhóm không xác định (ID: ${chatId})`;
+    }
+
+    // Tạo filter query
+    const filter = { 
+      chatId,
+      skipped: { $ne: true }
+    };
+
+    // Áp dụng filters
+    if (startDate || endDate) {
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = new Date(startDate);
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        filter.timestamp.$lte = endDateTime;
+      }
+    }
+
+    if (type && type !== 'all') {
+      filter.type = type;
+    }
+
+    if (senderName && senderName !== 'all') {
+      filter.senderName = { $regex: senderName, $options: 'i' };
+    }
+
+    if (search) {
+      filter.$or = [
+        { message: { $regex: search, $options: 'i' } },
+        { senderName: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Lấy tất cả giao dịch theo filter (không phân trang)
+    const transactions = await Transaction.find(filter)
+      .sort({ timestamp: -1 })
+      .exec();
+
+    // Tính tổng tiền đã trả
+    const totalPaid = await Transaction.aggregate([
+      { $match: { chatId, type: 'payment', skipped: { $ne: true } } },
+      { $group: { _id: null, total: { $sum: '$usdtAmount' } } }
+    ]);
+    const totalPaidAmount = totalPaid.length > 0 ? totalPaid[0].total : 0;
+
+    // Tính running total cho từng giao dịch
+    let runningPaid = 0;
+    const processedTransactions = transactions.reverse().map(transaction => {
+      if (transaction.type === 'payment') {
+        runningPaid += transaction.usdtAmount || 0;
+      }
+      return {
+        ...transaction.toObject(),
+        paidAmount: runningPaid,
+        remainingAmount: group.totalUSDT - runningPaid
+      };
+    }).reverse();
+
+    // Tạo workbook Excel
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Giao dịch chi tiết');
+
+    // Thêm tiêu đề
+    worksheet.mergeCells('A1:I1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = `GIAO DỊCH CHI TIẾT - ${groupTitle}`;
+    titleCell.font = { bold: true, size: 16 };
+    titleCell.alignment = { horizontal: 'center' };
+
+    // Thêm thông tin filter
+    let filterInfo = 'Bộ lọc: ';
+    if (startDate) filterInfo += `Từ ${startDate} `;
+    if (endDate) filterInfo += `Đến ${endDate} `;
+    if (type && type !== 'all') filterInfo += `Loại: ${type} `;
+    if (senderName && senderName !== 'all') filterInfo += `Người: ${senderName} `;
+    if (search) filterInfo += `Tìm: "${search}" `;
+    
+    worksheet.mergeCells('A2:I2');
+    const filterCell = worksheet.getCell('A2');
+    filterCell.value = filterInfo;
+    filterCell.font = { italic: true };
+
+    // Thêm thông tin tổng kết
+    worksheet.mergeCells('A3:I3');
+    const summaryCell = worksheet.getCell('A3');
+    summaryCell.value = `Tổng VND: ${group.totalVND || 0} | Tổng USDT: ${group.totalUSDT || 0} | Đã trả: ${totalPaidAmount} | Còn lại: ${group.totalUSDT - totalPaidAmount}`;
+    summaryCell.font = { bold: true };
+
+    // Thêm header cho bảng
+    const headers = [
+      'STT',
+      'Loại giao dịch',
+      'Số tiền (VND)',
+      'Số tiền (USDT)',
+      'Người thực hiện',
+      'Nội dung',
+      'Đã trả (USDT)',
+      'Còn lại (USDT)',
+      'Thời gian'
+    ];
+
+    const headerRow = worksheet.getRow(5);
+    headers.forEach((header, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = header;
+      cell.font = { bold: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF3498DB' }
+      };
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Thêm dữ liệu
+    processedTransactions.forEach((transaction, index) => {
+      const row = worksheet.getRow(index + 6);
+      
+      // Mapping loại giao dịch
+      let transactionType = '';
+      switch (transaction.type) {
+        case 'deposit':
+        case 'plus':
+          transactionType = 'Nạp';
+          break;
+        case 'withdraw':
+        case 'minus':
+          transactionType = 'Rút';
+          break;
+        case 'payment':
+        case 'percent':
+          transactionType = 'Trả';
+          break;
+        case 'clear':
+          transactionType = 'Clear';
+          break;
+        default:
+          transactionType = transaction.type;
+      }
+
+      row.getCell(1).value = index + 1;
+      row.getCell(2).value = transactionType;
+      row.getCell(3).value = transaction.amount || 0;
+      row.getCell(4).value = transaction.usdtAmount || 0;
+      row.getCell(5).value = transaction.senderName;
+      row.getCell(6).value = transaction.message;
+      row.getCell(7).value = transaction.paidAmount;
+      row.getCell(8).value = transaction.remainingAmount;
+      row.getCell(9).value = transaction.timestamp;
+
+      // Định dạng số
+      row.getCell(3).numFmt = '#,##0';
+      row.getCell(4).numFmt = '#,##0.00';
+      row.getCell(7).numFmt = '#,##0.00';
+      row.getCell(8).numFmt = '#,##0.00';
+      row.getCell(9).numFmt = 'dd/mm/yyyy hh:mm:ss';
+
+      // Màu sắc theo loại giao dịch
+      if (transaction.type === 'deposit' || transaction.type === 'plus') {
+        row.getCell(2).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF27AE60' }
+        };
+      } else if (transaction.type === 'withdraw' || transaction.type === 'minus') {
+        row.getCell(2).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE74C3C' }
+        };
+      } else if (transaction.type === 'payment' || transaction.type === 'percent') {
+        row.getCell(2).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF39C12' }
+        };
+      }
+    });
+
+    // Tự động điều chỉnh độ rộng cột
+    worksheet.columns.forEach(column => {
+      let maxLength = 0;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const columnLength = cell.value ? cell.value.toString().length : 10;
+        if (columnLength > maxLength) {
+          maxLength = columnLength;
+        }
+      });
+      column.width = maxLength < 10 ? 10 : maxLength + 2;
+    });
+
+    // Tạo filename
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const filename = `giao-dich-${chatId}-${dateStr}.xlsx`;
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Ghi file Excel vào response
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Error exporting to Excel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi xuất file Excel'
     });
   }
 });
@@ -1068,6 +1314,25 @@ app.get('/groups/:chatId', async (req, res) => {
             
             .clear-btn:hover {
                 background: #c0392b;
+            }
+            
+            .export-btn {
+                background: #2ecc71;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: all 0.3s ease;
+            }
+            
+            .export-btn:hover {
+                background: #27ae60;
+            }
+            
+            .export-btn:active {
+                transform: translateY(1px);
             }
             
             .transaction-summary {
@@ -1786,6 +2051,9 @@ app.get('/groups/:chatId', async (req, res) => {
                                 <div class="filter-group">
                                     <button onclick="clearFilters()" class="clear-btn">🧹 Xóa bộ lọc</button>
                                 </div>
+                                <div class="filter-group">
+                                    <button onclick="exportToExcel()" class="export-btn">📊 Xuất Excel</button>
+                                </div>
                             </div>
                         </div>
                         
@@ -1902,6 +2170,35 @@ app.get('/groups/:chatId', async (req, res) => {
                 document.getElementById('senderFilter').value = 'all';
                 document.getElementById('searchInput').value = '';
                 loadTransactions(1, {});
+            }
+            
+            function exportToExcel() {
+                const filters = {
+                    startDate: document.getElementById('startDate').value,
+                    endDate: document.getElementById('endDate').value,
+                    type: document.getElementById('typeFilter').value,
+                    senderName: document.getElementById('senderFilter').value,
+                    search: document.getElementById('searchInput').value
+                };
+                
+                // Remove empty filters
+                Object.keys(filters).forEach(key => {
+                    if (!filters[key] || filters[key] === 'all') {
+                        delete filters[key];
+                    }
+                });
+                
+                // Tạo URL với query parameters
+                const params = new URLSearchParams(filters);
+                const exportUrl = \`/api/groups/\${chatId}/export-excel?\${params}\`;
+                
+                // Tạo link download và click
+                const link = document.createElement('a');
+                link.href = exportUrl;
+                link.download = \`giao-dich-\${chatId}-\${new Date().toISOString().slice(0, 10)}.xlsx\`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
             
             function handleSearch(event) {
