@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Demo - Groups & MessageLogs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 10px;
+            color: #333;
+        }
+        
+        .demo-container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .demo-tabs {
+            display: flex;
+            background: #34495e;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            background: #34495e;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .tab-btn.active {
+            background: #2c3e50;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Groups Styles */
+        .groups-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .groups-header h1 {
+            font-size: 1.4em;
+            margin-bottom: 5px;
+        }
+        
+        .groups-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px 15px;
+            background: #ecf0f1;
+        }
+        
+        .groups-stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .groups-stat-number {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .groups-stat-label {
+            font-size: 1em;
+            color: #7f8c8d;
+            margin-top: 8px;
+        }
+        
+        .group-card {
+            background: white;
+            margin: 10px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .group-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0 0 15px 0;
+        }
+        
+        .group-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .group-stat {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .group-stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .group-stat-label {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .groups-detail-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border-radius: 8px;
+            font-weight: bold;
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        /* MessageLogs Styles */
+        .logs-header {
+            background: #8e44ad;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .logs-header h1 {
+            font-size: 1.4em;
+            margin-bottom: 5px;
+        }
+        
+        .logs-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px 15px;
+            background: #ecf0f1;
+        }
+        
+        .logs-stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .logs-stat-number {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #8e44ad;
+        }
+        
+        .logs-stat-label {
+            font-size: 1em;
+            color: #7f8c8d;
+            margin-top: 8px;
+        }
+        
+        .message-card {
+            background: white;
+            margin: 10px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #8e44ad;
+        }
+        
+        .message-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #8e44ad;
+            margin: 0 0 15px 0;
+        }
+        
+        .message-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .message-stat {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .message-stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #8e44ad;
+        }
+        
+        .message-stat-label {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .logs-detail-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border-radius: 8px;
+            font-weight: bold;
+            background: #e67e22;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        /* Message Detail Styles */
+        .detail-header {
+            background: #8e44ad;
+            color: white;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .back-btn {
+            position: absolute;
+            left: 15px;
+            top: 15px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .detail-header h1 {
+            font-size: 1.3em;
+            margin: 30px 0 10px 0;
+            text-align: center;
+        }
+        
+        .filters {
+            padding: 15px;
+            background: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .filter-btn {
+            flex: 1;
+            padding: 12px 16px;
+            background: #8e44ad;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .clear-btn {
+            flex: 1;
+            padding: 12px 16px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .message-item {
+            background: white;
+            margin: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            border-left: 3px solid #8e44ad;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        
+        .message-sender {
+            font-weight: bold;
+            color: #8e44ad;
+        }
+        
+        .message-time {
+            font-size: 0.8em;
+            color: #95a5a6;
+        }
+        
+        .message-content-mobile {
+            line-height: 1.4;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        
+        .message-media-mobile {
+            color: #e67e22;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        
+        .note {
+            background: #d5dbdb;
+            padding: 15px;
+            margin: 20px 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-style: italic;
+            color: #566573;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-tabs">
+            <button class="tab-btn active" onclick="showTab('groups')">📊 Groups</button>
+            <button class="tab-btn" onclick="showTab('logs')">💬 MessageLogs</button>
+            <button class="tab-btn" onclick="showTab('detail')">📱 Detail</button>
+        </div>
+        
+        <!-- Groups Tab -->
+        <div id="groups" class="tab-content active">
+            <div class="groups-header">
+                <h1>📊 Danh sách nhóm Bot</h1>
+                <p>Thống kê tổng quan các nhóm</p>
+            </div>
+            
+            <div class="groups-stats">
+                <div class="groups-stat-item">
+                    <div class="groups-stat-number">12</div>
+                    <div class="groups-stat-label">Tổng số nhóm</div>
+                </div>
+                <div class="groups-stat-item">
+                    <div class="groups-stat-number">1,247</div>
+                    <div class="groups-stat-label">Tổng giao dịch</div>
+                </div>
+                <div class="groups-stat-item">
+                    <div class="groups-stat-number">890</div>
+                    <div class="groups-stat-label">Tổng thành viên</div>
+                </div>
+            </div>
+            
+            <div class="group-card">
+                <h3 class="group-title">Nhóm Bot Kế Toán VIP</h3>
+                <div class="group-stats-grid">
+                    <div class="group-stat">
+                        <div class="group-stat-value">45</div>
+                        <div class="group-stat-label">Thành viên</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">156</div>
+                        <div class="group-stat-label">Giao dịch</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">2%</div>
+                        <div class="group-stat-label">Rate</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">25,000</div>
+                        <div class="group-stat-label">Tỷ giá</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">15,000,000</div>
+                        <div class="group-stat-label">VND</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">600</div>
+                        <div class="group-stat-label">USDT</div>
+                    </div>
+                </div>
+                <button class="groups-detail-btn">📊 Xem chi tiết</button>
+            </div>
+            
+            <div class="group-card">
+                <h3 class="group-title">Exchange Premium Group</h3>
+                <div class="group-stats-grid">
+                    <div class="group-stat">
+                        <div class="group-stat-value">78</div>
+                        <div class="group-stat-label">Thành viên</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">89</div>
+                        <div class="group-stat-label">Giao dịch</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">1.5%</div>
+                        <div class="group-stat-label">Rate</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">24,800</div>
+                        <div class="group-stat-label">Tỷ giá</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">8,500,000</div>
+                        <div class="group-stat-label">VND</div>
+                    </div>
+                    <div class="group-stat">
+                        <div class="group-stat-value">342</div>
+                        <div class="group-stat-label">USDT</div>
+                    </div>
+                </div>
+                <button class="groups-detail-btn">📊 Xem chi tiết</button>
+            </div>
+        </div>
+        
+        <!-- MessageLogs Tab -->
+        <div id="logs" class="tab-content">
+            <div class="logs-header">
+                <h1>💬 Message Logs</h1>
+                <p>Thống kê tin nhắn các nhóm</p>
+            </div>
+            
+            <div class="logs-stats">
+                <div class="logs-stat-item">
+                    <div class="logs-stat-number">8</div>
+                    <div class="logs-stat-label">Tổng số nhóm</div>
+                </div>
+                <div class="logs-stat-item">
+                    <div class="logs-stat-number">12,548</div>
+                    <div class="logs-stat-label">Tổng tin nhắn</div>
+                </div>
+                <div class="logs-stat-item">
+                    <div class="logs-stat-number">634</div>
+                    <div class="logs-stat-label">Tổng thành viên</div>
+                </div>
+            </div>
+            
+            <div class="message-card">
+                <h3 class="message-title">Nhóm Bot Kế Toán VIP</h3>
+                <div class="message-stats-grid">
+                    <div class="message-stat">
+                        <div class="message-stat-value">45</div>
+                        <div class="message-stat-label">Thành viên</div>
+                    </div>
+                    <div class="message-stat">
+                        <div class="message-stat-value">3,247</div>
+                        <div class="message-stat-label">Tin nhắn</div>
+                    </div>
+                    <div class="message-stat">
+                        <div class="message-stat-value">15/01/2024</div>
+                        <div class="message-stat-label">Tin nhắn đầu</div>
+                    </div>
+                    <div class="message-stat">
+                        <div class="message-stat-value">28/01/2024</div>
+                        <div class="message-stat-label">Tin nhắn cuối</div>
+                    </div>
+                </div>
+                <button class="logs-detail-btn">💬 Xem tin nhắn</button>
+            </div>
+            
+            <div class="message-card">
+                <h3 class="message-title">Trading Signal Group</h3>
+                <div class="message-stats-grid">
+                    <div class="message-stat">
+                        <div class="message-stat-value">89</div>
+                        <div class="message-stat-label">Thành viên</div>
+                    </div>
+                    <div class="message-stat">
+                        <div class="message-stat-value">1,856</div>
+                        <div class="message-stat-label">Tin nhắn</div>
+                    </div>
+                    <div class="message-stat">
+                        <div class="message-stat-value">20/01/2024</div>
+                        <div class="message-stat-label">Tin nhắn đầu</div>
+                    </div>
+                    <div class="message-stat">
+                        <div class="message-stat-value">28/01/2024</div>
+                        <div class="message-stat-label">Tin nhắn cuối</div>
+                    </div>
+                </div>
+                <button class="logs-detail-btn">💬 Xem tin nhắn</button>
+            </div>
+        </div>
+        
+        <!-- Detail Tab -->
+        <div id="detail" class="tab-content">
+            <div class="detail-header">
+                <button class="back-btn">← Quay lại</button>
+                <h1>💬 Chi tiết Message Logs</h1>
+                <p>Nhóm Bot Kế Toán VIP</p>
+            </div>
+            
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Từ ngày:</label>
+                    <input type="date" value="2024-01-15">
+                </div>
+                <div class="filter-group">
+                    <label>Đến ngày:</label>
+                    <input type="date" value="2024-01-28">
+                </div>
+                <div class="filter-group">
+                    <label>Người gửi:</label>
+                    <select>
+                        <option>Tất cả</option>
+                        <option>Nguyễn Văn A</option>
+                        <option>Trần Thị B</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Tìm kiếm:</label>
+                    <input type="text" placeholder="Tìm trong nội dung...">
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn">🔍 Lọc</button>
+                    <button class="clear-btn">🗑️ Xóa</button>
+                </div>
+            </div>
+            
+            <div class="message-item">
+                <div class="message-header">
+                    <div>
+                        <span class="message-sender">Nguyễn Văn A</span>
+                        <span style="color: #bdc3c7; margin: 0 8px;">•</span>
+                        <span>@nguyenvana</span>
+                    </div>
+                    <div class="message-time">28/01/2024 14:30:15</div>
+                </div>
+                <div class="message-content-mobile">Chào mọi người! Tôi muốn hỏi về giao dịch hôm nay có bị delay không ạ?</div>
+            </div>
+            
+            <div class="message-item">
+                <div class="message-header">
+                    <div>
+                        <span class="message-sender">Admin Bot</span>
+                        <span style="color: #bdc3c7; margin: 0 8px;">•</span>
+                        <span>@botadmin</span>
+                    </div>
+                    <div class="message-time">28/01/2024 14:32:08</div>
+                </div>
+                <div class="message-content-mobile">Hệ thống đang hoạt động bình thường. Không có delay nào được báo cáo.</div>
+                <div class="message-media-mobile">📷 Ảnh 🎥 Video</div>
+            </div>
+            
+            <div class="message-item">
+                <div class="message-header">
+                    <div>
+                        <span class="message-sender">Trần Thị B</span>
+                        <span style="color: #bdc3c7; margin: 0 8px;">•</span>
+                        <span>@tranthib</span>
+                    </div>
+                    <div class="message-time">28/01/2024 14:35:22</div>
+                </div>
+                <div class="message-content-mobile">Cảm ơn admin. Tôi vừa thực hiện giao dịch và đã thành công.</div>
+                <div class="message-media-mobile">📄 File</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="note">
+        📱 Đây là demo giao diện mobile responsive cho /groups và /messagelogs.<br>
+        Thử chuyển đổi giữa các tab để xem các layout khác nhau!
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active from all buttons
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active to clicked button
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html> 

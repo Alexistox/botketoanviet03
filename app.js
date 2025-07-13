@@ -1035,19 +1035,151 @@ app.get('/groups', (req, res) => {
                 color: #e74c3c;
             }
             
+            /* Mobile-first responsive design */
+            .mobile-card {
+                display: none;
+            }
+            
+            .table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
             @media (max-width: 768px) {
+                body {
+                    padding: 10px;
+                }
+                
+                .container {
+                    margin: 0;
+                    border-radius: 0;
+                }
+                
+                .header {
+                    padding: 15px;
+                }
+                
+                .header h1 {
+                    font-size: 1.4em;
+                }
+                
                 .stats {
                     flex-direction: column;
+                    gap: 15px;
+                    padding: 20px 15px;
+                }
+                
+                .stat-item {
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                
+                .stat-number {
+                    font-size: 1.8em;
+                }
+                
+                .stat-label {
+                    font-size: 1em;
+                    margin-top: 8px;
+                }
+                
+                /* Hide table, show cards on mobile */
+                .groups-table {
+                    display: none;
+                }
+                
+                .mobile-card {
+                    display: block;
+                }
+                
+                .group-card {
+                    background: white;
+                    margin: 10px 0;
+                    padding: 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    border-left: 4px solid #3498db;
+                }
+                
+                .group-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 15px;
+                }
+                
+                .group-title {
+                    font-size: 1.1em;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin: 0;
+                    flex: 1;
+                    margin-right: 10px;
+                }
+                
+                .group-stats {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-bottom: 15px;
+                }
+                
+                .group-stat {
+                    text-align: center;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                }
+                
+                .group-stat-value {
+                    font-size: 1.2em;
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+                
+                .group-stat-label {
+                    font-size: 0.8em;
+                    color: #7f8c8d;
+                    margin-top: 5px;
+                }
+                
+                .detail-btn {
+                    width: 100%;
+                    padding: 12px;
+                    font-size: 1em;
+                    border-radius: 8px;
+                    font-weight: bold;
+                }
+                
+                .refresh-btn {
+                    bottom: 15px;
+                    right: 15px;
+                    padding: 15px;
+                    border-radius: 50px;
+                    font-size: 1.1em;
+                }
+                
+                .loading, .error {
+                    padding: 20px;
+                    margin: 15px;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .group-stats {
+                    grid-template-columns: 1fr;
                     gap: 10px;
                 }
                 
-                .groups-table {
-                    font-size: 0.9em;
+                .group-card {
+                    padding: 15px;
+                    margin: 8px 0;
                 }
                 
-                .groups-table th,
-                .groups-table td {
-                    padding: 8px;
+                .stat-number {
+                    font-size: 1.5em;
                 }
             }
         </style>
@@ -1129,42 +1261,87 @@ app.get('/groups', (req, res) => {
                     return;
                 }
                 
+                // Desktop table
                 const tableHTML = \`
-                    <table class="groups-table">
-                        <thead>
-                            <tr>
-                                <th>Tên nhóm</th>
-                                <th>Thành viên</th>
-                                <th>Giao dịch</th>
-                                <th>Rate</th>
-                                <th>Tỷ giá</th>
-                                <th>Tổng VND</th>
-                                <th>Tổng USDT</th>
-                                <th>Chi tiết</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            \${groups.map(group => \`
+                    <div class="table-wrapper">
+                        <table class="groups-table">
+                            <thead>
                                 <tr>
-                                    <td>\${group.title}</td>
-                                    <td>\${formatNumber(group.memberCount)}</td>
-                                    <td>\${formatNumber(group.transactionCount)}</td>
-                                    <td>\${group.rate}%</td>
-                                    <td>\${formatNumber(group.exchangeRate)}</td>
-                                    <td>\${formatNumber(group.totalVND)}</td>
-                                    <td>\${formatNumber(group.totalUSDT)}</td>
-                                    <td>
-                                        <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
-                                            Chi tiết
-                                        </button>
-                                    </td>
+                                    <th>Tên nhóm</th>
+                                    <th>Thành viên</th>
+                                    <th>Giao dịch</th>
+                                    <th>Rate</th>
+                                    <th>Tỷ giá</th>
+                                    <th>Tổng VND</th>
+                                    <th>Tổng USDT</th>
+                                    <th>Chi tiết</th>
                                 </tr>
-                            \`).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                \${groups.map(group => \`
+                                    <tr>
+                                        <td>\${group.title}</td>
+                                        <td>\${formatNumber(group.memberCount)}</td>
+                                        <td>\${formatNumber(group.transactionCount)}</td>
+                                        <td>\${group.rate}%</td>
+                                        <td>\${formatNumber(group.exchangeRate)}</td>
+                                        <td>\${formatNumber(group.totalVND)}</td>
+                                        <td>\${formatNumber(group.totalUSDT)}</td>
+                                        <td>
+                                            <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
+                                                Chi tiết
+                                            </button>
+                                        </td>
+                                    </tr>
+                                \`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 \`;
                 
-                document.getElementById('content').innerHTML = tableHTML;
+                // Mobile cards
+                const mobileHTML = \`
+                    <div class="mobile-card">
+                        \${groups.map(group => \`
+                            <div class="group-card">
+                                <div class="group-card-header">
+                                    <h3 class="group-title">\${group.title}</h3>
+                                </div>
+                                <div class="group-stats">
+                                    <div class="group-stat">
+                                        <div class="group-stat-value">\${formatNumber(group.memberCount)}</div>
+                                        <div class="group-stat-label">Thành viên</div>
+                                    </div>
+                                    <div class="group-stat">
+                                        <div class="group-stat-value">\${formatNumber(group.transactionCount)}</div>
+                                        <div class="group-stat-label">Giao dịch</div>
+                                    </div>
+                                    <div class="group-stat">
+                                        <div class="group-stat-value">\${group.rate}%</div>
+                                        <div class="group-stat-label">Rate</div>
+                                    </div>
+                                    <div class="group-stat">
+                                        <div class="group-stat-value">\${formatNumber(group.exchangeRate)}</div>
+                                        <div class="group-stat-label">Tỷ giá</div>
+                                    </div>
+                                    <div class="group-stat">
+                                        <div class="group-stat-value">\${formatNumber(group.totalVND)}</div>
+                                        <div class="group-stat-label">VND</div>
+                                    </div>
+                                    <div class="group-stat">
+                                        <div class="group-stat-value">\${formatNumber(group.totalUSDT)}</div>
+                                        <div class="group-stat-label">USDT</div>
+                                    </div>
+                                </div>
+                                <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
+                                    📊 Xem chi tiết
+                                </button>
+                            </div>
+                        \`).join('')}
+                    </div>
+                \`;
+                
+                document.getElementById('content').innerHTML = tableHTML + mobileHTML;
             }
             
             function viewDetails(chatId) {
@@ -2544,19 +2721,151 @@ app.get('/messagelogs', (req, res) => {
                 color: #e74c3c;
             }
             
+            /* Mobile-first responsive design for messagelogs */
+            .mobile-card {
+                display: none;
+            }
+            
+            .table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
             @media (max-width: 768px) {
+                body {
+                    padding: 10px;
+                }
+                
+                .container {
+                    margin: 0;
+                    border-radius: 0;
+                }
+                
+                .header {
+                    padding: 15px;
+                }
+                
+                .header h1 {
+                    font-size: 1.4em;
+                }
+                
                 .stats {
                     flex-direction: column;
+                    gap: 15px;
+                    padding: 20px 15px;
+                }
+                
+                .stat-item {
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                
+                .stat-number {
+                    font-size: 1.8em;
+                }
+                
+                .stat-label {
+                    font-size: 1em;
+                    margin-top: 8px;
+                }
+                
+                /* Hide table, show cards on mobile */
+                .groups-table {
+                    display: none;
+                }
+                
+                .mobile-card {
+                    display: block;
+                }
+                
+                .message-card {
+                    background: white;
+                    margin: 10px 0;
+                    padding: 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    border-left: 4px solid #8e44ad;
+                }
+                
+                .message-card-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 15px;
+                }
+                
+                .message-title {
+                    font-size: 1.1em;
+                    font-weight: bold;
+                    color: #8e44ad;
+                    margin: 0;
+                    flex: 1;
+                    margin-right: 10px;
+                }
+                
+                .message-stats {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-bottom: 15px;
+                }
+                
+                .message-stat {
+                    text-align: center;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                }
+                
+                .message-stat-value {
+                    font-size: 1.2em;
+                    font-weight: bold;
+                    color: #8e44ad;
+                }
+                
+                .message-stat-label {
+                    font-size: 0.8em;
+                    color: #7f8c8d;
+                    margin-top: 5px;
+                }
+                
+                .detail-btn {
+                    width: 100%;
+                    padding: 12px;
+                    font-size: 1em;
+                    border-radius: 8px;
+                    font-weight: bold;
+                }
+                
+                .refresh-btn {
+                    bottom: 15px;
+                    right: 15px;
+                    padding: 15px;
+                    border-radius: 50px;
+                    font-size: 1.1em;
+                }
+                
+                .loading, .error {
+                    padding: 20px;
+                    margin: 15px;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .message-stats {
+                    grid-template-columns: 1fr;
                     gap: 10px;
                 }
                 
-                .groups-table {
-                    font-size: 0.9em;
+                .message-card {
+                    padding: 15px;
+                    margin: 8px 0;
                 }
                 
-                .groups-table th,
-                .groups-table td {
-                    padding: 8px;
+                .stat-number {
+                    font-size: 1.5em;
                 }
             }
         </style>
@@ -2644,38 +2953,75 @@ app.get('/messagelogs', (req, res) => {
                     return;
                 }
                 
+                // Desktop table
                 const tableHTML = \`
-                    <table class="groups-table">
-                        <thead>
-                            <tr>
-                                <th>Tên nhóm</th>
-                                <th>Thành viên</th>
-                                <th>Tin nhắn</th>
-                                <th>Tin nhắn đầu</th>
-                                <th>Tin nhắn cuối</th>
-                                <th>Chi tiết</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            \${groups.map(group => \`
+                    <div class="table-wrapper">
+                        <table class="groups-table">
+                            <thead>
                                 <tr>
-                                    <td>\${group.title}</td>
-                                    <td>\${formatNumber(group.memberCount)}</td>
-                                    <td>\${formatNumber(group.messageCount)}</td>
-                                    <td>\${formatDate(group.firstMessage)}</td>
-                                    <td>\${formatDate(group.lastMessage)}</td>
-                                    <td>
-                                        <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
-                                            Xem tin nhắn
-                                        </button>
-                                    </td>
+                                    <th>Tên nhóm</th>
+                                    <th>Thành viên</th>
+                                    <th>Tin nhắn</th>
+                                    <th>Tin nhắn đầu</th>
+                                    <th>Tin nhắn cuối</th>
+                                    <th>Chi tiết</th>
                                 </tr>
-                            \`).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                \${groups.map(group => \`
+                                    <tr>
+                                        <td>\${group.title}</td>
+                                        <td>\${formatNumber(group.memberCount)}</td>
+                                        <td>\${formatNumber(group.messageCount)}</td>
+                                        <td>\${formatDate(group.firstMessage)}</td>
+                                        <td>\${formatDate(group.lastMessage)}</td>
+                                        <td>
+                                            <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
+                                                Xem tin nhắn
+                                            </button>
+                                        </td>
+                                    </tr>
+                                \`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 \`;
                 
-                document.getElementById('content').innerHTML = tableHTML;
+                // Mobile cards
+                const mobileHTML = \`
+                    <div class="mobile-card">
+                        \${groups.map(group => \`
+                            <div class="message-card">
+                                <div class="message-card-header">
+                                    <h3 class="message-title">\${group.title}</h3>
+                                </div>
+                                <div class="message-stats">
+                                    <div class="message-stat">
+                                        <div class="message-stat-value">\${formatNumber(group.memberCount)}</div>
+                                        <div class="message-stat-label">Thành viên</div>
+                                    </div>
+                                    <div class="message-stat">
+                                        <div class="message-stat-value">\${formatNumber(group.messageCount)}</div>
+                                        <div class="message-stat-label">Tin nhắn</div>
+                                    </div>
+                                    <div class="message-stat">
+                                        <div class="message-stat-value">\${formatDate(group.firstMessage)}</div>
+                                        <div class="message-stat-label">Tin nhắn đầu</div>
+                                    </div>
+                                    <div class="message-stat">
+                                        <div class="message-stat-value">\${formatDate(group.lastMessage)}</div>
+                                        <div class="message-stat-label">Tin nhắn cuối</div>
+                                    </div>
+                                </div>
+                                <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
+                                    💬 Xem tin nhắn
+                                </button>
+                            </div>
+                        \`).join('')}
+                    </div>
+                \`;
+                
+                document.getElementById('content').innerHTML = tableHTML + mobileHTML;
             }
             
             function viewDetails(chatId) {
@@ -2919,29 +3265,186 @@ app.get('/messagelogs/:chatId', async (req, res) => {
                 color: #e74c3c;
             }
             
+            /* Mobile cards for messages detail */
+            .mobile-message-card {
+                display: none;
+            }
+            
             @media (max-width: 768px) {
+                body {
+                    padding: 10px;
+                }
+                
+                .container {
+                    margin: 0;
+                    border-radius: 0;
+                }
+                
+                .header {
+                    padding: 15px;
+                    position: relative;
+                }
+                
+                .header h1 {
+                    font-size: 1.3em;
+                    margin: 30px 0 10px 0;
+                }
+                
+                .back-btn {
+                    position: absolute;
+                    left: 15px;
+                    top: 15px;
+                    font-size: 0.9em;
+                    padding: 6px 12px;
+                }
+                
                 .filters {
+                    padding: 15px;
                     flex-direction: column;
                     align-items: stretch;
+                    gap: 12px;
                 }
                 
                 .filter-group {
-                    flex-direction: row;
-                    align-items: center;
-                    justify-content: space-between;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 5px;
                 }
                 
-                .messages-table {
+                .filter-group label {
+                    font-size: 0.9em;
+                    font-weight: bold;
+                }
+                
+                .filter-group input,
+                .filter-group select {
+                    padding: 10px;
+                    font-size: 1em;
+                    border-radius: 6px;
+                }
+                
+                .filter-btn,
+                .clear-btn {
+                    padding: 12px 16px;
+                    font-size: 1em;
+                    border-radius: 6px;
+                    margin-top: 5px;
+                }
+                
+                .stats {
+                    padding: 15px;
+                    flex-direction: row;
+                    justify-content: space-around;
+                }
+                
+                .stat-item {
+                    flex: 1;
+                    margin: 0 5px;
+                }
+                
+                .stat-number {
+                    font-size: 1.2em;
+                }
+                
+                .stat-label {
                     font-size: 0.8em;
                 }
                 
-                .messages-table th,
-                .messages-table td {
-                    padding: 8px 4px;
+                /* Hide table, show cards on mobile */
+                .messages-table {
+                    display: none;
                 }
                 
-                .message-content {
-                    max-width: 200px;
+                .mobile-message-card {
+                    display: block;
+                    padding: 15px;
+                }
+                
+                .message-item {
+                    background: white;
+                    margin: 10px 0;
+                    padding: 15px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                    border-left: 3px solid #8e44ad;
+                }
+                
+                .message-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+                    font-size: 0.9em;
+                    color: #7f8c8d;
+                }
+                
+                .message-sender {
+                    font-weight: bold;
+                    color: #8e44ad;
+                }
+                
+                .message-time {
+                    font-size: 0.8em;
+                    color: #95a5a6;
+                }
+                
+                .message-content-mobile {
+                    line-height: 1.4;
+                    color: #2c3e50;
+                    margin-bottom: 8px;
+                }
+                
+                .message-media-mobile {
+                    color: #e67e22;
+                    font-style: italic;
+                    font-size: 0.9em;
+                }
+                
+                .pagination {
+                    flex-wrap: wrap;
+                    padding: 15px;
+                }
+                
+                .pagination button {
+                    margin: 2px;
+                    padding: 10px 12px;
+                    font-size: 0.9em;
+                }
+                
+                .loading, .error {
+                    padding: 20px;
+                    margin: 15px;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .header h1 {
+                    font-size: 1.1em;
+                }
+                
+                .stats {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .stat-item {
+                    margin: 0;
+                    background: white;
+                    padding: 10px;
+                    border-radius: 6px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                }
+                
+                .message-item {
+                    padding: 12px;
+                    margin: 8px 0;
+                }
+                
+                .message-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 5px;
                 }
             }
         </style>
@@ -3093,45 +3596,81 @@ app.get('/messagelogs/:chatId', async (req, res) => {
                     return;
                 }
                 
+                // Desktop table
                 const tableHTML = \`
-                    <table class="messages-table">
-                        <thead>
-                            <tr>
-                                <th>Thời gian</th>
-                                <th>Người gửi</th>
-                                <th>Username</th>
-                                <th>Nội dung</th>
-                                <th>Media</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            \${messages.map(message => {
-                                let content = message.content || '';
-                                if (content.length > 200) {
-                                    content = content.substring(0, 200) + '...';
-                                }
-                                
-                                let mediaInfo = '';
-                                if (message.photoUrl) mediaInfo += '📷 Ảnh ';
-                                if (message.videoUrl) mediaInfo += '🎥 Video ';
-                                if (message.voiceUrl) mediaInfo += '🎵 Voice ';
-                                if (message.documentUrl) mediaInfo += '📄 File ';
-                                
-                                return \`
-                                    <tr>
-                                        <td>\${formatDateTime(message.timestamp)}</td>
-                                        <td>\${message.senderName || 'Không xác định'}</td>
-                                        <td>@\${message.username || 'N/A'}</td>
-                                        <td class="message-content">\${content}</td>
-                                        <td class="message-media">\${mediaInfo}</td>
-                                    </tr>
-                                \`;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table class="messages-table">
+                            <thead>
+                                <tr>
+                                    <th>Thời gian</th>
+                                    <th>Người gửi</th>
+                                    <th>Username</th>
+                                    <th>Nội dung</th>
+                                    <th>Media</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                \${messages.map(message => {
+                                    let content = message.content || '';
+                                    if (content.length > 200) {
+                                        content = content.substring(0, 200) + '...';
+                                    }
+                                    
+                                    let mediaInfo = '';
+                                    if (message.photoUrl) mediaInfo += '📷 Ảnh ';
+                                    if (message.videoUrl) mediaInfo += '🎥 Video ';
+                                    if (message.voiceUrl) mediaInfo += '🎵 Voice ';
+                                    if (message.documentUrl) mediaInfo += '📄 File ';
+                                    
+                                    return \`
+                                        <tr>
+                                            <td>\${formatDateTime(message.timestamp)}</td>
+                                            <td>\${message.senderName || 'Không xác định'}</td>
+                                            <td>@\${message.username || 'N/A'}</td>
+                                            <td class="message-content">\${content}</td>
+                                            <td class="message-media">\${mediaInfo}</td>
+                                        </tr>
+                                    \`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 \`;
                 
-                document.getElementById('content').innerHTML = tableHTML;
+                // Mobile cards
+                const mobileHTML = \`
+                    <div class="mobile-message-card">
+                        \${messages.map(message => {
+                            let content = message.content || '';
+                            if (content.length > 150) {
+                                content = content.substring(0, 150) + '...';
+                            }
+                            
+                            let mediaInfo = '';
+                            if (message.photoUrl) mediaInfo += '📷 Ảnh ';
+                            if (message.videoUrl) mediaInfo += '🎥 Video ';
+                            if (message.voiceUrl) mediaInfo += '🎵 Voice ';
+                            if (message.documentUrl) mediaInfo += '📄 File ';
+                            
+                            return \`
+                                <div class="message-item">
+                                    <div class="message-header">
+                                        <div>
+                                            <span class="message-sender">\${message.senderName || 'Không xác định'}</span>
+                                            <span style="color: #bdc3c7; margin: 0 8px;">•</span>
+                                            <span>@\${message.username || 'N/A'}</span>
+                                        </div>
+                                        <div class="message-time">\${formatDateTime(message.timestamp)}</div>
+                                    </div>
+                                    \${content ? \`<div class="message-content-mobile">\${content}</div>\` : ''}
+                                    \${mediaInfo ? \`<div class="message-media-mobile">\${mediaInfo}</div>\` : ''}
+                                </div>
+                            \`;
+                        }).join('')}
+                    </div>
+                \`;
+                
+                document.getElementById('content').innerHTML = tableHTML + mobileHTML;
             }
             
             function updatePagination(pagination) {
