@@ -782,71 +782,6 @@ ${websiteUrl}
 };
 
 /**
- * Xử lý lệnh gửi link website message logs
- */
-const handleMessageLogsCommand = async (bot, msg) => {
-  try {
-    const userId = msg.from.id;
-    console.log(`User ${userId} trying to use /messagelogs command`);
-    
-    // Chỉ cho phép owner hoặc admin sử dụng lệnh này
-    const isAdmin = await isUserAdmin(userId);
-    console.log(`User ${userId} admin status: ${isAdmin}`);
-    
-    if (!isAdmin) {
-      console.log(`Access denied for user ${userId} - not admin`);
-      bot.sendMessage(msg.chat.id, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền sử dụng lệnh này!");
-      return;
-    }
-    
-    // Tạo URL website
-    const serverUrl = process.env.SERVER_URL || 'http://159.223.49.204:3000';
-    const websiteUrl = `${serverUrl}/message-logs`;
-    console.log(`Generated website URL: ${websiteUrl}`);
-    
-    // Tạo message với link
-    const message = `
-📝 *Message Logs - Tin nhắn được lưu trữ*
-
-🔗 Xem tất cả tin nhắn các nhóm tại:
-${websiteUrl}
-
-📱 Website này hiển thị:
-• Danh sách các nhóm có tin nhắn được lưu
-• Thống kê tổng quan tin nhắn
-• Chi tiết tin nhắn từng nhóm
-• Lọc theo ngày, tìm kiếm nội dung
-• Thông tin người gửi và thời gian
-• Hiển thị media (ảnh, video, voice, file)
-
-🔍 Tính năng tìm kiếm:
-• Lọc theo khoảng thời gian
-• Tìm kiếm trong nội dung tin nhắn
-• Tìm theo tên người gửi
-• Phân trang dễ dàng
-
-🔄 Dữ liệu được cập nhật realtime
-    `;
-    
-    // Gửi tin nhắn
-    console.log(`Sending message logs response to chat ${msg.chat.id}`);
-    await bot.sendMessage(msg.chat.id, message.trim(), { 
-      parse_mode: 'Markdown',
-      disable_web_page_preview: false
-    });
-    console.log(`Message logs response sent successfully to chat ${msg.chat.id}`);
-    
-  } catch (error) {
-    console.error('Error in handleMessageLogsCommand:', error);
-    try {
-      await bot.sendMessage(msg.chat.id, `❌ Lỗi xử lý lệnh: ${error.message}`);
-    } catch (sendError) {
-      console.error('Failed to send error message:', sendError);
-    }
-  }
-};
-
-/**
  * Xử lý lệnh thêm nút inline keyboard
  */
 const handleAddInlineCommand = async (bot, msg) => {
@@ -1394,7 +1329,6 @@ module.exports = {
   handleListOperatorsCommand,
   handleListGroupsCommand,
   handleGroupsCommand,
-  handleMessageLogsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
   displayInlineButtons,

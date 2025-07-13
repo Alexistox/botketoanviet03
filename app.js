@@ -746,71 +746,8 @@ app.get('/api/groups/:chatId/export-excel', async (req, res) => {
   }
 });
 
-// API endpoint để lấy danh sách nhóm có message logs
-app.get('/api/message-logs/groups', async (req, res) => {
-  try {
-    // Lấy danh sách nhóm unique từ MessageLog
-    const groups = await MessageLog.aggregate([
-      {
-        $group: {
-          _id: '$chatId',
-          groupName: { $first: '$groupName' },
-          lastMessage: { $max: '$timestamp' },
-          messageCount: { $sum: 1 }
-        }
-      },
-      { $sort: { lastMessage: -1 } }
-    ]);
-
-    // Lấy thêm thông tin từ Group collection nếu có
-    const groupsWithDetails = await Promise.all(
-      groups.map(async (group) => {
-        let groupTitle = group.groupName || 'Nhóm không xác định';
-        let memberCount = 'N/A';
-        
-        try {
-          // Thử lấy thông tin từ Telegram API
-          const chatInfo = await bot.getChat(group._id);
-          groupTitle = chatInfo.title || groupTitle;
-          
-          // Lấy số lượng thành viên
-          const memberCountInfo = await bot.getChatMemberCount(group._id);
-          memberCount = memberCountInfo;
-        } catch (error) {
-          console.log(`Cannot get info for chat ${group._id}:`, error.message);
-        }
-
-        // Lấy thông tin từ Group collection
-        const groupInfo = await Group.findOne({ chatId: group._id });
-        
-        return {
-          chatId: group._id,
-          groupName: groupTitle,
-          originalGroupName: group.groupName,
-          lastMessage: group.lastMessage,
-          messageCount: group.messageCount,
-          memberCount: memberCount,
-          hasGroupInfo: !!groupInfo
-        };
-      })
-    );
-
-    res.json({
-      success: true,
-      groups: groupsWithDetails,
-      totalGroups: groups.length
-    });
-  } catch (error) {
-    console.error('Error fetching message log groups:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi khi lấy danh sách nhóm'
-    });
-  }
-});
-
 // API endpoint để lấy message logs của một nhóm
-app.get('/api/message-logs/:chatId', async (req, res) => {
+app.get('/api/groups/:chatId/messages', async (req, res) => {
   try {
     const { chatId } = req.params;
     const { 
@@ -818,8 +755,27 @@ app.get('/api/message-logs/:chatId', async (req, res) => {
       limit = 50, 
       startDate, 
       endDate, 
-      search 
+      senderName, 
+      search,
+      hasMedia
     } = req.query;
+    
+    // Lấy thông tin nhóm
+    const group = await Group.findOne({ chatId });
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhóm'
+      });
+    }
+
+    let groupTitle = "Nhóm không xác định";
+    try {
+      const chatInfo = await bot.getChat(chatId);
+      groupTitle = chatInfo.title || `Chat ID: ${chatId}`;
+    } catch (error) {
+      groupTitle = `Nhóm không xác định (ID: ${chatId})`;
+    }
 
     // Tạo filter query
     const filter = { chatId };
@@ -835,67 +791,105 @@ app.get('/api/message-logs/:chatId', async (req, res) => {
       }
     }
 
+    // Lọc theo người gửi
+    if (senderName && senderName !== 'all') {
+      filter.senderName = { $regex: senderName, $options: 'i' };
+    }
+
     // Tìm kiếm trong nội dung
     if (search) {
+      filter.content = { $regex: search, $options: 'i' };
+    }
+
+    // Lọc tin nhắn có media
+    if (hasMedia === 'true') {
       filter.$or = [
-        { content: { $regex: search, $options: 'i' } },
-        { senderName: { $regex: search, $options: 'i' } }
+        { photoUrl: { $ne: '' } },
+        { videoUrl: { $ne: '' } },
+        { voiceUrl: { $ne: '' } },
+        { documentUrl: { $ne: '' } }
       ];
+    } else if (hasMedia === 'false') {
+      filter.photoUrl = '';
+      filter.videoUrl = '';
+      filter.voiceUrl = '';
+      filter.documentUrl = '';
     }
 
-    // Lấy thông tin nhóm
-    let groupTitle = "Nhóm không xác định";
-    try {
-      const chatInfo = await bot.getChat(chatId);
-      groupTitle = chatInfo.title || `Chat ID: ${chatId}`;
-    } catch (error) {
-      groupTitle = `Nhóm không xác định (ID: ${chatId})`;
-    }
-
-    // Lấy message logs với phân trang
+    // Lấy messages với phân trang
     const messages = await MessageLog.find(filter)
       .sort({ timestamp: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .exec();
 
-    // Đếm tổng số tin nhắn
+    // Đếm tổng số messages
     const totalMessages = await MessageLog.countDocuments(filter);
 
-    // Lấy thống kê
-    const stats = await MessageLog.aggregate([
+    // Lấy danh sách unique senders
+    const uniqueSenders = await MessageLog.distinct('senderName', { chatId });
+
+    // Thống kê theo loại tin nhắn
+    const messageStats = await MessageLog.aggregate([
       { $match: { chatId } },
       {
         $group: {
           _id: null,
           totalMessages: { $sum: 1 },
-          totalSenders: { $addToSet: '$senderId' },
-          firstMessage: { $min: '$timestamp' },
-          lastMessage: { $max: '$timestamp' },
-          messageTypes: {
-            $push: {
-              hasPhoto: { $ne: ['$photoUrl', ''] },
-              hasVideo: { $ne: ['$videoUrl', ''] },
-              hasVoice: { $ne: ['$voiceUrl', ''] },
-              hasDocument: { $ne: ['$documentUrl', ''] },
-              hasText: { $ne: ['$content', ''] }
+          withPhoto: { 
+            $sum: { 
+              $cond: [{ $ne: ['$photoUrl', ''] }, 1, 0] 
+            }
+          },
+          withVideo: { 
+            $sum: { 
+              $cond: [{ $ne: ['$videoUrl', ''] }, 1, 0] 
+            }
+          },
+          withVoice: { 
+            $sum: { 
+              $cond: [{ $ne: ['$voiceUrl', ''] }, 1, 0] 
+            }
+          },
+          withDocument: { 
+            $sum: { 
+              $cond: [{ $ne: ['$documentUrl', ''] }, 1, 0] 
             }
           }
         }
       }
     ]);
 
-    const groupStats = stats.length > 0 ? {
-      totalMessages: stats[0].totalMessages,
-      uniqueSenders: stats[0].totalSenders.length,
-      firstMessage: stats[0].firstMessage,
-      lastMessage: stats[0].lastMessage
-    } : {
+    const stats = messageStats.length > 0 ? messageStats[0] : {
       totalMessages: 0,
-      uniqueSenders: 0,
-      firstMessage: null,
-      lastMessage: null
+      withPhoto: 0,
+      withVideo: 0,
+      withVoice: 0,
+      withDocument: 0
     };
+
+    // Nhóm messages theo ngày
+    const messagesByDate = {};
+    messages.forEach(message => {
+      const date = message.timestamp.toISOString().split('T')[0];
+      if (!messagesByDate[date]) {
+        messagesByDate[date] = [];
+      }
+      
+      messagesByDate[date].push({
+        id: message._id,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        username: message.username,
+        content: message.content,
+        photoUrl: message.photoUrl,
+        videoUrl: message.videoUrl,
+        voiceUrl: message.voiceUrl,
+        documentUrl: message.documentUrl,
+        timestamp: message.timestamp,
+        hasMedia: !!(message.photoUrl || message.videoUrl || message.voiceUrl || message.documentUrl)
+      });
+    });
 
     res.json({
       success: true,
@@ -904,16 +898,19 @@ app.get('/api/message-logs/:chatId', async (req, res) => {
       totalMessages,
       currentPage: parseInt(page),
       totalPages: Math.ceil(totalMessages / limit),
-      messages,
-      stats: groupStats,
+      messagesByDate,
+      uniqueSenders,
+      stats,
       filters: {
         startDate: startDate || null,
         endDate: endDate || null,
-        search: search || ''
+        senderName: senderName || 'all',
+        search: search || '',
+        hasMedia: hasMedia || 'all'
       }
     });
   } catch (error) {
-    console.error('Error fetching message logs:', error);
+    console.error('Error fetching group messages:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi khi lấy tin nhắn'
@@ -1205,738 +1202,6 @@ app.get('/groups', (req, res) => {
   `);
 });
 
-// Route hiển thị danh sách message logs
-app.get('/message-logs', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Message Logs - Danh sách nhóm</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            
-            body {
-                font-family: Arial, sans-serif;
-                background: #f5f5f5;
-                padding: 20px;
-                color: #333;
-            }
-            
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                overflow: hidden;
-            }
-            
-            .header {
-                background: #2c3e50;
-                color: white;
-                padding: 20px;
-                text-align: center;
-            }
-            
-            .header h1 {
-                font-size: 1.8em;
-                margin-bottom: 5px;
-            }
-            
-            .stats {
-                display: flex;
-                justify-content: space-around;
-                padding: 15px;
-                background: #ecf0f1;
-                border-bottom: 1px solid #ddd;
-            }
-            
-            .stat-item {
-                text-align: center;
-            }
-            
-            .stat-number {
-                font-size: 1.5em;
-                font-weight: bold;
-                color: #2c3e50;
-            }
-            
-            .stat-label {
-                font-size: 0.9em;
-                color: #7f8c8d;
-                margin-top: 5px;
-            }
-            
-            .loading {
-                text-align: center;
-                padding: 40px;
-                color: #7f8c8d;
-            }
-            
-            .groups-table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            
-            .groups-table th,
-            .groups-table td {
-                padding: 12px;
-                text-align: left;
-                border-bottom: 1px solid #ddd;
-            }
-            
-            .groups-table th {
-                background: #34495e;
-                color: white;
-                font-weight: normal;
-            }
-            
-            .groups-table tr:hover {
-                background: #f8f9fa;
-            }
-            
-            .detail-btn {
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.9em;
-                text-decoration: none;
-                display: inline-block;
-            }
-            
-            .detail-btn:hover {
-                background: #2980b9;
-            }
-            
-            .message-count {
-                color: #27ae60;
-                font-weight: bold;
-            }
-            
-            .member-count {
-                color: #e67e22;
-                font-weight: bold;
-            }
-            
-            .last-message {
-                color: #7f8c8d;
-                font-size: 0.9em;
-            }
-            
-            .refresh-btn {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                background: #2c3e50;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 12px 16px;
-                cursor: pointer;
-            }
-            
-            .refresh-btn:hover {
-                background: #34495e;
-            }
-            
-            .error {
-                text-align: center;
-                padding: 40px;
-                color: #e74c3c;
-            }
-            
-            @media (max-width: 768px) {
-                .stats {
-                    flex-direction: column;
-                    gap: 10px;
-                }
-                
-                .groups-table {
-                    font-size: 0.9em;
-                }
-                
-                .groups-table th,
-                .groups-table td {
-                    padding: 6px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>📝 Message Logs</h1>
-                <p>Danh sách các nhóm có tin nhắn được lưu trữ</p>
-            </div>
-            
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-number" id="totalGroups">-</div>
-                    <div class="stat-label">Tổng nhóm</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="totalMessages">-</div>
-                    <div class="stat-label">Tổng tin nhắn</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number" id="activeGroups">-</div>
-                    <div class="stat-label">Nhóm hoạt động</div>
-                </div>
-            </div>
-            
-            <div id="content">
-                <div class="loading">
-                    <div>⏳ Đang tải dữ liệu...</div>
-                </div>
-            </div>
-        </div>
-        
-        <button class="refresh-btn" onclick="loadData()">🔄 Làm mới</button>
-        
-        <script>
-            function formatNumber(num) {
-                return new Intl.NumberFormat('vi-VN').format(num);
-            }
-            
-            function formatDate(dateString) {
-                if (!dateString) return 'Chưa có';
-                return new Date(dateString).toLocaleString('vi-VN');
-            }
-            
-            function formatDateShort(dateString) {
-                if (!dateString) return 'Chưa có';
-                return new Date(dateString).toLocaleDateString('vi-VN');
-            }
-            
-            async function loadData() {
-                try {
-                    const response = await fetch('/api/message-logs/groups');
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        displayGroups(data);
-                        updateStats(data);
-                    } else {
-                        document.getElementById('content').innerHTML = 
-                            '<div class="error">❌ Lỗi: ' + data.message + '</div>';
-                    }
-                } catch (error) {
-                    document.getElementById('content').innerHTML = 
-                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
-                }
-            }
-            
-            function updateStats(data) {
-                const totalMessages = data.groups.reduce((sum, group) => sum + group.messageCount, 0);
-                const activeGroups = data.groups.filter(group => {
-                    const lastMessage = new Date(group.lastMessage);
-                    const weekAgo = new Date();
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    return lastMessage > weekAgo;
-                }).length;
-                
-                document.getElementById('totalGroups').textContent = formatNumber(data.totalGroups);
-                document.getElementById('totalMessages').textContent = formatNumber(totalMessages);
-                document.getElementById('activeGroups').textContent = formatNumber(activeGroups);
-            }
-            
-            function displayGroups(data) {
-                const groupsHTML = \`
-                    <table class="groups-table">
-                        <thead>
-                            <tr>
-                                <th>Tên nhóm</th>
-                                <th>Chat ID</th>
-                                <th>Tin nhắn</th>
-                                <th>Thành viên</th>
-                                <th>Tin nhắn cuối</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            \${data.groups.map(group => \`
-                                <tr>
-                                    <td>
-                                        <strong>\${group.groupName}</strong>
-                                        \${group.hasGroupInfo ? '<span style="color: #27ae60;">✓</span>' : '<span style="color: #e74c3c;">✗</span>'}
-                                    </td>
-                                    <td><code>\${group.chatId}</code></td>
-                                    <td class="message-count">\${formatNumber(group.messageCount)}</td>
-                                    <td class="member-count">\${group.memberCount !== 'N/A' ? formatNumber(group.memberCount) : 'N/A'}</td>
-                                    <td class="last-message">\${formatDate(group.lastMessage)}</td>
-                                    <td>
-                                        <a href="/message-logs/\${group.chatId}" class="detail-btn">Xem tin nhắn</a>
-                                    </td>
-                                </tr>
-                            \`).join('')}
-                        </tbody>
-                    </table>
-                \`;
-                
-                document.getElementById('content').innerHTML = groupsHTML;
-            }
-            
-            // Load data when page loads
-            loadData();
-            
-            // Auto refresh every 30 seconds
-            setInterval(loadData, 30000);
-        </script>
-    </body>
-    </html>
-  `);
-});
-
-// Route hiển thị chi tiết message logs của một nhóm
-app.get('/message-logs/:chatId', async (req, res) => {
-  const { chatId } = req.params;
-  
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Message Logs - Chi tiết nhóm</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            
-            body {
-                font-family: Arial, sans-serif;
-                background: #f5f5f5;
-                padding: 20px;
-                color: #333;
-            }
-            
-            .container {
-                max-width: 1000px;
-                margin: 0 auto;
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                overflow: hidden;
-            }
-            
-            .header {
-                background: #2c3e50;
-                color: white;
-                padding: 20px;
-                text-align: center;
-            }
-            
-            .header h1 {
-                font-size: 1.8em;
-                margin-bottom: 5px;
-            }
-            
-            .back-btn {
-                background: #34495e;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                margin-bottom: 15px;
-                text-decoration: none;
-                display: inline-block;
-            }
-            
-            .back-btn:hover {
-                background: #2c3e50;
-            }
-            
-            .stats-section {
-                padding: 20px;
-                background: #ecf0f1;
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 15px;
-            }
-            
-            .stat-card {
-                background: white;
-                padding: 15px;
-                border-radius: 6px;
-                text-align: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            
-            .stat-number {
-                font-size: 1.5em;
-                font-weight: bold;
-                color: #2c3e50;
-            }
-            
-            .stat-label {
-                font-size: 0.9em;
-                color: #7f8c8d;
-                margin-top: 5px;
-            }
-            
-            .filters-section {
-                padding: 20px;
-                background: #f8f9fa;
-                border-bottom: 1px solid #ddd;
-            }
-            
-            .filter-row {
-                display: flex;
-                gap: 15px;
-                margin-bottom: 15px;
-                flex-wrap: wrap;
-            }
-            
-            .filter-group {
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-                min-width: 150px;
-            }
-            
-            .filter-group label {
-                font-weight: 500;
-                color: #2c3e50;
-                font-size: 0.9em;
-            }
-            
-            .filter-group input {
-                padding: 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 0.9em;
-            }
-            
-            .filter-btn {
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.9em;
-            }
-            
-            .filter-btn:hover {
-                background: #2980b9;
-            }
-            
-            .clear-btn {
-                background: #e74c3c;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.9em;
-            }
-            
-            .clear-btn:hover {
-                background: #c0392b;
-            }
-            
-            .messages-section {
-                max-height: 600px;
-                overflow-y: auto;
-                padding: 20px;
-            }
-            
-            .message-item {
-                border-bottom: 1px solid #eee;
-                padding: 15px 0;
-                display: flex;
-                gap: 15px;
-            }
-            
-            .message-time {
-                min-width: 150px;
-                color: #7f8c8d;
-                font-size: 0.9em;
-            }
-            
-            .message-sender {
-                min-width: 120px;
-                font-weight: bold;
-                color: #2c3e50;
-            }
-            
-            .message-content {
-                flex: 1;
-                word-wrap: break-word;
-            }
-            
-            .message-media {
-                color: #3498db;
-                font-style: italic;
-                margin-top: 5px;
-            }
-            
-            .pagination {
-                text-align: center;
-                padding: 20px;
-                border-top: 1px solid #ddd;
-            }
-            
-            .pagination button {
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                margin: 0 5px;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-            
-            .pagination button:hover {
-                background: #2980b9;
-            }
-            
-            .pagination button:disabled {
-                background: #bdc3c7;
-                cursor: not-allowed;
-            }
-            
-            .loading {
-                text-align: center;
-                padding: 40px;
-                color: #7f8c8d;
-            }
-            
-            .error {
-                text-align: center;
-                padding: 40px;
-                color: #e74c3c;
-            }
-            
-            @media (max-width: 768px) {
-                .filter-row {
-                    flex-direction: column;
-                }
-                
-                .message-item {
-                    flex-direction: column;
-                    gap: 5px;
-                }
-                
-                .message-time,
-                .message-sender {
-                    min-width: auto;
-                }
-                
-                .stats-section {
-                    grid-template-columns: 1fr;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <a href="/message-logs" class="back-btn">← Quay lại danh sách</a>
-                <h1 id="groupTitle">Chi tiết tin nhắn</h1>
-            </div>
-            
-            <div id="statsSection" class="stats-section">
-                <div class="loading">Đang tải thống kê...</div>
-            </div>
-            
-            <div class="filters-section">
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>Từ ngày:</label>
-                        <input type="date" id="startDate" onchange="applyFilters()">
-                    </div>
-                    <div class="filter-group">
-                        <label>Đến ngày:</label>
-                        <input type="date" id="endDate" onchange="applyFilters()">
-                    </div>
-                    <div class="filter-group">
-                        <label>Tìm kiếm:</label>
-                        <input type="text" id="searchInput" placeholder="Tìm trong nội dung hoặc tên người gửi..." onkeyup="handleSearch(event)">
-                    </div>
-                    <div class="filter-group">
-                        <label>&nbsp;</label>
-                        <button onclick="applyFilters()" class="filter-btn">🔍 Tìm</button>
-                    </div>
-                    <div class="filter-group">
-                        <label>&nbsp;</label>
-                        <button onclick="clearFilters()" class="clear-btn">🧹 Xóa</button>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="content">
-                <div class="loading">
-                    <div>⏳ Đang tải tin nhắn...</div>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-            const chatId = '${chatId}';
-            let currentPage = 1;
-            let currentFilters = {};
-            
-            function formatNumber(num) {
-                return new Intl.NumberFormat('vi-VN').format(num);
-            }
-            
-            function formatDate(dateString) {
-                if (!dateString) return 'Chưa có';
-                return new Date(dateString).toLocaleDateString('vi-VN');
-            }
-            
-            function formatDateTime(dateString) {
-                return new Date(dateString).toLocaleString('vi-VN');
-            }
-            
-            async function loadMessages(page = 1, filters = {}) {
-                try {
-                    const params = new URLSearchParams({
-                        page: page.toString(),
-                        limit: '50',
-                        ...filters
-                    });
-                    
-                    const response = await fetch(\`/api/message-logs/\${chatId}?\${params}\`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        displayMessages(data);
-                        displayStats(data.stats);
-                        document.getElementById('groupTitle').textContent = \`📝 \${data.groupTitle}\`;
-                        currentPage = page;
-                        currentFilters = filters;
-                    } else {
-                        document.getElementById('content').innerHTML = 
-                            '<div class="error">❌ Lỗi: ' + data.message + '</div>';
-                    }
-                } catch (error) {
-                    document.getElementById('content').innerHTML = 
-                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
-                }
-            }
-            
-            function displayStats(stats) {
-                const statsHTML = \`
-                    <div class="stat-card">
-                        <div class="stat-number">\${formatNumber(stats.totalMessages)}</div>
-                        <div class="stat-label">Tổng tin nhắn</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">\${formatNumber(stats.uniqueSenders)}</div>
-                        <div class="stat-label">Người gửi</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">\${formatDate(stats.firstMessage)}</div>
-                        <div class="stat-label">Tin nhắn đầu</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">\${formatDate(stats.lastMessage)}</div>
-                        <div class="stat-label">Tin nhắn cuối</div>
-                    </div>
-                \`;
-                
-                document.getElementById('statsSection').innerHTML = statsHTML;
-            }
-            
-            function displayMessages(data) {
-                const messagesHTML = \`
-                    <div class="messages-section">
-                        <p style="margin-bottom: 15px; color: #7f8c8d;">
-                            Tổng: \${formatNumber(data.totalMessages)} tin nhắn (Trang \${data.currentPage}/\${data.totalPages})
-                        </p>
-                        
-                        \${data.messages.map(message => \`
-                            <div class="message-item">
-                                <div class="message-time">\${formatDateTime(message.timestamp)}</div>
-                                <div class="message-sender">\${message.senderName || 'Không rõ'}</div>
-                                <div class="message-content">
-                                    \${message.content || '<em>Không có nội dung text</em>'}
-                                    \${getMediaInfo(message)}
-                                </div>
-                            </div>
-                        \`).join('')}
-                    </div>
-                    
-                    \${data.totalPages > 1 ? \`
-                        <div class="pagination">
-                            <button onclick="loadMessages(\${Math.max(1, data.currentPage - 1)}, currentFilters)" 
-                                    \${data.currentPage === 1 ? 'disabled' : ''}>
-                                ← Trước
-                            </button>
-                            <span>Trang \${data.currentPage} / \${data.totalPages}</span>
-                            <button onclick="loadMessages(\${Math.min(data.totalPages, data.currentPage + 1)}, currentFilters)" 
-                                    \${data.currentPage === data.totalPages ? 'disabled' : ''}>
-                                Sau →
-                            </button>
-                        </div>
-                    \` : ''}
-                \`;
-                
-                document.getElementById('content').innerHTML = messagesHTML;
-            }
-            
-            function getMediaInfo(message) {
-                const media = [];
-                if (message.photoUrl) media.push('📷 Ảnh');
-                if (message.videoUrl) media.push('🎥 Video');
-                if (message.voiceUrl) media.push('🎵 Voice');
-                if (message.documentUrl) media.push('📄 File');
-                
-                return media.length > 0 ? \`<div class="message-media">[\${media.join(', ')}]</div>\` : '';
-            }
-            
-            function applyFilters() {
-                const filters = {
-                    startDate: document.getElementById('startDate').value,
-                    endDate: document.getElementById('endDate').value,
-                    search: document.getElementById('searchInput').value
-                };
-                
-                // Remove empty filters
-                Object.keys(filters).forEach(key => {
-                    if (!filters[key]) {
-                        delete filters[key];
-                    }
-                });
-                
-                loadMessages(1, filters);
-            }
-            
-            function clearFilters() {
-                document.getElementById('startDate').value = '';
-                document.getElementById('endDate').value = '';
-                document.getElementById('searchInput').value = '';
-                loadMessages(1, {});
-            }
-            
-            function handleSearch(event) {
-                if (event.key === 'Enter') {
-                    applyFilters();
-                }
-            }
-            
-            // Load data when page loads
-            loadMessages();
-        </script>
-    </body>
-    </html>
-  `);
-});
-
 // Route hiển thị chi tiết một nhóm
 app.get('/groups/:chatId', async (req, res) => {
   const { chatId } = req.params;
@@ -1983,7 +1248,7 @@ app.get('/groups/:chatId', async (req, res) => {
                 margin-bottom: 5px;
             }
             
-            .back-btn {
+            .back-btn, .messages-btn {
                 background: #34495e;
                 color: white;
                 border: none;
@@ -1991,10 +1256,19 @@ app.get('/groups/:chatId', async (req, res) => {
                 border-radius: 4px;
                 cursor: pointer;
                 margin-bottom: 15px;
+                margin-right: 10px;
             }
             
-            .back-btn:hover {
+            .back-btn:hover, .messages-btn:hover {
                 background: #2c3e50;
+            }
+            
+            .messages-btn {
+                background: #e67e22;
+            }
+            
+            .messages-btn:hover {
+                background: #d35400;
             }
             
             .info-grid {
@@ -2196,7 +1470,8 @@ app.get('/groups/:chatId', async (req, res) => {
             }
             
             .search-btn,
-            .clear-btn {
+            .clear-btn,
+            .export-btn {
                 padding: 8px 12px;
                 border: none;
                 border-radius: 4px;
@@ -2226,12 +1501,6 @@ app.get('/groups/:chatId', async (req, res) => {
             .export-btn {
                 background: #2ecc71;
                 color: white;
-                border: none;
-                padding: 8px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.9em;
-                transition: all 0.3s ease;
             }
             
             .export-btn:hover {
@@ -2434,28 +1703,6 @@ app.get('/groups/:chatId', async (req, res) => {
                 color: #7f8c8d;
             }
             
-            .transactions-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 10px;
-            }
-            
-            .transactions-table th,
-            .transactions-table td {
-                padding: 10px;
-                text-align: left;
-                border-bottom: 1px solid #ddd;
-            }
-            
-            .transactions-table th {
-                background: #34495e;
-                color: white;
-            }
-            
-            .transactions-table tr:hover {
-                background: #f8f9fa;
-            }
-            
             .transaction-date {
                 background: #2c3e50;
                 color: white;
@@ -2601,6 +1848,7 @@ app.get('/groups/:chatId', async (req, res) => {
         <div class="container">
             <div class="header">
                 <button class="back-btn" onclick="window.location.href='/groups'">← Quay lại</button>
+                <button class="messages-btn" onclick="window.location.href='/groups/${chatId}/messages'">💬 Tin nhắn</button>
                 <h1 id="groupTitle">Chi tiết nhóm</h1>
             </div>
             
@@ -3161,6 +2409,628 @@ app.get('/groups/:chatId', async (req, res) => {
             
             // Load data when page loads
             loadGroupDetails();
+        </script>
+    </body>
+    </html>
+  `);
+});
+
+// Route hiển thị message logs của một nhóm
+app.get('/groups/:chatId/messages', async (req, res) => {
+  const { chatId } = req.params;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tin nhắn nhóm</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+                color: #333;
+            }
+            
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                overflow: hidden;
+            }
+            
+            .header {
+                background: #e67e22;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+                margin-bottom: 5px;
+            }
+            
+            .back-btn {
+                background: #d35400;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-bottom: 15px;
+            }
+            
+            .back-btn:hover {
+                background: #bf4f36;
+            }
+            
+            .filters-container {
+                background: white;
+                padding: 20px;
+                border-radius: 6px;
+                margin: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .filter-row {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .filter-row:last-child {
+                margin-bottom: 0;
+            }
+            
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                min-width: 150px;
+            }
+            
+            .filter-group.search-group {
+                min-width: 300px;
+                flex: 1;
+            }
+            
+            .filter-group label {
+                font-weight: 500;
+                color: #2c3e50;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input,
+            .filter-group select {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input:focus,
+            .filter-group select:focus {
+                outline: none;
+                border-color: #e67e22;
+                box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2);
+            }
+            
+            .search-input-container {
+                display: flex;
+                gap: 5px;
+                align-items: center;
+            }
+            
+            .search-input-container input {
+                flex: 1;
+            }
+            
+            .search-btn,
+            .clear-btn {
+                padding: 8px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: all 0.3s ease;
+            }
+            
+            .search-btn {
+                background: #e67e22;
+                color: white;
+            }
+            
+            .search-btn:hover {
+                background: #d35400;
+            }
+            
+            .clear-btn {
+                background: #e74c3c;
+                color: white;
+            }
+            
+            .clear-btn:hover {
+                background: #c0392b;
+            }
+            
+            .stats-container {
+                display: flex;
+                gap: 15px;
+                margin: 20px;
+                flex-wrap: wrap;
+            }
+            
+            .stat-card {
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                text-align: center;
+                min-width: 120px;
+            }
+            
+            .stat-number {
+                font-size: 1.5em;
+                font-weight: bold;
+                color: #e67e22;
+            }
+            
+            .stat-label {
+                font-size: 0.9em;
+                color: #7f8c8d;
+                margin-top: 5px;
+            }
+            
+            .message-summary {
+                margin: 20px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 6px;
+                color: #7f8c8d;
+                font-size: 0.9em;
+            }
+            
+            .messages-container {
+                margin: 20px;
+            }
+            
+            .message-date {
+                background: #e67e22;
+                color: white;
+                padding: 10px;
+                margin: 20px 0 10px 0;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            
+            .message-item {
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                margin-bottom: 10px;
+                padding: 15px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .message-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #ecf0f1;
+            }
+            
+            .sender-info {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .sender-name {
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .sender-username {
+                color: #7f8c8d;
+                font-size: 0.9em;
+            }
+            
+            .message-time {
+                color: #7f8c8d;
+                font-size: 0.9em;
+            }
+            
+            .message-content {
+                color: #2c3e50;
+                line-height: 1.5;
+                word-wrap: break-word;
+            }
+            
+            .message-media {
+                margin-top: 10px;
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            
+            .media-badge {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.8em;
+                font-weight: 500;
+            }
+            
+            .media-photo {
+                background: #27ae60;
+                color: white;
+            }
+            
+            .media-video {
+                background: #8e44ad;
+                color: white;
+            }
+            
+            .media-voice {
+                background: #f39c12;
+                color: white;
+            }
+            
+            .media-document {
+                background: #34495e;
+                color: white;
+            }
+            
+            .pagination {
+                text-align: center;
+                margin: 20px 0;
+                padding: 20px;
+            }
+            
+            .pagination button {
+                background: #e67e22;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                margin: 0 5px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            
+            .pagination button:hover {
+                background: #d35400;
+            }
+            
+            .pagination button:disabled {
+                background: #bdc3c7;
+                cursor: not-allowed;
+            }
+            
+            .loading {
+                text-align: center;
+                padding: 40px;
+                color: #7f8c8d;
+            }
+            
+            .error {
+                text-align: center;
+                padding: 40px;
+                color: #e74c3c;
+            }
+            
+            @media (max-width: 768px) {
+                .filter-row {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .filter-group {
+                    min-width: auto;
+                }
+                
+                .filter-group.search-group {
+                    min-width: auto;
+                }
+                
+                .search-input-container {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .stats-container {
+                    justify-content: center;
+                }
+                
+                .message-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 5px;
+                }
+                
+                .filters-container {
+                    padding: 15px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <button class="back-btn" onclick="window.location.href='/groups/${chatId}'">← Quay lại chi tiết nhóm</button>
+                <h1 id="groupTitle">💬 Tin nhắn nhóm</h1>
+            </div>
+            
+            <!-- Stats -->
+            <div class="stats-container" id="statsContainer">
+                <div class="loading">⏳ Đang tải thống kê...</div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="filters-container">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Từ ngày:</label>
+                        <input type="date" id="startDate" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Đến ngày:</label>
+                        <input type="date" id="endDate" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Người gửi:</label>
+                        <select id="senderFilter" onchange="applyFilters()">
+                            <option value="all">Tất cả</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Loại tin nhắn:</label>
+                        <select id="mediaFilter" onchange="applyFilters()">
+                            <option value="all">Tất cả</option>
+                            <option value="false">Chỉ văn bản</option>
+                            <option value="true">Có media</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group search-group">
+                        <label>Tìm kiếm nội dung:</label>
+                        <div class="search-input-container">
+                            <input type="text" id="searchInput" placeholder="Tìm trong nội dung tin nhắn..."
+                                   onkeyup="handleSearch(event)">
+                            <button onclick="applyFilters()" class="search-btn">🔍</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <button onclick="clearFilters()" class="clear-btn">🧹 Xóa bộ lọc</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Summary -->
+            <div class="message-summary" id="messageSummary">
+                <div>⏳ Đang tải thông tin...</div>
+            </div>
+            
+            <!-- Messages -->
+            <div class="messages-container" id="messagesContainer">
+                <div class="loading">
+                    <div>⏳ Đang tải tin nhắn...</div>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination" id="pagination" style="display: none;">
+            </div>
+        </div>
+        
+        <script>
+            const chatId = '${chatId}';
+            let currentPage = 1;
+            let currentFilters = {};
+            
+            function formatNumber(num) {
+                if (num === 0) return '0';
+                return new Intl.NumberFormat('vi-VN').format(num);
+            }
+            
+            function formatDate(dateString) {
+                if (!dateString) return 'Chưa có';
+                return new Date(dateString).toLocaleDateString('vi-VN');
+            }
+            
+            function formatDateTime(dateString) {
+                return new Date(dateString).toLocaleString('vi-VN');
+            }
+            
+            async function loadMessages(page = 1, filters = {}) {
+                try {
+                    const params = new URLSearchParams({
+                        page: page.toString(),
+                        limit: '50',
+                        ...filters
+                    });
+                    
+                    const response = await fetch(\`/api/groups/\${chatId}/messages?\${params}\`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayStats(data.stats);
+                        displaySummary(data);
+                        displayMessages(data);
+                        displayPagination(data);
+                        updateSenderFilter(data.uniqueSenders, filters.senderName);
+                        currentPage = page;
+                        currentFilters = filters;
+                    }
+                } catch (error) {
+                    document.getElementById('messagesContainer').innerHTML = 
+                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
+                }
+            }
+            
+            function displayStats(stats) {
+                const statsHTML = \`
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(stats.totalMessages)}</div>
+                        <div class="stat-label">Tổng tin nhắn</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(stats.withPhoto)}</div>
+                        <div class="stat-label">📷 Ảnh</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(stats.withVideo)}</div>
+                        <div class="stat-label">🎥 Video</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(stats.withVoice)}</div>
+                        <div class="stat-label">🎙️ Voice</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">\${formatNumber(stats.withDocument)}</div>
+                        <div class="stat-label">📄 Tài liệu</div>
+                    </div>
+                \`;
+                
+                document.getElementById('statsContainer').innerHTML = statsHTML;
+            }
+            
+            function displaySummary(data) {
+                document.getElementById('groupTitle').textContent = \`💬 Tin nhắn - \${data.groupTitle}\`;
+                
+                const summaryHTML = \`
+                    Tổng: \${formatNumber(data.totalMessages)} tin nhắn (Trang \${data.currentPage}/\${data.totalPages})
+                \`;
+                
+                document.getElementById('messageSummary').innerHTML = summaryHTML;
+            }
+            
+            function displayMessages(data) {
+                let messagesHTML = '';
+                
+                Object.keys(data.messagesByDate).forEach(date => {
+                    messagesHTML += \`
+                        <div class="message-date">
+                            📅 \${formatDate(date)} (\${data.messagesByDate[date].length} tin nhắn)
+                        </div>
+                    \`;
+                    
+                    data.messagesByDate[date].forEach(message => {
+                        let mediaHTML = '';
+                        if (message.hasMedia) {
+                            const mediaBadges = [];
+                            if (message.photoUrl) mediaBadges.push('<span class="media-badge media-photo">📷 Ảnh</span>');
+                            if (message.videoUrl) mediaBadges.push('<span class="media-badge media-video">🎥 Video</span>');
+                            if (message.voiceUrl) mediaBadges.push('<span class="media-badge media-voice">🎙️ Voice</span>');
+                            if (message.documentUrl) mediaBadges.push('<span class="media-badge media-document">📄 Tài liệu</span>');
+                            mediaHTML = \`<div class="message-media">\${mediaBadges.join('')}</div>\`;
+                        }
+                        
+                        messagesHTML += \`
+                            <div class="message-item">
+                                <div class="message-header">
+                                    <div class="sender-info">
+                                        <span class="sender-name">\${message.senderName}</span>
+                                        <span class="sender-username">@\${message.username || 'no_username'}</span>
+                                    </div>
+                                    <div class="message-time">\${formatDateTime(message.timestamp)}</div>
+                                </div>
+                                <div class="message-content">\${message.content || '<em>Tin nhắn không có nội dung văn bản</em>'}</div>
+                                \${mediaHTML}
+                            </div>
+                        \`;
+                    });
+                });
+                
+                document.getElementById('messagesContainer').innerHTML = messagesHTML || '<div class="error">Không có tin nhắn nào</div>';
+            }
+            
+            function displayPagination(data) {
+                if (data.totalPages <= 1) {
+                    document.getElementById('pagination').style.display = 'none';
+                    return;
+                }
+                
+                const paginationHTML = \`
+                    <button onclick="loadMessages(\${Math.max(1, data.currentPage - 1)}, currentFilters)" 
+                            \${data.currentPage === 1 ? 'disabled' : ''}>
+                        ← Trước
+                    </button>
+                    <span>Trang \${data.currentPage} / \${data.totalPages}</span>
+                    <button onclick="loadMessages(\${Math.min(data.totalPages, data.currentPage + 1)}, currentFilters)" 
+                            \${data.currentPage === data.totalPages ? 'disabled' : ''}>
+                        Sau →
+                    </button>
+                \`;
+                
+                document.getElementById('pagination').innerHTML = paginationHTML;
+                document.getElementById('pagination').style.display = 'block';
+            }
+            
+            function updateSenderFilter(senders, selectedSender) {
+                const senderSelect = document.getElementById('senderFilter');
+                senderSelect.innerHTML = '<option value="all">Tất cả</option>';
+                
+                senders.forEach(sender => {
+                    const option = document.createElement('option');
+                    option.value = sender;
+                    option.textContent = sender;
+                    if (sender === selectedSender) {
+                        option.selected = true;
+                    }
+                    senderSelect.appendChild(option);
+                });
+            }
+            
+            function applyFilters() {
+                const filters = {
+                    startDate: document.getElementById('startDate').value,
+                    endDate: document.getElementById('endDate').value,
+                    senderName: document.getElementById('senderFilter').value,
+                    hasMedia: document.getElementById('mediaFilter').value,
+                    search: document.getElementById('searchInput').value
+                };
+                
+                // Remove empty filters
+                Object.keys(filters).forEach(key => {
+                    if (!filters[key] || filters[key] === 'all') {
+                        delete filters[key];
+                    }
+                });
+                
+                loadMessages(1, filters);
+            }
+            
+            function clearFilters() {
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+                document.getElementById('senderFilter').value = 'all';
+                document.getElementById('mediaFilter').value = 'all';
+                document.getElementById('searchInput').value = '';
+                loadMessages(1, {});
+            }
+            
+            function handleSearch(event) {
+                if (event.key === 'Enter') {
+                    applyFilters();
+                }
+            }
+            
+            // Load messages when page loads
+            loadMessages();
         </script>
     </body>
     </html>

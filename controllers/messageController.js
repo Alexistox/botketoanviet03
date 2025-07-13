@@ -65,7 +65,6 @@ const {
   handleMigrateDataCommand,
   handleListGroupsCommand,
   handleGroupsCommand,
-  handleMessageLogsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
   displayInlineButtons,
@@ -306,37 +305,6 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText === '/groups') {
         await handleGroupsCommand(bot, msg);
-        return;
-      }
-
-      if (messageText === '/messagelogs') {
-        console.log('🔍 Processing /messagelogs command...');
-        try {
-          await handleMessageLogsCommand(bot, msg);
-          console.log('✅ /messagelogs command processed successfully');
-        } catch (error) {
-          console.error('❌ Error in /messagelogs command:', error);
-          bot.sendMessage(msg.chat.id, `❌ Lỗi xử lý lệnh /messagelogs: ${error.message}`);
-        }
-        return;
-      }
-
-      // Lệnh debug tạm thời để kiểm tra admin status
-      if (messageText === '/checkadmin') {
-        try {
-          const isAdmin = await isUserAdmin(userId);
-          const user = await User.findOne({ userId: userId.toString() });
-          bot.sendMessage(msg.chat.id, `
-🔍 Debug Info:
-- User ID: ${userId}
-- Is Admin: ${isAdmin}
-- User in DB: ${user ? 'Yes' : 'No'}
-- Is Owner: ${user ? user.isOwner : 'N/A'}
-- Is Admin Flag: ${user ? user.isAdmin : 'N/A'}
-          `);
-        } catch (error) {
-          bot.sendMessage(msg.chat.id, `Debug error: ${error.message}`);
-        }
         return;
       }
 
