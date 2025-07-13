@@ -136,6 +136,26 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
+    // Lệnh test để kiểm tra parsing tin nhắn (reply "test" vào tin nhắn)
+    if (msg.reply_to_message && msg.reply_to_message.text && messageText.trim().toLowerCase() === 'test') {
+      const repliedMessage = msg.reply_to_message.text;
+      const bankInfo = parseBankTransferMessage(repliedMessage);
+      const isBankMsg = isBankTransferMessage(repliedMessage);
+      
+      let response = `📋 **Kết quả test parsing:**\n\n`;
+      response += `**Nội dung tin nhắn:**\n\`${repliedMessage}\`\n\n`;
+      response += `**Có phải tin nhắn ngân hàng:** ${isBankMsg ? '✅ Có' : '❌ Không'}\n`;
+      response += `**Kết quả parse:** ${bankInfo ? '✅ Thành công' : '❌ Thất bại'}\n`;
+      
+      if (bankInfo) {
+        response += `**Số tiền:** ${formatSmart(bankInfo.amount)}\n`;
+        response += `**Pattern:** ${bankInfo.pattern}\n`;
+      }
+      
+      bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+      return;
+    }
+    
     // Nếu không có văn bản, không xử lý
     if (!msg.text) {
       return;
@@ -628,18 +648,24 @@ const handleBankTransferReply = async (bot, msg) => {
     
     // Kiểm tra quyền người dùng - phải có quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId,);
+      bot.sendMessage(chatId, messages.operatorOnly);
       return;
     }
     
     const repliedMessage = msg.reply_to_message.text;
     
+    // Debug log để xem nội dung tin nhắn được reply
+    console.log('Replied message content:', repliedMessage);
+    console.log('Replied message sender:', msg.reply_to_message.from);
     
     // Parse số tiền từ tin nhắn
     const bankInfo = parseBankTransferMessage(repliedMessage);
     
+    // Debug log để xem kết quả parse
+    console.log('Bank info parsed:', bankInfo);
+    
     if (!bankInfo) {
-      bot.sendMessage(chatId,);
+      bot.sendMessage(chatId, "❌ Không thể nhận dạng thông tin chuyển tiền từ tin nhắn này. Tin nhắn cần chứa số tiền và định dạng phù hợp.");
       return;
     }
     
@@ -671,7 +697,7 @@ const handleBankTransferReply = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handleBankTransferReply:', error);
-    bot.sendMessage(msg.chat.id,);
+    bot.sendMessage(msg.chat.id, messages.error);
   }
 };
 
