@@ -213,8 +213,11 @@ const parseNumberWithUnits = (str) => {
       if (followingValue < 10) {
         // Nếu là 1 chữ số: 3tr4 = 3,400,000 (4 * 100,000)
         result += followingValue * 100000;
+      } else if (followingValue < 100) {
+        // Nếu là 2 chữ số: 5tr35 = 5,350,000 (35 * 10,000)
+        result += followingValue * 10000;
       } else if (followingValue < 1000) {
-        // Nếu là 2-3 chữ số: 2tr238 = 2,238,000 (238 * 1,000)
+        // Nếu là 3 chữ số: 2tr238 = 2,238,000 (238 * 1,000)
         result += followingValue * 1000;
       } else {
         result += followingValue;
@@ -237,8 +240,11 @@ const parseNumberWithUnits = (str) => {
       if (followingValue < 10) {
         // Nếu là 1 chữ số: 3m4 = 3,400,000 (4 * 100,000)
         result += followingValue * 100000;
+      } else if (followingValue < 100) {
+        // Nếu là 2 chữ số: 5m35 = 5,350,000 (35 * 10,000)
+        result += followingValue * 10000;
       } else if (followingValue < 1000) {
-        // Nếu là 2-3 chữ số: 2m238 = 2,238,000 (238 * 1,000)
+        // Nếu là 3 chữ số: 2m238 = 2,238,000 (238 * 1,000)
         result += followingValue * 1000;
       } else {
         result += followingValue;
@@ -248,7 +254,7 @@ const parseNumberWithUnits = (str) => {
   // Loại bỏ phần đã xử lý m với số theo sau
   processedStr = processedStr.replace(/\d+(?:\.\d+)?m\d+/g, '');
   
-  // Xử lý nghìn (k) với số theo sau (như 3k12)
+  // Xử lý nghìn (k) với số theo sau (như 3k1, 3k12)
   const kWithNumberRegex = /(\d+(?:\.\d+)?)k(\d+)/g;
   let kWithNumberMatch;
   while ((kWithNumberMatch = kWithNumberRegex.exec(processedStr)) !== null) {
@@ -258,8 +264,11 @@ const parseNumberWithUnits = (str) => {
       // Xử lý phần chính (nghìn)
       result += mainValue * 1000;
       // Xử lý phần theo sau
-      if (followingValue < 100) {
-        // Nếu là 1-2 chữ số: 3k12 = 3,120 (12 * 10)
+      if (followingValue < 10) {
+        // Nếu là 1 chữ số: 3k1 = 3,100 (1 * 100)
+        result += followingValue * 100;
+      } else if (followingValue < 100) {
+        // Nếu là 2 chữ số: 3k12 = 3,120 (12 * 10)
         result += followingValue * 10;
       } else {
         // Nếu là 3+ chữ số: 7k123 = 7,123 (123 * 1)
