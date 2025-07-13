@@ -286,480 +286,134 @@ app.get('/groups', (req, res) => {
             }
             
             body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
+                font-family: Arial, sans-serif;
+                background: #f5f5f5;
                 padding: 20px;
+                color: #333;
             }
             
             .container {
-                max-width: 1200px;
+                max-width: 1000px;
                 margin: 0 auto;
                 background: white;
-                border-radius: 20px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 overflow: hidden;
             }
             
             .header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: #2c3e50;
                 color: white;
-                padding: 30px;
+                padding: 20px;
                 text-align: center;
             }
             
             .header h1 {
-                font-size: 2.5em;
-                margin-bottom: 10px;
-                font-weight: 700;
-            }
-            
-            .header p {
-                font-size: 1.2em;
-                opacity: 0.9;
+                font-size: 1.8em;
+                margin-bottom: 5px;
             }
             
             .stats {
                 display: flex;
                 justify-content: space-around;
-                padding: 20px;
-                background: #f8f9fa;
-                border-bottom: 1px solid #e9ecef;
+                padding: 15px;
+                background: #ecf0f1;
+                border-bottom: 1px solid #ddd;
             }
             
             .stat-item {
                 text-align: center;
-                padding: 15px;
             }
             
             .stat-number {
-                font-size: 2em;
+                font-size: 1.5em;
                 font-weight: bold;
-                color: #667eea;
-                display: block;
+                color: #2c3e50;
             }
             
             .stat-label {
-                color: #6c757d;
                 font-size: 0.9em;
+                color: #7f8c8d;
                 margin-top: 5px;
             }
             
             .loading {
                 text-align: center;
-                padding: 50px;
-                color: #667eea;
-                font-size: 1.2em;
+                padding: 40px;
+                color: #7f8c8d;
             }
             
-            .groups-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-                gap: 20px;
-                padding: 30px;
+            .groups-table {
+                width: 100%;
+                border-collapse: collapse;
             }
             
-            .group-card {
-                background: white;
-                border-radius: 15px;
-                padding: 25px;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-                border: 1px solid #e9ecef;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }
-            
-            .group-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            }
-            
-            .group-title {
-                font-size: 1.3em;
-                font-weight: 600;
-                color: #2d3748;
-                margin-bottom: 15px;
-                display: flex;
-                align-items: center;
-            }
-            
-            .group-title::before {
-                content: "👥";
-                margin-right: 10px;
-            }
-            
-            .group-info {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 15px;
-                margin-bottom: 20px;
-            }
-            
-            .info-item {
-                background: #f8f9fa;
+            .groups-table th,
+            .groups-table td {
                 padding: 12px;
-                border-radius: 8px;
-                text-align: center;
-                cursor: pointer;
-                transition: background-color 0.3s ease, transform 0.2s ease;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
             }
             
-            .info-item:hover {
-                background: #e9ecef;
-                transform: translateY(-2px);
-            }
-            
-            .info-item.clickable {
-                background: #e3f2fd;
-                border: 2px solid #1976d2;
-            }
-            
-            .info-item.clickable:hover {
-                background: #bbdefb;
-            }
-            
-            .info-label {
-                font-size: 0.8em;
-                color: #6c757d;
-                margin-bottom: 5px;
-            }
-            
-            .info-value {
-                font-weight: 600;
-                color: #2d3748;
-                font-size: 1.1em;
-            }
-            
-            .financial-info {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-                margin-bottom: 15px;
-            }
-            
-            .financial-item {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            .groups-table th {
+                background: #34495e;
                 color: white;
-                padding: 12px;
-                border-radius: 8px;
-                text-align: center;
+                font-weight: normal;
             }
             
-            .financial-label {
-                font-size: 0.8em;
-                opacity: 0.8;
-                margin-bottom: 5px;
+            .groups-table tr:hover {
+                background: #f8f9fa;
             }
             
-            .financial-value {
-                font-weight: 600;
-                font-size: 1.1em;
-            }
-            
-            .operators {
-                margin-top: 15px;
-                padding-top: 15px;
-                border-top: 1px solid #e9ecef;
-            }
-            
-            .operators-title {
+            .detail-btn {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
                 font-size: 0.9em;
-                color: #6c757d;
-                margin-bottom: 10px;
             }
             
-            .operator-tag {
-                display: inline-block;
-                background: #e3f2fd;
-                color: #1976d2;
-                padding: 5px 10px;
-                border-radius: 15px;
-                font-size: 0.8em;
-                margin-right: 8px;
-                margin-bottom: 5px;
-            }
-            
-            .last-clear {
-                text-align: center;
-                padding: 10px;
-                background: #fff3cd;
-                border-radius: 8px;
-                font-size: 0.9em;
-                color: #856404;
-                margin-top: 15px;
+            .detail-btn:hover {
+                background: #2980b9;
             }
             
             .refresh-btn {
                 position: fixed;
-                bottom: 30px;
-                right: 30px;
-                background: #667eea;
+                bottom: 20px;
+                right: 20px;
+                background: #2c3e50;
                 color: white;
                 border: none;
-                border-radius: 50px;
-                padding: 15px 25px;
-                font-size: 1em;
+                border-radius: 4px;
+                padding: 12px 16px;
                 cursor: pointer;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                transition: all 0.3s ease;
             }
             
             .refresh-btn:hover {
-                background: #5a67d8;
-                transform: translateY(-2px);
-                box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+                background: #34495e;
             }
             
             .error {
                 text-align: center;
-                padding: 50px;
-                color: #dc3545;
-                font-size: 1.2em;
-            }
-            
-            /* Modal styles */
-            .modal {
-                display: none;
-                position: fixed;
-                z-index: 1000;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0,0,0,0.5);
-                backdrop-filter: blur(5px);
-            }
-            
-            .modal-content {
-                background-color: white;
-                margin: 5% auto;
-                padding: 0;
-                border-radius: 15px;
-                width: 90%;
-                max-width: 800px;
-                max-height: 80vh;
-                overflow-y: auto;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-            }
-            
-            .modal-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 20px;
-                border-radius: 15px 15px 0 0;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            
-            .modal-title {
-                font-size: 1.5em;
-                font-weight: 600;
-            }
-            
-            .close {
-                color: white;
-                font-size: 28px;
-                font-weight: bold;
-                cursor: pointer;
-                transition: opacity 0.3s ease;
-            }
-            
-            .close:hover {
-                opacity: 0.7;
-            }
-            
-            .modal-body {
-                padding: 20px;
-            }
-            
-            .member-item {
-                display: flex;
-                align-items: center;
-                padding: 15px;
-                border-bottom: 1px solid #e9ecef;
-                transition: background-color 0.3s ease;
-            }
-            
-            .member-item:hover {
-                background-color: #f8f9fa;
-            }
-            
-            .member-item:last-child {
-                border-bottom: none;
-            }
-            
-            .member-avatar {
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-weight: bold;
-                margin-right: 15px;
-            }
-            
-            .member-info {
-                flex: 1;
-            }
-            
-            .member-name {
-                font-weight: 600;
-                color: #2d3748;
-                margin-bottom: 5px;
-            }
-            
-            .member-username {
-                color: #6c757d;
-                font-size: 0.9em;
-            }
-            
-            .member-status {
-                padding: 3px 8px;
-                border-radius: 12px;
-                font-size: 0.8em;
-                font-weight: 500;
-            }
-            
-            .status-creator {
-                background: #d4edda;
-                color: #155724;
-            }
-            
-            .status-administrator {
-                background: #cce5ff;
-                color: #0056b3;
-            }
-            
-            .transaction-day {
-                margin-bottom: 30px;
-                border: 1px solid #e9ecef;
-                border-radius: 10px;
-                overflow: hidden;
-            }
-            
-            .transaction-day-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 15px;
-                font-weight: 600;
-            }
-            
-            .transaction-item {
-                padding: 15px;
-                border-bottom: 1px solid #e9ecef;
-                transition: background-color 0.3s ease;
-            }
-            
-            .transaction-item:hover {
-                background-color: #f8f9fa;
-            }
-            
-            .transaction-item:last-child {
-                border-bottom: none;
-            }
-            
-            .transaction-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-            }
-            
-            .transaction-type {
-                padding: 5px 10px;
-                border-radius: 15px;
-                font-size: 0.8em;
-                font-weight: 500;
-            }
-            
-            .type-plus {
-                background: #d4edda;
-                color: #155724;
-            }
-            
-            .type-minus {
-                background: #f8d7da;
-                color: #721c24;
-            }
-            
-            .type-percent {
-                background: #fff3cd;
-                color: #856404;
-            }
-            
-            .type-clear {
-                background: #cce5ff;
-                color: #0056b3;
-            }
-            
-            .transaction-amount {
-                font-weight: 600;
-                font-size: 1.1em;
-            }
-            
-            .transaction-details {
-                color: #6c757d;
-                font-size: 0.9em;
-                margin-top: 5px;
-            }
-            
-            .pagination {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                margin-top: 20px;
-                gap: 10px;
-            }
-            
-            .pagination button {
-                padding: 8px 16px;
-                border: 1px solid #ddd;
-                background: white;
-                cursor: pointer;
-                border-radius: 5px;
-                transition: all 0.3s ease;
-            }
-            
-            .pagination button:hover {
-                background: #f8f9fa;
-            }
-            
-            .pagination button.active {
-                background: #667eea;
-                color: white;
-                border-color: #667eea;
-            }
-            
-            .pagination button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
+                padding: 40px;
+                color: #e74c3c;
             }
             
             @media (max-width: 768px) {
-                .groups-grid {
-                    grid-template-columns: 1fr;
-                    padding: 20px;
-                }
-                
-                .group-info {
-                    grid-template-columns: 1fr;
-                }
-                
-                .financial-info {
-                    grid-template-columns: 1fr;
-                }
-                
                 .stats {
                     flex-direction: column;
                     gap: 10px;
                 }
                 
-                .modal-content {
-                    width: 95%;
-                    margin: 10% auto;
+                .groups-table {
+                    font-size: 0.9em;
+                }
+                
+                .groups-table th,
+                .groups-table td {
+                    padding: 8px;
                 }
             }
         </style>
@@ -768,20 +422,20 @@ app.get('/groups', (req, res) => {
         <div class="container">
             <div class="header">
                 <h1>📊 Danh sách nhóm Bot</h1>
-                <p>Thống kê tổng quan các nhóm mà bot đang tham gia</p>
+                <p>Thống kê tổng quan các nhóm</p>
             </div>
             
             <div class="stats">
                 <div class="stat-item">
-                    <span class="stat-number" id="totalGroups">-</span>
+                    <div class="stat-number" id="totalGroups">-</div>
                     <div class="stat-label">Tổng số nhóm</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="totalTransactions">-</span>
+                    <div class="stat-number" id="totalTransactions">-</div>
                     <div class="stat-label">Tổng giao dịch</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="totalMembers">-</span>
+                    <div class="stat-number" id="totalMembers">-</div>
                     <div class="stat-label">Tổng thành viên</div>
                 </div>
             </div>
@@ -793,38 +447,9 @@ app.get('/groups', (req, res) => {
             </div>
         </div>
         
-        <!-- Modal for Members -->
-        <div id="membersModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <span class="modal-title">👥 Thành viên nhóm</span>
-                    <span class="close" onclick="closeMembersModal()">&times;</span>
-                </div>
-                <div class="modal-body" id="membersModalBody">
-                    <div class="loading">⏳ Đang tải...</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Modal for Transactions -->
-        <div id="transactionsModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <span class="modal-title">💰 Giao dịch chi tiết</span>
-                    <span class="close" onclick="closeTransactionsModal()">&times;</span>
-                </div>
-                <div class="modal-body" id="transactionsModalBody">
-                    <div class="loading">⏳ Đang tải...</div>
-                </div>
-            </div>
-        </div>
-        
         <button class="refresh-btn" onclick="loadGroups()">🔄 Làm mới</button>
         
         <script>
-            let currentTransactionPage = 1;
-            let currentChatId = null;
-            
             function formatNumber(num) {
                 if (num === 0) return '0';
                 return new Intl.NumberFormat('vi-VN').format(num);
@@ -832,18 +457,7 @@ app.get('/groups', (req, res) => {
             
             function formatDate(dateString) {
                 if (!dateString) return 'Chưa có';
-                return new Date(dateString).toLocaleString('vi-VN');
-            }
-            
-            function formatVietnameseDate(dateString) {
-                const date = new Date(dateString);
-                const options = { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric',
-                    timeZone: 'Asia/Ho_Chi_Minh'
-                };
-                return date.toLocaleDateString('vi-VN', options);
+                return new Date(dateString).toLocaleDateString('vi-VN');
             }
             
             async function loadGroups() {
@@ -881,268 +495,46 @@ app.get('/groups', (req, res) => {
                     return;
                 }
                 
-                const groupsHTML = groups.map(group => \`
-                    <div class="group-card">
-                        <div class="group-title">\${group.title}</div>
-                        
-                        <div class="group-info">
-                            <div class="info-item">
-                                <div class="info-label">Chat ID</div>
-                                <div class="info-value">\${group.chatId}</div>
-                            </div>
-                            <div class="info-item clickable" onclick="showMembers('\${group.chatId}')">
-                                <div class="info-label">Thành viên</div>
-                                <div class="info-value">\${formatNumber(group.memberCount)}</div>
-                            </div>
-                            <div class="info-item clickable" onclick="showTransactions('\${group.chatId}')">
-                                <div class="info-label">Giao dịch</div>
-                                <div class="info-value">\${formatNumber(group.transactionCount)}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Loại tiền</div>
-                                <div class="info-value">\${group.currency}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="financial-info">
-                            <div class="financial-item">
-                                <div class="financial-label">Phí (%)</div>
-                                <div class="financial-value">\${group.rate}%</div>
-                            </div>
-                            <div class="financial-item">
-                                <div class="financial-label">Tỷ giá</div>
-                                <div class="financial-value">\${formatNumber(group.exchangeRate)}</div>
-                            </div>
-                            <div class="financial-item">
-                                <div class="financial-label">Tổng VND</div>
-                                <div class="financial-value">\${formatNumber(group.totalVND)}</div>
-                            </div>
-                            <div class="financial-item">
-                                <div class="financial-label">Tổng USDT</div>
-                                <div class="financial-value">\${formatNumber(group.totalUSDT)}</div>
-                            </div>
-                        </div>
-                        
-                        \${group.operators && group.operators.length > 0 ? \`
-                            <div class="operators">
-                                <div class="operators-title">👨‍💼 Operators (\${group.operators.length})</div>
-                                \${group.operators.map(op => \`
-                                    <span class="operator-tag">\${op.username || 'Unknown'}</span>
-                                \`).join('')}
-                            </div>
-                        \` : ''}
-                        
-                        <div class="last-clear">
-                            🧹 Làm sạch lần cuối: \${formatDate(group.lastClearDate)}
-                        </div>
-                    </div>
-                \`).join('');
-                
-                document.getElementById('content').innerHTML = 
-                    '<div class="groups-grid">' + groupsHTML + '</div>';
-            }
-            
-            async function showMembers(chatId) {
-                currentChatId = chatId;
-                document.getElementById('membersModal').style.display = 'block';
-                document.getElementById('membersModalBody').innerHTML = '<div class="loading">⏳ Đang tải...</div>';
-                
-                try {
-                    const response = await fetch(\`/api/groups/\${chatId}/members\`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        displayMembers(data);
-                    } else {
-                        document.getElementById('membersModalBody').innerHTML = 
-                            '<div class="error">❌ Không thể tải thông tin thành viên</div>';
-                    }
-                } catch (error) {
-                    document.getElementById('membersModalBody').innerHTML = 
-                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
-                }
-            }
-            
-            function displayMembers(data) {
-                const membersHTML = \`
-                    <div style="margin-bottom: 20px;">
-                        <h3>📊 Thống kê</h3>
-                        <p><strong>Nhóm:</strong> \${data.groupTitle}</p>
-                        <p><strong>Tổng thành viên:</strong> \${formatNumber(data.totalMembers)}</p>
-                        <p><strong>Operators:</strong> \${data.operators.length}</p>
-                    </div>
-                    
-                    <div style="margin-bottom: 20px;">
-                        <h3>👑 Quản trị viên</h3>
-                        \${data.members.map(member => \`
-                            <div class="member-item">
-                                <div class="member-avatar">
-                                    \${member.firstName ? member.firstName.charAt(0).toUpperCase() : '👤'}
-                                </div>
-                                <div class="member-info">
-                                    <div class="member-name">
-                                        \${member.firstName || 'Không có tên'} \${member.lastName || ''}
-                                        \${member.isBot ? '🤖' : ''}
-                                    </div>
-                                    <div class="member-username">@\${member.username}</div>
-                                </div>
-                                <div class="member-status \${member.status === 'creator' ? 'status-creator' : 'status-administrator'}">
-                                    \${member.status === 'creator' ? 'Chủ nhóm' : 'Quản trị viên'}
-                                </div>
-                            </div>
-                        \`).join('')}
-                    </div>
-                    
-                    \${data.operators.length > 0 ? \`
-                        <div>
-                            <h3>👨‍💼 Bot Operators</h3>
-                            \${data.operators.map(op => \`
-                                <div class="member-item">
-                                    <div class="member-avatar">
-                                        \${op.username ? op.username.charAt(0).toUpperCase() : '👤'}
-                                    </div>
-                                    <div class="member-info">
-                                        <div class="member-name">\${op.username || 'Unknown'}</div>
-                                        <div class="member-username">Ngày thêm: \${formatDate(op.dateAdded)}</div>
-                                    </div>
-                                    <div class="member-status status-administrator">Operator</div>
-                                </div>
+                const tableHTML = \`
+                    <table class="groups-table">
+                        <thead>
+                            <tr>
+                                <th>Tên nhóm</th>
+                                <th>Thành viên</th>
+                                <th>Giao dịch</th>
+                                <th>Rate</th>
+                                <th>Tỷ giá</th>
+                                <th>Tổng VND</th>
+                                <th>Tổng USDT</th>
+                                <th>Chi tiết</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            \${groups.map(group => \`
+                                <tr>
+                                    <td>\${group.title}</td>
+                                    <td>\${formatNumber(group.memberCount)}</td>
+                                    <td>\${formatNumber(group.transactionCount)}</td>
+                                    <td>\${group.rate}%</td>
+                                    <td>\${formatNumber(group.exchangeRate)}</td>
+                                    <td>\${formatNumber(group.totalVND)}</td>
+                                    <td>\${formatNumber(group.totalUSDT)}</td>
+                                    <td>
+                                        <button class="detail-btn" onclick="viewDetails('\${group.chatId}')">
+                                            Chi tiết
+                                        </button>
+                                    </td>
+                                </tr>
                             \`).join('')}
-                        </div>
-                    \` : ''}
+                        </tbody>
+                    </table>
                 \`;
                 
-                document.getElementById('membersModalBody').innerHTML = membersHTML;
+                document.getElementById('content').innerHTML = tableHTML;
             }
             
-            async function showTransactions(chatId) {
-                currentChatId = chatId;
-                currentTransactionPage = 1;
-                document.getElementById('transactionsModal').style.display = 'block';
-                document.getElementById('transactionsModalBody').innerHTML = '<div class="loading">⏳ Đang tải...</div>';
-                
-                await loadTransactions(chatId, 1);
-            }
-            
-            async function loadTransactions(chatId, page = 1) {
-                try {
-                    const response = await fetch(\`/api/groups/\${chatId}/transactions?page=\${page}&limit=20\`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        displayTransactions(data);
-                    } else {
-                        document.getElementById('transactionsModalBody').innerHTML = 
-                            '<div class="error">❌ Không thể tải thông tin giao dịch</div>';
-                    }
-                } catch (error) {
-                    document.getElementById('transactionsModalBody').innerHTML = 
-                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
-                }
-            }
-            
-            function displayTransactions(data) {
-                const transactionsHTML = \`
-                    <div style="margin-bottom: 20px;">
-                        <h3>📊 Thống kê giao dịch</h3>
-                        <p><strong>Nhóm:</strong> \${data.groupTitle}</p>
-                        <p><strong>Tổng giao dịch:</strong> \${formatNumber(data.totalTransactions)}</p>
-                        <p><strong>Trang:</strong> \${data.currentPage} / \${data.totalPages}</p>
-                    </div>
-                    
-                    \${data.startHistory.length > 0 ? \`
-                        <div style="margin-bottom: 20px;">
-                            <h3>🔄 Lịch sử Start</h3>
-                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                \${data.startHistory.slice(0, 5).map(start => \`
-                                    <span style="background: #e3f2fd; color: #1976d2; padding: 5px 10px; border-radius: 15px; font-size: 0.8em;">
-                                        \${formatVietnameseDate(start.date)} - \${start.senderName}
-                                    </span>
-                                \`).join('')}
-                            </div>
-                        </div>
-                    \` : ''}
-                    
-                    <div>
-                        <h3>💰 Giao dịch theo ngày</h3>
-                        \${Object.keys(data.transactionsByDate).map(date => \`
-                            <div class="transaction-day">
-                                <div class="transaction-day-header">
-                                    📅 \${formatVietnameseDate(date)} (\${data.transactionsByDate[date].length} giao dịch)
-                                </div>
-                                \${data.transactionsByDate[date].map(transaction => \`
-                                    <div class="transaction-item">
-                                        <div class="transaction-header">
-                                            <span class="transaction-type type-\${transaction.type}">
-                                                \${getTransactionTypeText(transaction.type)}
-                                            </span>
-                                            <span class="transaction-amount">
-                                                \${formatNumber(transaction.amount)}
-                                            </span>
-                                        </div>
-                                        <div class="transaction-details">
-                                            <div><strong>Người thực hiện:</strong> \${transaction.senderName}</div>
-                                            <div><strong>Nội dung:</strong> \${transaction.message}</div>
-                                            <div><strong>Thời gian:</strong> \${formatDate(transaction.timestamp)}</div>
-                                            \${transaction.rate ? \`<div><strong>Rate:</strong> \${transaction.rate}%</div>\` : ''}
-                                            \${transaction.exchangeRate ? \`<div><strong>Tỷ giá:</strong> \${formatNumber(transaction.exchangeRate)}</div>\` : ''}
-                                        </div>
-                                    </div>
-                                \`).join('')}
-                            </div>
-                        \`).join('')}
-                    </div>
-                    
-                    \${data.totalPages > 1 ? \`
-                        <div class="pagination">
-                            <button onclick="loadTransactions('\${currentChatId}', \${Math.max(1, data.currentPage - 1)})" 
-                                    \${data.currentPage === 1 ? 'disabled' : ''}>
-                                ← Trước
-                            </button>
-                            <span>Trang \${data.currentPage} / \${data.totalPages}</span>
-                            <button onclick="loadTransactions('\${currentChatId}', \${Math.min(data.totalPages, data.currentPage + 1)})" 
-                                    \${data.currentPage === data.totalPages ? 'disabled' : ''}>
-                                Sau →
-                            </button>
-                        </div>
-                    \` : ''}
-                \`;
-                
-                document.getElementById('transactionsModalBody').innerHTML = transactionsHTML;
-                currentTransactionPage = data.currentPage;
-            }
-            
-            function getTransactionTypeText(type) {
-                switch (type) {
-                    case 'plus': return '➕ Nạp tiền';
-                    case 'minus': return '➖ Rút tiền';
-                    case 'percent': return '💰 Đã trả';
-                    case 'clear': return '🧹 Làm sạch';
-                    case 'setRate': return '📊 Đặt rate';
-                    case 'setExchangeRate': return '💱 Đặt tỷ giá';
-                    default: return type;
-                }
-            }
-            
-            function closeMembersModal() {
-                document.getElementById('membersModal').style.display = 'none';
-            }
-            
-            function closeTransactionsModal() {
-                document.getElementById('transactionsModal').style.display = 'none';
-            }
-            
-            // Đóng modal khi click bên ngoài
-            window.onclick = function(event) {
-                const membersModal = document.getElementById('membersModal');
-                const transactionsModal = document.getElementById('transactionsModal');
-                
-                if (event.target === membersModal) {
-                    closeMembersModal();
-                }
-                if (event.target === transactionsModal) {
-                    closeTransactionsModal();
-                }
+            function viewDetails(chatId) {
+                window.location.href = \`/groups/\${chatId}\`;
             }
             
             // Tải dữ liệu khi trang được load
@@ -1150,6 +542,462 @@ app.get('/groups', (req, res) => {
             
             // Tự động làm mới mỗi 5 phút
             setInterval(loadGroups, 300000);
+        </script>
+    </body>
+    </html>
+  `);
+});
+
+// Route hiển thị chi tiết một nhóm
+app.get('/groups/:chatId', async (req, res) => {
+  const { chatId } = req.params;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Chi tiết nhóm</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+                color: #333;
+            }
+            
+            .container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                overflow: hidden;
+            }
+            
+            .header {
+                background: #2c3e50;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+                margin-bottom: 5px;
+            }
+            
+            .back-btn {
+                background: #34495e;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-bottom: 15px;
+            }
+            
+            .back-btn:hover {
+                background: #2c3e50;
+            }
+            
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                padding: 20px;
+            }
+            
+            .info-card {
+                background: #ecf0f1;
+                padding: 15px;
+                border-radius: 6px;
+                border-left: 4px solid #3498db;
+            }
+            
+            .info-card h3 {
+                color: #2c3e50;
+                margin-bottom: 10px;
+                font-size: 1.1em;
+            }
+            
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .info-item:last-child {
+                border-bottom: none;
+            }
+            
+            .info-label {
+                font-weight: 500;
+                color: #7f8c8d;
+            }
+            
+            .info-value {
+                color: #2c3e50;
+                font-weight: bold;
+            }
+            
+            .section {
+                margin: 20px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 6px;
+            }
+            
+            .section h2 {
+                color: #2c3e50;
+                margin-bottom: 15px;
+                font-size: 1.3em;
+            }
+            
+            .members-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 10px;
+            }
+            
+            .member-item {
+                background: white;
+                padding: 10px;
+                border-radius: 4px;
+                border-left: 3px solid #3498db;
+            }
+            
+            .member-name {
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .member-role {
+                font-size: 0.9em;
+                color: #7f8c8d;
+            }
+            
+            .transactions-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }
+            
+            .transactions-table th,
+            .transactions-table td {
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .transactions-table th {
+                background: #34495e;
+                color: white;
+            }
+            
+            .transactions-table tr:hover {
+                background: #f8f9fa;
+            }
+            
+            .transaction-date {
+                background: #2c3e50;
+                color: white;
+                padding: 10px;
+                margin: 20px 0 10px 0;
+                border-radius: 4px;
+            }
+            
+            .pagination {
+                text-align: center;
+                margin: 20px 0;
+            }
+            
+            .pagination button {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                margin: 0 5px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            
+            .pagination button:hover {
+                background: #2980b9;
+            }
+            
+            .pagination button:disabled {
+                background: #bdc3c7;
+                cursor: not-allowed;
+            }
+            
+            .loading {
+                text-align: center;
+                padding: 40px;
+                color: #7f8c8d;
+            }
+            
+            .error {
+                text-align: center;
+                padding: 40px;
+                color: #e74c3c;
+            }
+            
+            @media (max-width: 768px) {
+                .info-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .members-list {
+                    grid-template-columns: 1fr;
+                }
+                
+                .transactions-table {
+                    font-size: 0.9em;
+                }
+                
+                .transactions-table th,
+                .transactions-table td {
+                    padding: 6px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <button class="back-btn" onclick="window.location.href='/groups'">← Quay lại</button>
+                <h1 id="groupTitle">Chi tiết nhóm</h1>
+            </div>
+            
+            <div id="content">
+                <div class="loading">
+                    <div>⏳ Đang tải dữ liệu...</div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            const chatId = '${chatId}';
+            let currentPage = 1;
+            
+            function formatNumber(num) {
+                if (num === 0) return '0';
+                return new Intl.NumberFormat('vi-VN').format(num);
+            }
+            
+            function formatDate(dateString) {
+                if (!dateString) return 'Chưa có';
+                return new Date(dateString).toLocaleDateString('vi-VN');
+            }
+            
+            function formatDateTime(dateString) {
+                return new Date(dateString).toLocaleString('vi-VN');
+            }
+            
+            async function loadGroupDetails() {
+                try {
+                    // Load group info
+                    const groupResponse = await fetch('/api/groups');
+                    const groupData = await groupResponse.json();
+                    
+                    if (groupData.success) {
+                        const group = groupData.groups.find(g => g.chatId === chatId);
+                        if (group) {
+                            displayGroupInfo(group);
+                        }
+                    }
+                    
+                    // Load members
+                    const membersResponse = await fetch(\`/api/groups/\${chatId}/members\`);
+                    const membersData = await membersResponse.json();
+                    
+                    if (membersData.success) {
+                        displayMembers(membersData);
+                    }
+                    
+                    // Load transactions
+                    await loadTransactions(1);
+                    
+                } catch (error) {
+                    document.getElementById('content').innerHTML = 
+                        '<div class="error">❌ Lỗi kết nối: ' + error.message + '</div>';
+                }
+            }
+            
+            function displayGroupInfo(group) {
+                document.getElementById('groupTitle').textContent = group.title;
+                
+                const infoHTML = \`
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h3>📊 Thông tin cơ bản</h3>
+                            <div class="info-item">
+                                <span class="info-label">Chat ID:</span>
+                                <span class="info-value">\${group.chatId}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Thành viên:</span>
+                                <span class="info-value">\${formatNumber(group.memberCount)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Giao dịch:</span>
+                                <span class="info-value">\${formatNumber(group.transactionCount)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Loại tiền:</span>
+                                <span class="info-value">\${group.currency}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>💰 Thông tin tài chính</h3>
+                            <div class="info-item">
+                                <span class="info-label">Rate:</span>
+                                <span class="info-value">\${group.rate}%</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Tỷ giá:</span>
+                                <span class="info-value">\${formatNumber(group.exchangeRate)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Tổng VND:</span>
+                                <span class="info-value">\${formatNumber(group.totalVND)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Tổng USDT:</span>
+                                <span class="info-value">\${formatNumber(group.totalUSDT)}</span>
+                            </div>
+                        </div>
+                    </div>
+                \`;
+                
+                document.getElementById('content').innerHTML = infoHTML;
+            }
+            
+            function displayMembers(data) {
+                const membersHTML = \`
+                    <div class="section">
+                        <h2>👥 Thành viên nhóm</h2>
+                        <div class="members-list">
+                            \${data.members.map(member => \`
+                                <div class="member-item">
+                                    <div class="member-name">\${member.firstName || 'Không có tên'} \${member.lastName || ''}</div>
+                                    <div class="member-role">@\${member.username} - \${member.status === 'creator' ? 'Chủ nhóm' : 'Quản trị viên'}</div>
+                                </div>
+                            \`).join('')}
+                        </div>
+                        
+                        \${data.operators.length > 0 ? \`
+                            <h3 style="margin-top: 20px;">👨‍💼 Bot Operators</h3>
+                            <div class="members-list">
+                                \${data.operators.map(op => \`
+                                    <div class="member-item">
+                                        <div class="member-name">\${op.username || 'Unknown'}</div>
+                                        <div class="member-role">Operator - \${formatDate(op.dateAdded)}</div>
+                                    </div>
+                                \`).join('')}
+                            </div>
+                        \` : ''}
+                    </div>
+                \`;
+                
+                document.getElementById('content').innerHTML += membersHTML;
+            }
+            
+            async function loadTransactions(page = 1) {
+                try {
+                    const response = await fetch(\`/api/groups/\${chatId}/transactions?page=\${page}&limit=50\`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayTransactions(data);
+                        currentPage = page;
+                    }
+                } catch (error) {
+                    console.error('Error loading transactions:', error);
+                }
+            }
+            
+            function displayTransactions(data) {
+                const transactionsHTML = \`
+                    <div class="section">
+                        <h2>💰 Giao dịch chi tiết</h2>
+                        <p>Tổng: \${formatNumber(data.totalTransactions)} giao dịch (Trang \${data.currentPage}/\${data.totalPages})</p>
+                        
+                        \${Object.keys(data.transactionsByDate).map(date => \`
+                            <div class="transaction-date">
+                                📅 \${formatDate(date)} (\${data.transactionsByDate[date].length} giao dịch)
+                            </div>
+                            <table class="transactions-table">
+                                <thead>
+                                    <tr>
+                                        <th>Loại</th>
+                                        <th>Số tiền</th>
+                                        <th>Người thực hiện</th>
+                                        <th>Nội dung</th>
+                                        <th>Thời gian</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    \${data.transactionsByDate[date].map(transaction => \`
+                                        <tr>
+                                            <td>\${getTransactionType(transaction.type)}</td>
+                                            <td>\${formatNumber(transaction.amount)}</td>
+                                            <td>\${transaction.senderName}</td>
+                                            <td>\${transaction.message}</td>
+                                            <td>\${formatDateTime(transaction.timestamp)}</td>
+                                        </tr>
+                                    \`).join('')}
+                                </tbody>
+                            </table>
+                        \`).join('')}
+                        
+                        \${data.totalPages > 1 ? \`
+                            <div class="pagination">
+                                <button onclick="loadTransactions(\${Math.max(1, data.currentPage - 1)})" 
+                                        \${data.currentPage === 1 ? 'disabled' : ''}>
+                                    ← Trước
+                                </button>
+                                <span>Trang \${data.currentPage} / \${data.totalPages}</span>
+                                <button onclick="loadTransactions(\${Math.min(data.totalPages, data.currentPage + 1)})" 
+                                        \${data.currentPage === data.totalPages ? 'disabled' : ''}>
+                                    Sau →
+                                </button>
+                            </div>
+                        \` : ''}
+                    </div>
+                \`;
+                
+                // Replace only the transactions section
+                const existingTransactionSection = document.querySelector('.section:last-child');
+                if (existingTransactionSection && existingTransactionSection.innerHTML.includes('💰 Giao dịch chi tiết')) {
+                    existingTransactionSection.outerHTML = transactionsHTML;
+                } else {
+                    document.getElementById('content').innerHTML += transactionsHTML;
+                }
+            }
+            
+            function getTransactionType(type) {
+                switch (type) {
+                    case 'plus': return '➕ Nạp';
+                    case 'minus': return '➖ Rút';
+                    case 'percent': return '💰 Trả';
+                    case 'clear': return '🧹 Clear';
+                    default: return type;
+                }
+            }
+            
+            // Load data when page loads
+            loadGroupDetails();
         </script>
     </body>
     </html>
