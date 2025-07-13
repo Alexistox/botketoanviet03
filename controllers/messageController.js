@@ -65,6 +65,7 @@ const {
   handleMigrateDataCommand,
   handleListGroupsCommand,
   handleGroupsCommand,
+  handleMessageLogsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
   displayInlineButtons,
@@ -305,6 +306,11 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText === '/groups') {
         await handleGroupsCommand(bot, msg);
+        return;
+      }
+      
+      if (messageText === '/messagelogs') {
+        await handleMessageLogsCommand(bot, msg);
         return;
       }
 

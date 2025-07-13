@@ -782,6 +782,53 @@ ${websiteUrl}
 };
 
 /**
+ * Xử lý lệnh /messagelogs - gửi link trang web xem message logs
+ */
+const handleMessageLogsCommand = async (bot, msg) => {
+  try {
+    const userId = msg.from.id;
+    
+    // Chỉ cho phép owner hoặc admin sử dụng lệnh này
+    if (!(await isUserAdmin(userId))) {
+      bot.sendMessage(msg.chat.id, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền sử dụng lệnh này!");
+      return;
+    }
+    
+    // Tạo URL website
+    const serverUrl = process.env.SERVER_URL || 'https://your-server.com';
+    const websiteUrl = `${serverUrl}/messagelogs`;
+    
+    // Tạo message với link
+    const message = `
+💬 *Message Logs - Nhật ký tin nhắn*
+
+🔗 Xem tất cả message logs các nhóm tại:
+${websiteUrl}
+
+📱 Website này hiển thị:
+• Thống kê tin nhắn của các nhóm
+• Chi tiết tin nhắn từng nhóm
+• Thời gian, người gửi, nội dung
+• Lọc theo ngày, người gửi
+• Tìm kiếm trong nội dung
+• Phân trang và sắp xếp
+
+🔄 Dữ liệu được cập nhật tự động
+    `;
+    
+    // Gửi tin nhắn
+    bot.sendMessage(msg.chat.id, message.trim(), { 
+      parse_mode: 'Markdown',
+      disable_web_page_preview: false
+    });
+    
+  } catch (error) {
+    console.error('Error in handleMessageLogsCommand:', error);
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh gửi link message logs bị lỗi. Vui lòng thử lại sau.");
+  }
+};
+
+/**
  * Xử lý lệnh thêm nút inline keyboard
  */
 const handleAddInlineCommand = async (bot, msg) => {
@@ -1329,6 +1376,7 @@ module.exports = {
   handleListOperatorsCommand,
   handleListGroupsCommand,
   handleGroupsCommand,
+  handleMessageLogsCommand,
   handleAddInlineCommand,
   handleRemoveInlineCommand,
   displayInlineButtons,
