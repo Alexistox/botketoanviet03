@@ -128,7 +128,7 @@ app.get('/api/groups/:chatId/members', async (req, res) => {
         message: 'Không tìm thấy nhóm'
       });
     }
-    
+
     let groupTitle = "Nhóm không xác định";
     let members = [];
     
@@ -143,7 +143,10 @@ app.get('/api/groups/:chatId/members', async (req, res) => {
         username: admin.user.username || 'Không có username',
         firstName: admin.user.first_name || '',
         lastName: admin.user.last_name || '',
+        fullName: `${admin.user.first_name || ''} ${admin.user.last_name || ''}`.trim() || 'Không có tên',
+        telegramLink: admin.user.username ? `https://t.me/${admin.user.username}` : null,
         status: admin.status,
+        statusText: admin.status === 'creator' ? 'Chủ nhóm' : 'Quản trị viên',
         isBot: admin.user.is_bot || false
       }));
       
@@ -151,14 +154,23 @@ app.get('/api/groups/:chatId/members', async (req, res) => {
       console.error('Error fetching members:', error);
       members = [];
     }
-    
+
+    // Thêm thông tin operators với link Telegram
+    const operators = group.operators.map(op => ({
+      ...op,
+      telegramLink: op.username ? `https://t.me/${op.username}` : null,
+      statusText: 'Bot Operator',
+      fullName: op.username || 'Unknown'
+    }));
+
     res.json({
       success: true,
       chatId,
       groupTitle,
       totalMembers: members.length,
+      totalOperators: operators.length,
       members,
-      operators: group.operators || []
+      operators
     });
   } catch (error) {
     console.error('Error fetching group members:', error);
@@ -173,7 +185,15 @@ app.get('/api/groups/:chatId/members', async (req, res) => {
 app.get('/api/groups/:chatId/transactions', async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { page = 1, limit = 20, startDate, endDate } = req.query;
+    const { 
+      page = 1, 
+      limit = 50, 
+      startDate, 
+      endDate, 
+      type, 
+      senderName, 
+      search 
+    } = req.query;
     
     // Lấy thông tin nhóm
     const group = await Group.findOne({ chatId });
@@ -183,7 +203,7 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
         message: 'Không tìm thấy nhóm'
       });
     }
-    
+
     let groupTitle = "Nhóm không xác định";
     try {
       const chatInfo = await bot.getChat(chatId);
@@ -191,30 +211,56 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
     } catch (error) {
       groupTitle = `Nhóm không xác định (ID: ${chatId})`;
     }
-    
+
     // Tạo filter query
     const filter = { 
       chatId,
       skipped: { $ne: true }
     };
-    
+
     // Lọc theo ngày nếu có
     if (startDate || endDate) {
       filter.timestamp = {};
       if (startDate) filter.timestamp.$gte = new Date(startDate);
-      if (endDate) filter.timestamp.$lte = new Date(endDate);
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999); // Cuối ngày
+        filter.timestamp.$lte = endDateTime;
+      }
     }
-    
+
+    // Lọc theo loại giao dịch
+    if (type && type !== 'all') {
+      filter.type = type;
+    }
+
+    // Lọc theo tên người gửi
+    if (senderName && senderName !== 'all') {
+      filter.senderName = { $regex: senderName, $options: 'i' };
+    }
+
+    // Tìm kiếm trong nội dung
+    if (search) {
+      filter.$or = [
+        { message: { $regex: search, $options: 'i' } },
+        { senderName: { $regex: search, $options: 'i' } }
+      ];
+    }
+
     // Lấy giao dịch với phân trang
     const transactions = await Transaction.find(filter)
       .sort({ timestamp: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .exec();
-    
+
     // Đếm tổng số giao dịch
     const totalTransactions = await Transaction.countDocuments(filter);
-    
+
+    // Lấy danh sách các loại giao dịch và tên người gửi unique
+    const uniqueTypes = await Transaction.distinct('type', { chatId });
+    const uniqueSenders = await Transaction.distinct('senderName', { chatId });
+
     // Nhóm giao dịch theo ngày
     const transactionsByDate = {};
     transactions.forEach(transaction => {
@@ -234,13 +280,13 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
         createdAt: transaction.createdAt
       });
     });
-    
+
     // Lấy thông tin về các lần Start (clear)
     const startTransactions = await Transaction.find({ 
       chatId, 
       type: 'clear' 
     }).sort({ timestamp: -1 });
-    
+
     res.json({
       success: true,
       chatId,
@@ -249,6 +295,15 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
       currentPage: parseInt(page),
       totalPages: Math.ceil(totalTransactions / limit),
       transactionsByDate,
+      uniqueTypes,
+      uniqueSenders,
+      filters: {
+        startDate: startDate || null,
+        endDate: endDate || null,
+        type: type || 'all',
+        senderName: senderName || 'all',
+        search: search || ''
+      },
       startHistory: startTransactions.map(t => ({
         date: t.timestamp.toISOString().split('T')[0],
         time: t.timestamp.toISOString(),
@@ -662,6 +717,227 @@ app.get('/groups/:chatId', async (req, res) => {
                 font-size: 1.3em;
             }
             
+            .table-container {
+                overflow-x: auto;
+                margin-top: 15px;
+            }
+            
+            .members-table,
+            .transactions-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+                background: white;
+                border-radius: 6px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .members-table th,
+            .members-table td,
+            .transactions-table th,
+            .transactions-table td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .members-table th,
+            .transactions-table th {
+                background: #34495e;
+                color: white;
+                font-weight: normal;
+                cursor: pointer;
+                user-select: none;
+            }
+            
+            .members-table th:hover,
+            .transactions-table th:hover {
+                background: #2c3e50;
+            }
+            
+            .members-table tr:hover,
+            .transactions-table tr:hover {
+                background: #f8f9fa;
+            }
+            
+            .telegram-link {
+                color: #3498db;
+                text-decoration: none;
+                font-weight: 500;
+                padding: 4px 8px;
+                border-radius: 4px;
+                border: 1px solid #3498db;
+                transition: all 0.3s ease;
+            }
+            
+            .telegram-link:hover {
+                background: #3498db;
+                color: white;
+            }
+            
+            .no-link {
+                color: #7f8c8d;
+                font-style: italic;
+            }
+            
+            .role-badge {
+                background: #3498db;
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                font-weight: 500;
+            }
+            
+            .role-badge.operator {
+                background: #e67e22;
+            }
+            
+            .filters-container {
+                background: white;
+                padding: 20px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .filter-row {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .filter-row:last-child {
+                margin-bottom: 0;
+            }
+            
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                min-width: 150px;
+            }
+            
+            .filter-group.search-group {
+                min-width: 300px;
+                flex: 1;
+            }
+            
+            .filter-group label {
+                font-weight: 500;
+                color: #2c3e50;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input,
+            .filter-group select {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 0.9em;
+            }
+            
+            .filter-group input:focus,
+            .filter-group select:focus {
+                outline: none;
+                border-color: #3498db;
+                box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            }
+            
+            .search-group {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .search-input-container {
+                display: flex;
+                gap: 5px;
+                align-items: center;
+            }
+            
+            .search-input-container input {
+                flex: 1;
+            }
+            
+            .search-btn,
+            .clear-btn {
+                padding: 8px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: all 0.3s ease;
+            }
+            
+            .search-btn {
+                background: #3498db;
+                color: white;
+            }
+            
+            .search-btn:hover {
+                background: #2980b9;
+            }
+            
+            .clear-btn {
+                background: #e74c3c;
+                color: white;
+            }
+            
+            .clear-btn:hover {
+                background: #c0392b;
+            }
+            
+            .transaction-summary {
+                color: #7f8c8d;
+                font-size: 0.9em;
+                margin-bottom: 10px;
+            }
+            
+            .sort-icon {
+                font-size: 0.8em;
+                margin-left: 5px;
+                opacity: 0.7;
+            }
+            
+            .transaction-type {
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                font-weight: 500;
+            }
+            
+            .transaction-type.plus {
+                background: #2ecc71;
+                color: white;
+            }
+            
+            .transaction-type.minus {
+                background: #e74c3c;
+                color: white;
+            }
+            
+            .transaction-type.percent {
+                background: #f39c12;
+                color: white;
+            }
+            
+            .transaction-type.clear {
+                background: #95a5a6;
+                color: white;
+            }
+            
+            .amount {
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .message {
+                max-width: 300px;
+                word-wrap: break-word;
+            }
+            
             .members-list {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -760,13 +1036,47 @@ app.get('/groups/:chatId', async (req, res) => {
                     grid-template-columns: 1fr;
                 }
                 
+                .filter-row {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .filter-group {
+                    min-width: auto;
+                }
+                
+                .filter-group.search-group {
+                    min-width: auto;
+                }
+                
+                .search-input-container {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .members-table,
                 .transactions-table {
                     font-size: 0.9em;
                 }
                 
+                .members-table th,
+                .members-table td,
                 .transactions-table th,
                 .transactions-table td {
                     padding: 6px;
+                }
+                
+                .message {
+                    max-width: 200px;
+                }
+                
+                .telegram-link {
+                    font-size: 0.8em;
+                    padding: 3px 6px;
+                }
+                
+                .filters-container {
+                    padding: 15px;
                 }
             }
         </style>
@@ -886,89 +1196,175 @@ app.get('/groups/:chatId', async (req, res) => {
             function displayMembers(data) {
                 const membersHTML = \`
                     <div class="section">
-                        <h2>👥 Thành viên nhóm</h2>
-                        <div class="members-list">
-                            \${data.members.map(member => \`
-                                <div class="member-item">
-                                    <div class="member-name">\${member.firstName || 'Không có tên'} \${member.lastName || ''}</div>
-                                    <div class="member-role">@\${member.username} - \${member.status === 'creator' ? 'Chủ nhóm' : 'Quản trị viên'}</div>
-                                </div>
-                            \`).join('')}
-                        </div>
+                        <h2>👥 Thành viên nhóm (\${data.totalMembers + data.totalOperators})</h2>
                         
-                        \${data.operators.length > 0 ? \`
-                            <h3 style="margin-top: 20px;">👨‍💼 Bot Operators</h3>
-                            <div class="members-list">
-                                \${data.operators.map(op => \`
-                                    <div class="member-item">
-                                        <div class="member-name">\${op.username || 'Unknown'}</div>
-                                        <div class="member-role">Operator - \${formatDate(op.dateAdded)}</div>
-                                    </div>
-                                \`).join('')}
-                            </div>
-                        \` : ''}
+                        <div class="table-container">
+                            <table class="members-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tên</th>
+                                        <th>Username</th>
+                                        <th>Link Telegram</th>
+                                        <th>Vai trò</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    \${data.members.map(member => \`
+                                        <tr>
+                                            <td>\${member.fullName}</td>
+                                            <td>@\${member.username}</td>
+                                            <td>
+                                                \${member.telegramLink 
+                                                    ? \`<a href="\${member.telegramLink}" target="_blank" class="telegram-link">Mở Telegram</a>\`
+                                                    : '<span class="no-link">Không có link</span>'
+                                                }
+                                            </td>
+                                            <td><span class="role-badge">\${member.statusText}</span></td>
+                                        </tr>
+                                    \`).join('')}
+                                    \${data.operators.map(op => \`
+                                        <tr>
+                                            <td>\${op.fullName}</td>
+                                            <td>@\${op.username || 'Không có'}</td>
+                                            <td>
+                                                \${op.telegramLink 
+                                                    ? \`<a href="\${op.telegramLink}" target="_blank" class="telegram-link">Mở Telegram</a>\`
+                                                    : '<span class="no-link">Không có link</span>'
+                                                }
+                                            </td>
+                                            <td><span class="role-badge operator">\${op.statusText}</span></td>
+                                        </tr>
+                                    \`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 \`;
                 
                 document.getElementById('content').innerHTML += membersHTML;
             }
             
-            async function loadTransactions(page = 1) {
+            async function loadTransactions(page = 1, filters = {}) {
                 try {
-                    const response = await fetch(\`/api/groups/\${chatId}/transactions?page=\${page}&limit=50\`);
+                    const params = new URLSearchParams({
+                        page: page.toString(),
+                        limit: '50',
+                        ...filters
+                    });
+                    
+                    const response = await fetch(\`/api/groups/\${chatId}/transactions?\${params}\`);
                     const data = await response.json();
                     
                     if (data.success) {
                         displayTransactions(data);
                         currentPage = page;
+                        currentFilters = filters;
                     }
                 } catch (error) {
                     console.error('Error loading transactions:', error);
                 }
             }
             
+            let currentFilters = {};
+            
             function displayTransactions(data) {
                 const transactionsHTML = \`
                     <div class="section">
                         <h2>💰 Giao dịch chi tiết</h2>
-                        <p>Tổng: \${formatNumber(data.totalTransactions)} giao dịch (Trang \${data.currentPage}/\${data.totalPages})</p>
                         
-                        \${Object.keys(data.transactionsByDate).map(date => \`
-                            <div class="transaction-date">
-                                📅 \${formatDate(date)} (\${data.transactionsByDate[date].length} giao dịch)
+                        <!-- Filters -->
+                        <div class="filters-container">
+                            <div class="filter-row">
+                                <div class="filter-group">
+                                    <label>Từ ngày:</label>
+                                    <input type="date" id="startDate" value="\${data.filters.startDate || ''}" 
+                                           onchange="applyFilters()">
+                                </div>
+                                <div class="filter-group">
+                                    <label>Đến ngày:</label>
+                                    <input type="date" id="endDate" value="\${data.filters.endDate || ''}" 
+                                           onchange="applyFilters()">
+                                </div>
+                                <div class="filter-group">
+                                    <label>Loại giao dịch:</label>
+                                    <select id="typeFilter" onchange="applyFilters()">
+                                        <option value="all">Tất cả</option>
+                                        \${data.uniqueTypes.map(type => \`
+                                            <option value="\${type}" \${data.filters.type === type ? 'selected' : ''}>
+                                                \${getTransactionType(type)}
+                                            </option>
+                                        \`).join('')}
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label>Người thực hiện:</label>
+                                    <select id="senderFilter" onchange="applyFilters()">
+                                        <option value="all">Tất cả</option>
+                                        \${data.uniqueSenders.map(sender => \`
+                                            <option value="\${sender}" \${data.filters.senderName === sender ? 'selected' : ''}>
+                                                \${sender}
+                                            </option>
+                                        \`).join('')}
+                                    </select>
+                                </div>
                             </div>
-                            <table class="transactions-table">
-                                <thead>
-                                    <tr>
-                                        <th>Loại</th>
-                                        <th>Số tiền</th>
-                                        <th>Người thực hiện</th>
-                                        <th>Nội dung</th>
-                                        <th>Thời gian</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    \${data.transactionsByDate[date].map(transaction => \`
+                            <div class="filter-row">
+                                <div class="filter-group search-group">
+                                    <label>Tìm kiếm:</label>
+                                    <div class="search-input-container">
+                                        <input type="text" id="searchInput" placeholder="Tìm trong nội dung hoặc tên người gửi..."
+                                               value="\${data.filters.search || ''}" onkeyup="handleSearch(event)">
+                                        <button onclick="applyFilters()" class="search-btn">🔍</button>
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <button onclick="clearFilters()" class="clear-btn">🧹 Xóa bộ lọc</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="transaction-summary">
+                            Tổng: \${formatNumber(data.totalTransactions)} giao dịch (Trang \${data.currentPage}/\${data.totalPages})
+                        </p>
+                        
+                        <div class="table-container">
+                            \${Object.keys(data.transactionsByDate).map(date => \`
+                                <div class="transaction-date">
+                                    📅 \${formatDate(date)} (\${data.transactionsByDate[date].length} giao dịch)
+                                </div>
+                                <table class="transactions-table">
+                                    <thead>
                                         <tr>
-                                            <td>\${getTransactionType(transaction.type)}</td>
-                                            <td>\${formatNumber(transaction.amount)}</td>
-                                            <td>\${transaction.senderName}</td>
-                                            <td>\${transaction.message}</td>
-                                            <td>\${formatDateTime(transaction.timestamp)}</td>
+                                            <th onclick="sortTable(0, this)">Loại <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(1, this)">Số tiền <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(2, this)">Người thực hiện <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(3, this)">Nội dung <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(4, this)">Thời gian <span class="sort-icon">⇅</span></th>
                                         </tr>
-                                    \`).join('')}
-                                </tbody>
-                            </table>
-                        \`).join('')}
+                                    </thead>
+                                    <tbody>
+                                        \${data.transactionsByDate[date].map(transaction => \`
+                                            <tr>
+                                                <td><span class="transaction-type \${transaction.type}">\${getTransactionType(transaction.type)}</span></td>
+                                                <td class="amount">\${formatNumber(transaction.amount)}</td>
+                                                <td>\${transaction.senderName}</td>
+                                                <td class="message">\${transaction.message}</td>
+                                                <td>\${formatDateTime(transaction.timestamp)}</td>
+                                            </tr>
+                                        \`).join('')}
+                                    </tbody>
+                                </table>
+                            \`).join('')}
+                        </div>
                         
                         \${data.totalPages > 1 ? \`
                             <div class="pagination">
-                                <button onclick="loadTransactions(\${Math.max(1, data.currentPage - 1)})" 
+                                <button onclick="loadTransactions(\${Math.max(1, data.currentPage - 1)}, currentFilters)" 
                                         \${data.currentPage === 1 ? 'disabled' : ''}>
                                     ← Trước
                                 </button>
                                 <span>Trang \${data.currentPage} / \${data.totalPages}</span>
-                                <button onclick="loadTransactions(\${Math.min(data.totalPages, data.currentPage + 1)})" 
+                                <button onclick="loadTransactions(\${Math.min(data.totalPages, data.currentPage + 1)}, currentFilters)" 
                                         \${data.currentPage === data.totalPages ? 'disabled' : ''}>
                                     Sau →
                                 </button>
@@ -984,6 +1380,72 @@ app.get('/groups/:chatId', async (req, res) => {
                 } else {
                     document.getElementById('content').innerHTML += transactionsHTML;
                 }
+            }
+            
+            function applyFilters() {
+                const filters = {
+                    startDate: document.getElementById('startDate').value,
+                    endDate: document.getElementById('endDate').value,
+                    type: document.getElementById('typeFilter').value,
+                    senderName: document.getElementById('senderFilter').value,
+                    search: document.getElementById('searchInput').value
+                };
+                
+                // Remove empty filters
+                Object.keys(filters).forEach(key => {
+                    if (!filters[key] || filters[key] === 'all') {
+                        delete filters[key];
+                    }
+                });
+                
+                loadTransactions(1, filters);
+            }
+            
+            function clearFilters() {
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+                document.getElementById('typeFilter').value = 'all';
+                document.getElementById('senderFilter').value = 'all';
+                document.getElementById('searchInput').value = '';
+                loadTransactions(1, {});
+            }
+            
+            function handleSearch(event) {
+                if (event.key === 'Enter') {
+                    applyFilters();
+                }
+            }
+            
+            function sortTable(columnIndex, headerElement) {
+                const table = headerElement.closest('table');
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                const isAscending = headerElement.dataset.sortDir !== 'asc';
+                headerElement.dataset.sortDir = isAscending ? 'asc' : 'desc';
+                
+                // Update sort icon
+                table.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '⇅');
+                headerElement.querySelector('.sort-icon').textContent = isAscending ? '↑' : '↓';
+                
+                rows.sort((a, b) => {
+                    const aValue = a.cells[columnIndex].textContent.trim();
+                    const bValue = b.cells[columnIndex].textContent.trim();
+                    
+                    let result = 0;
+                    if (columnIndex === 1) { // Amount column
+                        result = parseFloat(aValue.replace(/[^\d.-]/g, '')) - parseFloat(bValue.replace(/[^\d.-]/g, ''));
+                    } else if (columnIndex === 4) { // Date column
+                        result = new Date(aValue) - new Date(bValue);
+                    } else {
+                        result = aValue.localeCompare(bValue);
+                    }
+                    
+                    return isAscending ? result : -result;
+                });
+                
+                tbody.innerHTML = '';
+                rows.forEach(row => tbody.appendChild(row));
             }
             
             function getTransactionType(type) {
