@@ -27,7 +27,8 @@ const {
   handleReportCommand,
   handleHelpCommand,
   handleStartCommand,
-  handleFormatCommand
+  handleFormatCommand,
+  handleReportLinkCommand
 } = require('./utilCommands');
 
 const {
@@ -305,6 +306,11 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText === '/groups') {
         await handleGroupsCommand(bot, msg);
+        return;
+      }
+
+      if (messageText === '/report') {
+        await handleReportLinkCommand(bot, msg);
         return;
       }
 
