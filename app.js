@@ -261,24 +261,53 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
     const uniqueTypes = await Transaction.distinct('type', { chatId });
     const uniqueSenders = await Transaction.distinct('senderName', { chatId });
 
-    // Nhóm giao dịch theo ngày
+    // Tính tổng tiền đã trả (các giao dịch payment)
+    const totalPaid = await Transaction.aggregate([
+      { $match: { chatId, type: 'payment', skipped: { $ne: true } } },
+      { $group: { _id: null, total: { $sum: '$usdtAmount' } } }
+    ]);
+    const totalPaidAmount = totalPaid.length > 0 ? totalPaid[0].total : 0;
+
+    // Tính tổng tiền còn lại
+    const remainingAmount = group.totalUSDT - totalPaidAmount;
+
+    // Nhóm giao dịch theo ngày với thông tin tiền đã trả và còn lại
     const transactionsByDate = {};
-    transactions.forEach(transaction => {
+    let runningPaid = 0;
+    
+    // Sắp xếp giao dịch theo thời gian tăng dần để tính running total
+    const sortedTransactions = transactions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    sortedTransactions.forEach(transaction => {
       const date = transaction.timestamp.toISOString().split('T')[0];
       if (!transactionsByDate[date]) {
         transactionsByDate[date] = [];
       }
+      
+      // Tính tiền đã trả tại thời điểm này
+      if (transaction.type === 'payment') {
+        runningPaid += transaction.usdtAmount || 0;
+      }
+      
       transactionsByDate[date].push({
         id: transaction._id,
         type: transaction.type,
         amount: transaction.amount || 0,
+        usdtAmount: transaction.usdtAmount || 0,
         message: transaction.message,
         senderName: transaction.senderName,
         rate: transaction.rate,
         exchangeRate: transaction.exchangeRate,
         timestamp: transaction.timestamp,
-        createdAt: transaction.createdAt
+        createdAt: transaction.createdAt,
+        paidAmount: runningPaid,
+        remainingAmount: group.totalUSDT - runningPaid
       });
+    });
+
+    // Sắp xếp lại theo thứ tự giảm dần để hiển thị
+    Object.keys(transactionsByDate).forEach(date => {
+      transactionsByDate[date].reverse();
     });
 
     // Lấy thông tin về các lần Start (clear)
@@ -297,6 +326,14 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
       transactionsByDate,
       uniqueTypes,
       uniqueSenders,
+      summary: {
+        totalVND: group.totalVND || 0,
+        totalUSDT: group.totalUSDT || 0,
+        totalPaid: totalPaidAmount,
+        remaining: remainingAmount,
+        rate: group.rate || 0,
+        exchangeRate: group.exchangeRate || 0
+      },
       filters: {
         startDate: startDate || null,
         endDate: endDate || null,
@@ -315,6 +352,150 @@ app.get('/api/groups/:chatId/transactions', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi khi lấy thông tin giao dịch'
+    });
+  }
+});
+
+// API endpoint mới để lấy tổng kết theo ngày
+app.get('/api/groups/:chatId/daily-summary', async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { startDate, endDate } = req.query;
+    
+    // Lấy thông tin nhóm
+    const group = await Group.findOne({ chatId });
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhóm'
+      });
+    }
+
+    // Tạo filter query
+    const filter = { 
+      chatId,
+      skipped: { $ne: true }
+    };
+
+    // Lọc theo ngày nếu có
+    if (startDate || endDate) {
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = new Date(startDate);
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        filter.timestamp.$lte = endDateTime;
+      }
+    }
+
+    // Aggregate dữ liệu theo ngày
+    const dailyData = await Transaction.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+            type: '$type'
+          },
+          totalAmount: { $sum: '$amount' },
+          totalUsdtAmount: { $sum: '$usdtAmount' },
+          count: { $sum: 1 },
+          avgRate: { $avg: '$rate' },
+          avgExchangeRate: { $avg: '$exchangeRate' }
+        }
+      },
+      { $sort: { '_id.date': 1 } }
+    ]);
+
+    // Tổ chức dữ liệu theo ngày
+    const summary = {};
+    let totalSumVND = 0;
+    let totalSumUSDT = 0;
+    let totalSumPaid = 0;
+
+    dailyData.forEach(item => {
+      const date = item._id.date;
+      const type = item._id.type;
+      
+      if (!summary[date]) {
+        summary[date] = {
+          date,
+          deposits: { amount: 0, usdtAmount: 0, count: 0 },
+          withdraws: { amount: 0, usdtAmount: 0, count: 0 },
+          payments: { amount: 0, usdtAmount: 0, count: 0 },
+          totalVND: 0,
+          totalUSDT: 0,
+          totalPaid: 0,
+          avgRate: 0,
+          avgExchangeRate: 0,
+          transactionCount: 0
+        };
+      }
+
+      if (type === 'deposit') {
+        summary[date].deposits = {
+          amount: item.totalAmount,
+          usdtAmount: item.totalUsdtAmount,
+          count: item.count
+        };
+      } else if (type === 'withdraw') {
+        summary[date].withdraws = {
+          amount: Math.abs(item.totalAmount),
+          usdtAmount: Math.abs(item.totalUsdtAmount),
+          count: item.count
+        };
+      } else if (type === 'payment') {
+        summary[date].payments = {
+          amount: item.totalAmount,
+          usdtAmount: item.totalUsdtAmount,
+          count: item.count
+        };
+      }
+
+      summary[date].avgRate = item.avgRate || 0;
+      summary[date].avgExchangeRate = item.avgExchangeRate || 0;
+      summary[date].transactionCount += item.count;
+    });
+
+    // Tính tổng cho mỗi ngày
+    Object.keys(summary).forEach(date => {
+      const day = summary[date];
+      day.totalVND = day.deposits.amount - day.withdraws.amount;
+      day.totalUSDT = day.deposits.usdtAmount - day.withdraws.usdtAmount;
+      day.totalPaid = day.payments.usdtAmount;
+      day.remaining = day.totalUSDT - day.totalPaid;
+      
+      // Cộng vào tổng
+      totalSumVND += day.totalVND;
+      totalSumUSDT += day.totalUSDT;
+      totalSumPaid += day.totalPaid;
+    });
+
+    // Sắp xếp theo ngày
+    const sortedSummary = Object.values(summary).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    res.json({
+      success: true,
+      chatId,
+      filters: {
+        startDate: startDate || null,
+        endDate: endDate || null
+      },
+      dailySummary: sortedSummary,
+      grandTotal: {
+        totalVND: totalSumVND,
+        totalUSDT: totalSumUSDT,
+        totalPaid: totalSumPaid,
+        remaining: totalSumUSDT - totalSumPaid,
+        avgRate: group.rate || 0,
+        avgExchangeRate: group.exchangeRate || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching daily summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy tổng kết theo ngày'
     });
   }
 });
@@ -908,17 +1089,20 @@ app.get('/groups/:chatId', async (req, res) => {
                 font-weight: 500;
             }
             
-            .transaction-type.plus {
+            .transaction-type.plus,
+            .transaction-type.deposit {
                 background: #2ecc71;
                 color: white;
             }
             
-            .transaction-type.minus {
+            .transaction-type.minus,
+            .transaction-type.withdraw {
                 background: #e74c3c;
                 color: white;
             }
             
-            .transaction-type.percent {
+            .transaction-type.percent,
+            .transaction-type.payment {
                 background: #f39c12;
                 color: white;
             }
@@ -931,6 +1115,123 @@ app.get('/groups/:chatId', async (req, res) => {
             .amount {
                 font-weight: bold;
                 color: #2c3e50;
+            }
+            
+            .amount.positive {
+                color: #27ae60;
+            }
+            
+            .amount.negative {
+                color: #e74c3c;
+            }
+            
+            .amount.paid {
+                color: #f39c12;
+            }
+            
+            .amount.remaining {
+                color: #3498db;
+            }
+            
+            .summary-section {
+                margin: 20px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 6px;
+                border: 2px solid #3498db;
+            }
+            
+            .summary-section h3 {
+                color: #2c3e50;
+                margin-bottom: 15px;
+                font-size: 1.2em;
+            }
+            
+            .summary-filters {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+            }
+            
+            .summary-table {
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 6px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .summary-table th {
+                background: #3498db;
+                color: white;
+                padding: 12px;
+                text-align: left;
+                font-weight: normal;
+            }
+            
+            .summary-table td {
+                padding: 10px 12px;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .summary-table tr:hover {
+                background: #f8f9fa;
+            }
+            
+            .summary-table .total-row {
+                background: #ecf0f1;
+                font-weight: bold;
+                border-top: 2px solid #3498db;
+            }
+            
+            .summary-table .total-row:hover {
+                background: #d5dbdb;
+            }
+            
+            .transaction-count {
+                text-align: center;
+                color: #7f8c8d;
+                font-weight: 500;
+            }
+            
+            .transaction-summary-info {
+                display: flex;
+                justify-content: space-around;
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                flex-wrap: wrap;
+            }
+            
+            .summary-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+            }
+            
+            .summary-item .label {
+                font-size: 0.9em;
+                color: #7f8c8d;
+                font-weight: 500;
+            }
+            
+            .summary-item .value {
+                font-size: 1.2em;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            .summary-item .value.paid {
+                color: #f39c12;
+            }
+            
+            .summary-item .value.remaining {
+                color: #3498db;
             }
             
             .message {
@@ -1055,19 +1356,22 @@ app.get('/groups/:chatId', async (req, res) => {
                 }
                 
                 .members-table,
-                .transactions-table {
+                .transactions-table,
+                .summary-table {
                     font-size: 0.9em;
                 }
                 
                 .members-table th,
                 .members-table td,
                 .transactions-table th,
-                .transactions-table td {
+                .transactions-table td,
+                .summary-table th,
+                .summary-table td {
                     padding: 6px;
                 }
                 
                 .message {
-                    max-width: 200px;
+                    max-width: 150px;
                 }
                 
                 .telegram-link {
@@ -1077,6 +1381,46 @@ app.get('/groups/:chatId', async (req, res) => {
                 
                 .filters-container {
                     padding: 15px;
+                }
+                
+                .summary-section {
+                    margin: 10px;
+                    padding: 15px;
+                }
+                
+                .summary-filters {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                
+                .transaction-summary-info {
+                    flex-direction: column;
+                    gap: 10px;
+                    padding: 10px;
+                }
+                
+                .summary-item {
+                    flex-direction: row;
+                    justify-content: space-between;
+                    padding: 8px;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                }
+                
+                .summary-item .value {
+                    font-size: 1em;
+                }
+                
+                .summary-table {
+                    display: block;
+                    overflow-x: auto;
+                    white-space: nowrap;
+                }
+                
+                .summary-table th,
+                .summary-table td {
+                    min-width: 80px;
+                    padding: 4px;
                 }
             }
         </style>
@@ -1257,11 +1601,113 @@ app.get('/groups/:chatId', async (req, res) => {
                     
                     if (data.success) {
                         displayTransactions(data);
+                        await loadDailySummary(filters);
                         currentPage = page;
                         currentFilters = filters;
                     }
                 } catch (error) {
                     console.error('Error loading transactions:', error);
+                }
+            }
+
+            async function loadDailySummary(filters = {}) {
+                try {
+                    const params = new URLSearchParams({
+                        ...filters
+                    });
+                    
+                    const response = await fetch(\`/api/groups/\${chatId}/daily-summary?\${params}\`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayDailySummary(data);
+                    }
+                } catch (error) {
+                    console.error('Error loading daily summary:', error);
+                }
+            }
+
+            function displayDailySummary(data) {
+                const summaryHTML = \`
+                    <div class="summary-section">
+                        <h3>📊 Tổng kết theo ngày</h3>
+                        
+                        <div class="summary-filters">
+                            <div class="filter-group">
+                                <label>Từ ngày:</label>
+                                <input type="date" id="summaryStartDate" value="\${data.filters.startDate || ''}" 
+                                       onchange="applySummaryFilters()">
+                            </div>
+                            <div class="filter-group">
+                                <label>Đến ngày:</label>
+                                <input type="date" id="summaryEndDate" value="\${data.filters.endDate || ''}" 
+                                       onchange="applySummaryFilters()">
+                            </div>
+                            <div class="filter-group">
+                                <button onclick="clearSummaryFilters()" class="clear-btn">🧹 Xóa</button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th>Nạp (VND)</th>
+                                        <th>Rút (VND)</th>
+                                        <th>Nạp (USDT)</th>
+                                        <th>Rút (USDT)</th>
+                                        <th>Đã trả (USDT)</th>
+                                        <th>Còn lại (USDT)</th>
+                                        <th>Rate (%)</th>
+                                        <th>Tỷ giá</th>
+                                        <th>Giao dịch</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    \${data.dailySummary.map(day => \`
+                                        <tr>
+                                            <td><strong>\${formatDate(day.date)}</strong></td>
+                                            <td class="amount positive">\${formatNumber(day.deposits.amount)}</td>
+                                            <td class="amount negative">\${formatNumber(day.withdraws.amount)}</td>
+                                            <td class="amount positive">\${formatNumber(day.deposits.usdtAmount)}</td>
+                                            <td class="amount negative">\${formatNumber(day.withdraws.usdtAmount)}</td>
+                                            <td class="amount paid">\${formatNumber(day.totalPaid)}</td>
+                                            <td class="amount remaining">\${formatNumber(day.remaining)}</td>
+                                            <td>\${day.avgRate.toFixed(2)}%</td>
+                                            <td>\${formatNumber(day.avgExchangeRate)}</td>
+                                            <td class="transaction-count">\${day.transactionCount}</td>
+                                        </tr>
+                                    \`).join('')}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td><strong>TỔNG CỘNG</strong></td>
+                                        <td class="amount positive"><strong>\${formatNumber(data.grandTotal.totalVND)}</strong></td>
+                                        <td class="amount">-</td>
+                                        <td class="amount positive"><strong>\${formatNumber(data.grandTotal.totalUSDT)}</strong></td>
+                                        <td class="amount">-</td>
+                                        <td class="amount paid"><strong>\${formatNumber(data.grandTotal.totalPaid)}</strong></td>
+                                        <td class="amount remaining"><strong>\${formatNumber(data.grandTotal.remaining)}</strong></td>
+                                        <td><strong>\${data.grandTotal.avgRate.toFixed(2)}%</strong></td>
+                                        <td><strong>\${formatNumber(data.grandTotal.avgExchangeRate)}</strong></td>
+                                        <td class="transaction-count"><strong>\${data.dailySummary.reduce((sum, day) => sum + day.transactionCount, 0)}</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                \`;
+                
+                // Insert summary before transactions
+                const existingSummary = document.querySelector('.summary-section');
+                if (existingSummary) {
+                    existingSummary.outerHTML = summaryHTML;
+                } else {
+                    const transactionSection = document.querySelector('.section:last-child');
+                    if (transactionSection) {
+                        transactionSection.insertAdjacentHTML('beforebegin', summaryHTML);
+                    }
                 }
             }
             
@@ -1271,6 +1717,26 @@ app.get('/groups/:chatId', async (req, res) => {
                 const transactionsHTML = \`
                     <div class="section">
                         <h2>💰 Giao dịch chi tiết</h2>
+                        
+                        <!-- Summary Info -->
+                        <div class="transaction-summary-info">
+                            <div class="summary-item">
+                                <span class="label">Tổng VND:</span>
+                                <span class="value">\${formatNumber(data.summary.totalVND)}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Tổng USDT:</span>
+                                <span class="value">\${formatNumber(data.summary.totalUSDT)}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Đã trả:</span>
+                                <span class="value paid">\${formatNumber(data.summary.totalPaid)}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Còn lại:</span>
+                                <span class="value remaining">\${formatNumber(data.summary.remaining)}</span>
+                            </div>
+                        </div>
                         
                         <!-- Filters -->
                         <div class="filters-container">
@@ -1337,9 +1803,12 @@ app.get('/groups/:chatId', async (req, res) => {
                                         <tr>
                                             <th onclick="sortTable(0, this)">Loại <span class="sort-icon">⇅</span></th>
                                             <th onclick="sortTable(1, this)">Số tiền <span class="sort-icon">⇅</span></th>
-                                            <th onclick="sortTable(2, this)">Người thực hiện <span class="sort-icon">⇅</span></th>
-                                            <th onclick="sortTable(3, this)">Nội dung <span class="sort-icon">⇅</span></th>
-                                            <th onclick="sortTable(4, this)">Thời gian <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(2, this)">USDT <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(3, this)">Người thực hiện <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(4, this)">Nội dung <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(5, this)">Đã trả <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(6, this)">Còn lại <span class="sort-icon">⇅</span></th>
+                                            <th onclick="sortTable(7, this)">Thời gian <span class="sort-icon">⇅</span></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1347,8 +1816,11 @@ app.get('/groups/:chatId', async (req, res) => {
                                             <tr>
                                                 <td><span class="transaction-type \${transaction.type}">\${getTransactionType(transaction.type)}</span></td>
                                                 <td class="amount">\${formatNumber(transaction.amount)}</td>
+                                                <td class="amount">\${formatNumber(transaction.usdtAmount)}</td>
                                                 <td>\${transaction.senderName}</td>
                                                 <td class="message">\${transaction.message}</td>
+                                                <td class="amount paid">\${formatNumber(transaction.paidAmount)}</td>
+                                                <td class="amount remaining">\${formatNumber(transaction.remainingAmount)}</td>
                                                 <td>\${formatDateTime(transaction.timestamp)}</td>
                                             </tr>
                                         \`).join('')}
@@ -1380,6 +1852,28 @@ app.get('/groups/:chatId', async (req, res) => {
                 } else {
                     document.getElementById('content').innerHTML += transactionsHTML;
                 }
+            }
+            
+            function applySummaryFilters() {
+                const filters = {
+                    startDate: document.getElementById('summaryStartDate').value,
+                    endDate: document.getElementById('summaryEndDate').value
+                };
+                
+                // Remove empty filters
+                Object.keys(filters).forEach(key => {
+                    if (!filters[key]) {
+                        delete filters[key];
+                    }
+                });
+                
+                loadDailySummary(filters);
+            }
+            
+            function clearSummaryFilters() {
+                document.getElementById('summaryStartDate').value = '';
+                document.getElementById('summaryEndDate').value = '';
+                loadDailySummary({});
             }
             
             function applyFilters() {
@@ -1433,9 +1927,9 @@ app.get('/groups/:chatId', async (req, res) => {
                     const bValue = b.cells[columnIndex].textContent.trim();
                     
                     let result = 0;
-                    if (columnIndex === 1) { // Amount column
+                    if ([1, 2, 5, 6].includes(columnIndex)) { // Amount columns
                         result = parseFloat(aValue.replace(/[^\d.-]/g, '')) - parseFloat(bValue.replace(/[^\d.-]/g, ''));
-                    } else if (columnIndex === 4) { // Date column
+                    } else if (columnIndex === 7) { // Date column
                         result = new Date(aValue) - new Date(bValue);
                     } else {
                         result = aValue.localeCompare(bValue);
@@ -1450,9 +1944,12 @@ app.get('/groups/:chatId', async (req, res) => {
             
             function getTransactionType(type) {
                 switch (type) {
-                    case 'plus': return '➕ Nạp';
-                    case 'minus': return '➖ Rút';
-                    case 'percent': return '💰 Trả';
+                    case 'plus':
+                    case 'deposit': return '➕ Nạp';
+                    case 'minus':
+                    case 'withdraw': return '➖ Rút';
+                    case 'percent':
+                    case 'payment': return '💰 Trả';
                     case 'clear': return '🧹 Clear';
                     default: return type;
                 }
