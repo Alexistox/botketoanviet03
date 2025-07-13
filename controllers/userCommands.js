@@ -782,7 +782,7 @@ ${websiteUrl}
 };
 
 /**
- * Xử lý lệnh /messagelogs - gửi link website xem message logs
+ * Xử lý lệnh gửi link website message logs
  */
 const handleMessageLogsCommand = async (bot, msg) => {
   try {
@@ -796,28 +796,28 @@ const handleMessageLogsCommand = async (bot, msg) => {
     
     // Tạo URL website
     const serverUrl = process.env.SERVER_URL || 'https://your-server.com';
-    const websiteUrl = `${serverUrl}/messagelogs`;
+    const websiteUrl = `${serverUrl}/message-logs`;
     
     // Tạo message với link
     const message = `
-📋 *Message Logs - Nhật ký tin nhắn*
+📝 *Message Logs - Tin nhắn được lưu trữ*
 
 🔗 Xem tất cả tin nhắn các nhóm tại:
 ${websiteUrl}
 
 📱 Website này hiển thị:
-• Danh sách tất cả các nhóm có tin nhắn
-• Thống kê số lượng tin nhắn theo nhóm
-• Chi tiết toàn bộ nội dung tin nhắn
-• Lọc theo ngày, người gửi, nội dung
-• Hỗ trợ tìm kiếm tin nhắn
+• Danh sách các nhóm có tin nhắn được lưu
+• Thống kê tổng quan tin nhắn
+• Chi tiết tin nhắn từng nhóm
+• Lọc theo ngày, tìm kiếm nội dung
+• Thông tin người gửi và thời gian
 • Hiển thị media (ảnh, video, voice, file)
 
-🔍 Tính năng:
-• Filter theo thời gian và người gửi
+🔍 Tính năng tìm kiếm:
+• Lọc theo khoảng thời gian
 • Tìm kiếm trong nội dung tin nhắn
+• Tìm theo tên người gửi
 • Phân trang dễ dàng
-• Responsive trên mobile
 
 🔄 Dữ liệu được cập nhật realtime
     `;
@@ -830,7 +830,7 @@ ${websiteUrl}
     
   } catch (error) {
     console.error('Error in handleMessageLogsCommand:', error);
-    bot.sendMessage(msg.chat.id, "Xử lý lệnh gửi link website message logs bị lỗi. Vui lòng thử lại sau.");
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh gửi link message logs bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
