@@ -787,16 +787,22 @@ ${websiteUrl}
 const handleMessageLogsCommand = async (bot, msg) => {
   try {
     const userId = msg.from.id;
+    console.log(`User ${userId} trying to use /messagelogs command`);
     
     // Chỉ cho phép owner hoặc admin sử dụng lệnh này
-    if (!(await isUserAdmin(userId))) {
+    const isAdmin = await isUserAdmin(userId);
+    console.log(`User ${userId} admin status: ${isAdmin}`);
+    
+    if (!isAdmin) {
+      console.log(`Access denied for user ${userId} - not admin`);
       bot.sendMessage(msg.chat.id, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền sử dụng lệnh này!");
       return;
     }
     
     // Tạo URL website
-    const serverUrl = process.env.SERVER_URL || 'https://your-server.com';
+    const serverUrl = process.env.SERVER_URL || 'http://159.223.49.204:3000';
     const websiteUrl = `${serverUrl}/message-logs`;
+    console.log(`Generated website URL: ${websiteUrl}`);
     
     // Tạo message với link
     const message = `
@@ -823,14 +829,20 @@ ${websiteUrl}
     `;
     
     // Gửi tin nhắn
-    bot.sendMessage(msg.chat.id, message.trim(), { 
+    console.log(`Sending message logs response to chat ${msg.chat.id}`);
+    await bot.sendMessage(msg.chat.id, message.trim(), { 
       parse_mode: 'Markdown',
       disable_web_page_preview: false
     });
+    console.log(`Message logs response sent successfully to chat ${msg.chat.id}`);
     
   } catch (error) {
     console.error('Error in handleMessageLogsCommand:', error);
-    bot.sendMessage(msg.chat.id, "Xử lý lệnh gửi link message logs bị lỗi. Vui lòng thử lại sau.");
+    try {
+      await bot.sendMessage(msg.chat.id, `❌ Lỗi xử lý lệnh: ${error.message}`);
+    } catch (sendError) {
+      console.error('Failed to send error message:', sendError);
+    }
   }
 };
 
