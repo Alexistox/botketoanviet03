@@ -125,6 +125,9 @@ const handlePlusCommand = async (bot, msg) => {
       if (xValue === 0 && yValue === 1) {
         // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)} (${cardCode}) ${senderName}`;
+      } else if (xValue === 0 && yValue !== 1) {
+        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
+        details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)}/${yValue} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
       } else if (xValue !== 0 && yValue === 1) {
         // Không hiển thị phần /${yValue} khi exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)}\\*${rateFactor} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
@@ -135,6 +138,9 @@ const handlePlusCommand = async (bot, msg) => {
       if (xValue === 0 && yValue === 1) {
         // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)} ${senderName}`;
+      } else if (xValue === 0 && yValue !== 1) {
+        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
+        details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)}/${yValue} = *${formatSmart(newUSDT, numberFormat)}* ${senderName}`;
       } else if (xValue !== 0 && yValue === 1) {
         // Không hiển thị phần /${yValue} khi exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` ${formatSmart(amountVND, numberFormat)}\\*${rateFactor} = *${formatSmart(newUSDT, numberFormat)}* ${senderName}`;
@@ -317,6 +323,9 @@ const handleMinusCommand = async (bot, msg) => {
       if (xValue === 0 && yValue === 1) {
         // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)} (${cardCode}) ${senderName}`;
+      } else if (xValue === 0 && yValue !== 1) {
+        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
+        details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
       } else if (xValue !== 0 && yValue === 1) {
         // Không hiển thị phần /${yValue} khi exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)}\\*${rateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
@@ -327,6 +336,9 @@ const handleMinusCommand = async (bot, msg) => {
       if (xValue === 0 && yValue === 1) {
         // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)} ${senderName}`;
+      } else if (xValue === 0 && yValue !== 1) {
+        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
+        details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
       } else if (xValue !== 0 && yValue === 1) {
         // Không hiển thị phần /${yValue} khi exchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` -${formatSmart(amountVND, numberFormat)}\\*${rateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
