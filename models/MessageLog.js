@@ -47,4 +47,4 @@ const MessageLogSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('MessageLog', MessageLogSchema); 
+module.exports = mongoose.model('MessageLog', MessageLogSchema, 'messagelogs'); 
