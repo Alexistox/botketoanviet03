@@ -18,6 +18,7 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 
 ## Recent Updates
 
+- **🆕 LATEST: Enhanced QR Code Generation**: Improved QR code generation with support for Vietnamese number formats (2.612.800), flexible message formats (3-line and 4-line with any order), field prefixes (名字：, Tên:, Name: for names; 银行：, Ngân hàng: for banks), and 70+ Vietnamese banks. Bot now sends QR code images directly instead of links. Supports all common Vietnamese number writing styles and flexible field ordering.
 - **🆕 LATEST: Groups Dashboard Website**: Use `/groups` command to get a link to a beautiful web dashboard showing all bot groups information with statistics, financial data, and operators list.
 - **🆕 LATEST: Auto Bank Transfer Processing**: Reply "1" to bank transfer notification messages to automatically execute `+[amount]` command! Bot intelligently parses bank notifications and extracts amounts automatically.
 - **Added support for abbreviated number formats in mathematical expressions**: Now you can use expressions like `2k+500`, `1tr*2`, `3m/2+4k`, etc. All number formats (k, tr, m, comma-separated) are supported in math calculations.
@@ -83,6 +84,59 @@ The bot now supports multiple number formats:
 - `/x [card number]` - Hide bank card
 - `/sx [card number]` - Show bank card
 - `/hiddenCards` - List all hidden cards
+
+### QR Code Generation
+- `/qr on` - Enable automatic QR code generation for transfer messages (operator only)
+- `/qr off` - Disable automatic QR code generation (operator only)
+
+When QR code generation is enabled, the bot will automatically detect messages with bank transfer information. The bot supports flexible formats:
+
+**4-line format (flexible order):**
+```
+[Account Number/Name/Bank in any order]
+[Amount - always last line]
+```
+
+**3-line format (flexible order):**
+```
+[Account Number/Name/Bank in any order]
+[Amount - always last line]
+```
+
+**Supported field formats:**
+- **Bank name**: Plain (`Vietcombank`, `MB Bank`), with prefix (`银行：Vietcombank`, `Ngân hàng: Techcombank`), abbreviated (`VCB`, `MB`)
+- **Account holder name**: Plain (`Phạm Văn Giáo`), with prefix (`名字：Phạm Văn Giáo`, `Tên: Nguyễn Văn A`, `Name: John Doe`)
+
+**Supported amount formats:**
+- Vietnamese dot separator: `2.612.800` (most common)
+- Comma separator: `2,612,800`
+- Units: `2tr6` (2.6 million), `500k` (500 thousand)
+- Plain numbers: `2612800`
+- With currency: `2.612.800 VNĐ`
+
+Examples:
+```
+452242005
+Trang Kim Bình
+MB Bank
+2.612.800
+```
+
+```
+Phạm Văn Giáo
+银行：Vietcombank
+1024088941
+2.614.800
+```
+
+```
+名字：Phạm Văn Giáo
+银行：Vcb
+1024088941
+2.614.800
+```
+
+The bot will automatically generate and send a VietQR code image for easy bank transfers with support for 70+ Vietnamese banks.
 - `/delete [ID]` - Delete transaction record
 
 ### Currency Conversion

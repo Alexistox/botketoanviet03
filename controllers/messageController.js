@@ -36,6 +36,12 @@ const {
 } = require('./imageCommands');
 
 const {
+  isTransferMessage,
+  parseTransferInfo,
+  generateQRResponse
+} = require('../utils/qrGenerator');
+
+const {
   handlePlusCommand,
   handleMinusCommand,
   handlePercentCommand,
@@ -49,6 +55,11 @@ const {
   handleDualRateCommand,
   handleDeleteCommand
 } = require('./groupCommands');
+
+const {
+  handleQROnCommand,
+  handleQROffCommand
+} = require('./userCommands');
 
 const {
   handleAddAdminCommand,
@@ -311,6 +322,17 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText === '/messagelogs') {
         await handleMessageLogsCommand(bot, msg);
+        return;
+      }
+      
+      // Lệnh QR code
+      if (messageText === '/qr on') {
+        await handleQROnCommand(bot, msg);
+        return;
+      }
+      
+      if (messageText === '/qr off') {
+        await handleQROffCommand(bot, msg);
         return;
       }
 
@@ -624,6 +646,12 @@ const handleMessage = async (bot, msg, cache) => {
       await handleListOperatorsCommand(bot, modifiedMsg);
       return;
     }
+    
+    // Kiểm tra tin nhắn chuyển khoản và tạo QR code tự động
+    if (isTransferMessage(messageText)) {
+      await handleAutoQRGeneration(bot, msg);
+      return;
+    }
   } catch (error) {
     console.error('Error in handleMessage:', error);
   }
@@ -730,7 +758,39 @@ const sendWelcomeMessage = async (bot, chatId, member) => {
   bot.sendMessage(chatId, welcomeMessage);
 };
 
-
+// Hàm tự động tạo QR code khi nhận tin nhắn chuyển khoản
+const handleAutoQRGeneration = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const messageText = msg.text;
+    
+    // Kiểm tra xem group có bật QR không
+    const group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group || !group.qrEnabled) {
+      return; // Không làm gì nếu QR không được bật
+    }
+    
+    // Parse thông tin chuyển khoản
+    const transferInfo = parseTransferInfo(messageText);
+    if (!transferInfo) {
+      return; // Không parse được thông tin
+    }
+    
+    // Tạo thông tin QR code
+    const qrResponse = generateQRResponse(transferInfo);
+    
+    // Gửi ảnh QR code
+    await bot.sendPhoto(chatId, qrResponse.photo, { 
+      caption: qrResponse.caption,
+      parse_mode: 'Markdown' 
+    });
+    
+    console.log(`QR code generated for transfer: ${transferInfo.accountNumber} - ${transferInfo.bankName} - ${transferInfo.amount}`);
+    
+  } catch (error) {
+    console.error('Error in handleAutoQRGeneration:', error);
+  }
+};
 
 module.exports = {
   handleMessage

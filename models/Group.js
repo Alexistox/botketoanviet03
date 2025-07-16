@@ -53,6 +53,10 @@ const GroupSchema = new mongoose.Schema({
       }
     }],
     default: []
+  },
+  qrEnabled: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

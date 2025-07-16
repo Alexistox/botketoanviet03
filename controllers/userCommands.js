@@ -1361,6 +1361,70 @@ const handleRemoveCommand = async (bot, msg) => {
   }
 };
 
+/**
+ * Xử lý lệnh bật QR code (/qr on)
+ */
+const handleQROnCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    // Kiểm tra quyền Operator
+    if (!(await isUserOperator(userId, chatId))) {
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
+      return;
+    }
+    
+    // Tìm hoặc tạo Group
+    let group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
+      group = new Group({ chatId: chatId.toString() });
+    }
+    
+    // Bật QR
+    group.qrEnabled = true;
+    await group.save();
+    
+    bot.sendMessage(chatId, "✅ Đã bật tính năng QR code tự động!\n\n📋 Khi có tin nhắn theo format:\n```\n[Số tài khoản]\n[Tên chủ tài khoản]\n[Tên ngân hàng]\n[Số tiền]\n```\n\nBot sẽ tự động tạo QR code VietQR.", { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    console.error('Error in handleQROnCommand:', error);
+    bot.sendMessage(chatId, "❌ Có lỗi xảy ra khi bật QR code!");
+  }
+};
+
+/**
+ * Xử lý lệnh tắt QR code (/qr off)
+ */
+const handleQROffCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    // Kiểm tra quyền Operator
+    if (!(await isUserOperator(userId, chatId))) {
+      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
+      return;
+    }
+    
+    // Tìm Group
+    let group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
+      group = new Group({ chatId: chatId.toString() });
+    }
+    
+    // Tắt QR
+    group.qrEnabled = false;
+    await group.save();
+    
+    bot.sendMessage(chatId, "❌ Đã tắt tính năng QR code tự động!");
+    
+  } catch (error) {
+    console.error('Error in handleQROffCommand:', error);
+    bot.sendMessage(chatId, "❌ Có lỗi xảy ra khi tắt QR code!");
+  }
+};
+
 module.exports = {
   handleListUsersCommand,
   handleCurrencyUnitCommand,
@@ -1389,5 +1453,7 @@ module.exports = {
   handleRemoveInline2Command,
   handleButtons2Command,
   handleChatWithButtons2Command,
-  handleRemoveCommand
+  handleRemoveCommand,
+  handleQROnCommand,
+  handleQROffCommand
 }; 
