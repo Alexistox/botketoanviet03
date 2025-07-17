@@ -260,14 +260,31 @@ const handleReportCommand = async (bot, chatId, senderName) => {
       },
       rate: formatRateValue(group.rate) + "%",
       exchangeRate: formatRateValue(group.exchangeRate),
-      totalAmount: formatSmart(group.totalVND, numberFormat),
-      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
-      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
+      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
       currencyUnit,
       numberFormat,
       cards: cardSummary
     };
+
+    // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
+    if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
+      // Hiển thị thông tin mới khi đã có /d2
+      const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
+      const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
+      responseData.wrate = formatRateValue(group.wrate) + "%";
+      responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
+      responseData.totalVNDMinus = formatSmart(group.totalVNDMinus, numberFormat);
+      responseData.totalUSDTPlus = formatSmart(group.totalUSDTPlus, numberFormat);
+      responseData.totalUSDTMinus = formatSmart(group.totalUSDTMinus, numberFormat);
+      responseData.totalUSDTGross = formatSmart(totalUSDTGross, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDTOwed = formatSmart(remainingUSDTOwed, numberFormat);
+    } else {
+      // Hiển thị thông tin cũ khi chưa có /d2
+      responseData.totalUSDT = formatSmart(group.totalUSDT, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDT = formatSmart(group.remainingUSDT, numberFormat);
+    }
     
     // Format và gửi tin nhắn
     const response = formatTelegramMessage(responseData);
@@ -333,6 +350,13 @@ const handleHelpCommand = async (bot, chatId) => {
 *Lệnh QR Code:*
 /qr on - Bật tạo QR code tự động cho tin nhắn chuyển khoản
 /qr off - Tắt tạo QR code tự động
+
+*Lệnh xử lý ảnh bill:*
+/pic on - Bật chế độ xử lý ảnh bill tự động
+/pic off - Tắt chế độ xử lý ảnh bill tự động
+• Reply "1" vào ảnh bill → Lệnh +[số tiền] (nạp tiền)
+• Reply "2" vào ảnh bill → Lệnh %[số tiền] (thanh toán)
+• Reply "3" vào ảnh bill → Lệnh -[số tiền] (rút tiền)
 `;
     bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
   } catch (error) {
@@ -347,10 +371,11 @@ const handleStartCommand = async (bot, chatId) => {
 
 Bắt đầu hóa đơn mới / 上课
 Ghi nợ▫️+10000 hoặc +số [mã thẻ] [hạn mức]
-Thanh toán▫️-10000
+Rút tiền▫️-10000 (cần /d2 trước)
 Hủy▫️撤回id
 Phát hành▫️下发 100 hoặc %số [mã thẻ] [hạn mức]
 Thiết lập tỷ lệ▫️设置汇率1600 hoặc | giá tỷ lệ/tỷ giá
+Thiết lập W-tỷ lệ▫️/d2 wrate/wexchangerate hoặc /d2 off
 Thiết lập người điều hành▫️@thành viên (thành viên phải gửi tin nhắn trước khi thiết lập)
 Xóa người điều hành▫️@thành viên (thành viên phải gửi tin nhắn trước khi xóa)
 Danh sách người điều hành ▫️ xem danh sách người được ủy quyền

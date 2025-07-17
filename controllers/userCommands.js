@@ -1452,7 +1452,7 @@ const handlePicOnCommand = async (bot, msg) => {
       { upsert: true }
     );
     
-    bot.sendMessage(chatId, "✅ Đã bật chế độ xử lý ảnh bill!\n\n📋 Hướng dẫn:\n• Reply \"1\" vào ảnh bill → Tự động thực hiện lệnh +[số tiền]\n• Reply \"2\" vào ảnh bill → Tự động thực hiện lệnh %[số tiền]\n\nSử dụng /pic off để tắt chế độ này.", { parse_mode: 'Markdown' });
+    bot.sendMessage(chatId, "✅ Đã bật chế độ xử lý ảnh bill!\n\n📋 Hướng dẫn:\n• Reply \"1\" vào ảnh bill → Tự động thực hiện lệnh +[số tiền]\n• Reply \"2\" vào ảnh bill → Tự động thực hiện lệnh %[số tiền]\n• Reply \"3\" vào ảnh bill → Tự động thực hiện lệnh -[số tiền]\n\nSử dụng /pic off để tắt chế độ này.", { parse_mode: 'Markdown' });
     
   } catch (error) {
     console.error('Error in handlePicOnCommand:', error);

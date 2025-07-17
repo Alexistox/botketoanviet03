@@ -81,14 +81,31 @@ const handlePlusCommand = async (bot, msg) => {
         paymentData,
         rate: formatRateValue(group.rate) + "%",
         exchangeRate: formatRateValue(group.exchangeRate),
-        totalAmount: formatSmart(group.totalVND, numberFormat),
-        totalUSDT: formatSmart(group.totalUSDT, numberFormat),
-        paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-        remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
+        totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
         currencyUnit,
         numberFormat,
         cards: cardSummary
       };
+
+      // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
+      if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
+        // Hiển thị thông tin mới khi đã có /d2
+        const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
+        const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
+        responseData.wrate = formatRateValue(group.wrate) + "%";
+        responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
+        responseData.totalVNDMinus = formatSmart(group.totalVNDMinus, numberFormat);
+        responseData.totalUSDTPlus = formatSmart(group.totalUSDTPlus, numberFormat);
+        responseData.totalUSDTMinus = formatSmart(group.totalUSDTMinus, numberFormat);
+        responseData.totalUSDTGross = formatSmart(totalUSDTGross, numberFormat);
+        responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+        responseData.remainingUSDTOwed = formatSmart(remainingUSDTOwed, numberFormat);
+      } else {
+        // Hiển thị thông tin cũ khi chưa có /d2
+        responseData.totalUSDT = formatSmart(group.totalUSDT, numberFormat);
+        responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+        responseData.remainingUSDT = formatSmart(group.remainingUSDT, numberFormat);
+      }
       
       // Format và gửi tin nhắn
       const response = formatTelegramMessage(responseData);
@@ -115,6 +132,9 @@ const handlePlusCommand = async (bot, msg) => {
     
     // Cập nhật group
     group.totalVND += amountVND;
+    group.totalVNDPlus += amountVND;
+    group.totalUSDTPlus += newUSDT;
+    // Cập nhật totalUSDT để tương thích ngược (nếu chưa có wrate/wexchangeRate)
     group.totalUSDT += newUSDT;
     group.remainingUSDT = group.totalUSDT - group.usdtPaid;
     await group.save();
@@ -210,14 +230,31 @@ const handlePlusCommand = async (bot, msg) => {
       paymentData,
       rate: formatRateValue(xValue) + "%",
       exchangeRate: formatRateValue(yValue),
-      totalAmount: formatSmart(group.totalVND, numberFormat),
-      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
-      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
+      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
       currencyUnit,
       numberFormat,
       cards: cardSummary
     };
+
+    // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
+    if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
+      // Hiển thị thông tin mới khi đã có /d2
+      const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
+      const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
+      responseData.wrate = formatRateValue(group.wrate) + "%";
+      responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
+      responseData.totalVNDMinus = formatSmart(group.totalVNDMinus, numberFormat);
+      responseData.totalUSDTPlus = formatSmart(group.totalUSDTPlus, numberFormat);
+      responseData.totalUSDTMinus = formatSmart(group.totalUSDTMinus, numberFormat);
+      responseData.totalUSDTGross = formatSmart(totalUSDTGross, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDTOwed = formatSmart(remainingUSDTOwed, numberFormat);
+    } else {
+      // Hiển thị thông tin cũ khi chưa có /d2
+      responseData.totalUSDT = formatSmart(group.totalUSDT, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDT = formatSmart(group.remainingUSDT, numberFormat);
+    }
     
     // Thêm ví dụ nếu cần
     if (exampleValue !== null) {
@@ -243,7 +280,7 @@ const handlePlusCommand = async (bot, msg) => {
 };
 
 /**
- * Xử lý lệnh rút tiền (-)
+ * Xử lý lệnh rút tiền (-) với logic mới sử dụng wrate và wexchangeRate
  */
 const handleMinusCommand = async (bot, msg) => {
   try {
@@ -285,7 +322,6 @@ const handleMinusCommand = async (bot, msg) => {
       return;
     }
    
-    
     // Tìm hoặc tạo group
     let group = await Group.findOne({ chatId: chatId.toString() });
     if (!group) {
@@ -293,24 +329,33 @@ const handleMinusCommand = async (bot, msg) => {
       return;
     }
     
-    // Kiểm tra tỷ giá
-    if (!group.exchangeRate) {
-      bot.sendMessage(chatId, "Cài đặt phí và tỷ giá");
+    // Kiểm tra wrate và wexchangeRate (cần có /d2 trước)
+    if (!group.wrate && group.wrate !== 0) {
+      bot.sendMessage(chatId, "Cần thiết lập wrate và wexchangeRate trước bằng lệnh /d2");
+      return;
+    }
+    if (!group.wexchangeRate) {
+      bot.sendMessage(chatId, "Cần thiết lập wrate và wexchangeRate trước bằng lệnh /d2");
       return;
     }
     
-    // Tính toán giá trị USDT
-    const xValue = group.rate;
-    const yValue = group.exchangeRate;
-    const minusUSDT = (amountVND / yValue) * (1 - xValue / 100);
+    // Tính toán giá trị USDT với công thức mới: (amountVND / wexchangeRate) * (1 + wrate/100)
+    const wRateValue = group.wrate;
+    const wExchangeValue = group.wexchangeRate;
+    const minusUSDT = (amountVND / wExchangeValue) * (1 + wRateValue / 100);
     
-    // Tính toán phần (1-(费率/100))
-    const rateFactor = (1 - xValue / 100).toFixed(2);
+    // Tính toán phần (1+(wrate/100))
+    const wRateFactor = (1 + wRateValue / 100).toFixed(2);
     
-    // Cập nhật group
+    // Cập nhật group với logic mới
     group.totalVND -= amountVND;
-    group.totalUSDT -= minusUSDT;
-    group.remainingUSDT = group.totalUSDT - group.usdtPaid;
+    group.totalVNDMinus += amountVND;
+    group.totalUSDTMinus += minusUSDT;
+    
+    // Tính toán lại các chỉ số
+    const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
+    const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
+    
     await group.save();
     
     // Lấy đơn vị tiền tệ và định dạng số
@@ -320,32 +365,33 @@ const handleMinusCommand = async (bot, msg) => {
     // Tạo chi tiết giao dịch
     let details;
     if (cardCode) {
-      if (xValue === 0 && yValue === 1) {
-        // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
+      if (wRateValue === 0 && wExchangeValue === 1) {
+        // Không hiển thị phần tính toán khi wrate = 0 và wexchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}* (${cardCode}) ${senderName}`;
-      } else if (xValue === 0 && yValue !== 1) {
-        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
-      } else if (xValue !== 0 && yValue === 1) {
-        // Không hiển thị phần /${yValue} khi exchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${rateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
+      } else if (wRateValue === 0 && wExchangeValue !== 1) {
+        // Khi wrate = 0 và wexchangeRate khác 1: chỉ hiển thị phần /${wExchangeValue}
+        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
+      } else if (wRateValue !== 0 && wExchangeValue === 1) {
+        // Không hiển thị phần /${wExchangeValue} khi wexchangeRate = 1
+        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
       } else {
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
+        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor}/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderName}`;
       }
     } else {
-      if (xValue === 0 && yValue === 1) {
-        // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
+      if (wRateValue === 0 && wExchangeValue === 1) {
+        // Không hiển thị phần tính toán khi wrate = 0 và wexchangeRate = 1
         details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}* ${senderName}`;
-      } else if (xValue === 0 && yValue !== 1) {
-        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
-      } else if (xValue !== 0 && yValue === 1) {
-        // Không hiển thị phần /${yValue} khi exchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${rateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
+      } else if (wRateValue === 0 && wExchangeValue !== 1) {
+        // Khi wrate = 0 và wexchangeRate khác 1: chỉ hiển thị phần /${wExchangeValue}
+        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
+      } else if (wRateValue !== 0 && wExchangeValue === 1) {
+        // Không hiển thị phần /${wExchangeValue} khi wexchangeRate = 1
+        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
       } else {
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${rateFactor}/${yValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
+        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor}/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderName}`;
       }
     }
+    
     // Lưu giao dịch mới
     const transaction = new Transaction({
       chatId: chatId.toString(),
@@ -356,8 +402,8 @@ const handleMinusCommand = async (bot, msg) => {
       details,
       senderName,
       cardCode,
-      rate: xValue,
-      exchangeRate: yValue,
+      rate: wRateValue,
+      exchangeRate: wExchangeValue,
       timestamp: new Date(),
       messageId
     });
@@ -385,38 +431,32 @@ const handleMinusCommand = async (bot, msg) => {
       }
     }
     
-    // Tính toán giá trị ví dụ
-    let exampleValue = null;
-    if (Math.abs(amountVND) < 1) {
-      exampleValue = (100000 / yValue) * (1 - xValue / 100);
-    }
-    
     // Lấy thông tin giao dịch gần đây
     const todayDate = new Date();
     const depositData = await getDepositHistory(chatId);
     const paymentData = await getPaymentHistory(chatId);
     const cardSummary = await getCardSummary(chatId, numberFormat);
     
-    // Tạo response JSON
+    // Tạo response JSON với các chỉ số mới
     const responseData = {
       date: formatDateUS(todayDate),
       depositData,
       paymentData,
-      rate: formatRateValue(xValue) + "%",
-      exchangeRate: formatRateValue(yValue),
-      totalAmount: formatSmart(group.totalVND, numberFormat),
-      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
+      rate: formatRateValue(group.rate) + "%",
+      exchangeRate: formatRateValue(group.exchangeRate),
+      wrate: formatRateValue(wRateValue) + "%",
+      wexchangeRate: formatRateValue(wExchangeValue),
+      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
+      totalVNDMinus: formatSmart(group.totalVNDMinus, numberFormat),
+      totalUSDTPlus: formatSmart(group.totalUSDTPlus, numberFormat),
+      totalUSDTMinus: formatSmart(group.totalUSDTMinus, numberFormat),
+      totalUSDTGross: formatSmart(totalUSDTGross, numberFormat),
       paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
+      remainingUSDTOwed: formatSmart(remainingUSDTOwed, numberFormat),
       currencyUnit,
       numberFormat,
       cards: cardSummary
     };
-    
-    // Thêm ví dụ nếu cần
-    if (exampleValue !== null) {
-      responseData.example = formatSmart(exampleValue, numberFormat);
-    }
     
     // Format và gửi tin nhắn
     const response = formatTelegramMessage(responseData);
@@ -574,14 +614,31 @@ const handlePercentCommand = async (bot, msg) => {
       paymentData,
       rate: formatRateValue(group.rate) + "%",
       exchangeRate: formatRateValue(group.exchangeRate),
-      totalAmount: formatSmart(group.totalVND, numberFormat),
-      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
-      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
+      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
       currencyUnit,
       numberFormat,
       cards: cardSummary
     };
+
+    // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
+    if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
+      // Hiển thị thông tin mới khi đã có /d2
+      const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
+      const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
+      responseData.wrate = formatRateValue(group.wrate) + "%";
+      responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
+      responseData.totalVNDMinus = formatSmart(group.totalVNDMinus, numberFormat);
+      responseData.totalUSDTPlus = formatSmart(group.totalUSDTPlus, numberFormat);
+      responseData.totalUSDTMinus = formatSmart(group.totalUSDTMinus, numberFormat);
+      responseData.totalUSDTGross = formatSmart(totalUSDTGross, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDTOwed = formatSmart(remainingUSDTOwed, numberFormat);
+    } else {
+      // Hiển thị thông tin cũ khi chưa có /d2
+      responseData.totalUSDT = formatSmart(group.totalUSDT, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDT = formatSmart(group.remainingUSDT, numberFormat);
+    }
     
     // Thêm ví dụ nếu cần
     if (exampleValue !== null) {
@@ -695,7 +752,9 @@ const handleSkipCommand = async (bot, msg) => {
     if (transaction.type === 'deposit') {
       // Revert deposit: trừ VND và USDT
       group.totalVND -= transaction.amount;
+      group.totalVNDPlus -= transaction.amount;
       group.totalUSDT -= transaction.usdtAmount;
+      group.totalUSDTPlus -= transaction.usdtAmount;
       group.remainingUSDT = group.totalUSDT - group.usdtPaid;
       // Nếu có mã thẻ, cập nhật thẻ
       if (transaction.cardCode) {
@@ -710,7 +769,9 @@ const handleSkipCommand = async (bot, msg) => {
     } else if (transaction.type === 'withdraw') {
       // Revert withdraw: cộng VND và USDT
       group.totalVND += Math.abs(transaction.amount);
+      group.totalVNDMinus -= Math.abs(transaction.amount);
       group.totalUSDT += Math.abs(transaction.usdtAmount);
+      group.totalUSDTMinus -= Math.abs(transaction.usdtAmount);
       group.remainingUSDT = group.totalUSDT - group.usdtPaid;
       // Nếu có mã thẻ, cập nhật thẻ
       if (transaction.cardCode) {
@@ -771,14 +832,31 @@ const handleSkipCommand = async (bot, msg) => {
       paymentData,
       rate: group.rate !== undefined ? formatRateValue(group.rate) + "%" : '',
       exchangeRate: group.exchangeRate !== undefined ? formatRateValue(group.exchangeRate) : '',
-      totalAmount: formatSmart(group.totalVND, numberFormat),
-      totalUSDT: formatSmart(group.totalUSDT, numberFormat),
-      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-      remainingUSDT: formatSmart(group.remainingUSDT, numberFormat),
+      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
       currencyUnit,
       numberFormat,
       cards: cardSummary
     };
+
+    // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
+    if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
+      // Hiển thị thông tin mới khi đã có /d2
+      const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
+      const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
+      responseData.wrate = formatRateValue(group.wrate) + "%";
+      responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
+      responseData.totalVNDMinus = formatSmart(group.totalVNDMinus, numberFormat);
+      responseData.totalUSDTPlus = formatSmart(group.totalUSDTPlus, numberFormat);
+      responseData.totalUSDTMinus = formatSmart(group.totalUSDTMinus, numberFormat);
+      responseData.totalUSDTGross = formatSmart(totalUSDTGross, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDTOwed = formatSmart(remainingUSDTOwed, numberFormat);
+    } else {
+      // Hiển thị thông tin cũ khi chưa có /d2
+      responseData.totalUSDT = formatSmart(group.totalUSDT, numberFormat);
+      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
+      responseData.remainingUSDT = formatSmart(group.remainingUSDT, numberFormat);
+    }
     // Format và gửi tin nhắn
     const response = formatTelegramMessage(responseData);
     // Kiểm tra trạng thái hiển thị buttons

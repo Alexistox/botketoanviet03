@@ -53,6 +53,7 @@ const {
   handleRateCommand,
   handleExchangeRateCommand,
   handleDualRateCommand,
+  handleDualRateCommand2,
   handleDeleteCommand
 } = require('./groupCommands');
 
@@ -151,8 +152,8 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
-    // Xử lý reply "1" hoặc "2" vào ảnh bill
-    if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2')) {
+    // Xử lý reply "1", "2" hoặc "3" vào ảnh bill
+    if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2' || messageText.trim() === '3')) {
       await handleBillImageReply(bot, msg);
       return;
     }
@@ -417,6 +418,16 @@ const handleMessage = async (bot, msg, cache) => {
         return;
       }
       
+      if (messageText.startsWith('/d2 ')) {
+        // Kiểm tra quyền Operator
+        if (await isUserOperator(userId, chatId)) {
+          await handleDualRateCommand2(bot, msg);
+        } else {
+          bot.sendMessage(chatId, messages.operatorOnly);
+        }
+        return;
+      }
+      
       if (messageText.startsWith('/x ')) {
         // Kiểm tra quyền Operator
         if (await isUserOperator(userId, chatId)) {
@@ -623,6 +634,7 @@ const handleMessage = async (bot, msg, cache) => {
       }
       return;
     }
+
     
     // Xử lý biểu thức toán học
     if (isMathExpression(messageText)) {
@@ -835,15 +847,15 @@ const handleBillImageReply = async (bot, msg) => {
       return;
     }
     
-    // Kiểm tra reply có phải là "1" hoặc "2"
-    if (replyText !== '1' && replyText !== '2') {
-      return; // Không xử lý nếu không phải "1" hoặc "2"
+    // Kiểm tra reply có phải là "1", "2" hoặc "3"
+    if (replyText !== '1' && replyText !== '2' && replyText !== '3') {
+      return; // Không xử lý nếu không phải "1", "2" hoặc "3"
     }
     
     // Kiểm tra tin nhắn được reply có ảnh không
     const repliedMsg = msg.reply_to_message;
     if (!repliedMsg || !repliedMsg.photo) {
-      bot.sendMessage(chatId, "❌ Vui lòng reply \"1\" hoặc \"2\" vào tin nhắn có ảnh!");
+      bot.sendMessage(chatId, "❌ Vui lòng reply \"1\", \"2\" hoặc \"3\" vào tin nhắn có ảnh!");
       return;
     }
     
@@ -875,8 +887,8 @@ const handleBillImageReply = async (bot, msg) => {
       return;
     }
     
-    // Tạo tin nhắn giả với lệnh + hoặc %
-    const command = replyText === '1' ? '+' : '%';
+    // Tạo tin nhắn giả với lệnh +, % hoặc -
+    const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
     const fakeMsg = {
       ...msg,
       text: `${command}${billInfo.amount}`,
@@ -889,15 +901,19 @@ const handleBillImageReply = async (bot, msg) => {
     // Gửi thông báo về số tiền được trích xuất
     bot.sendMessage(chatId, `✅ Đã trích xuất số tiền: *${billInfo.formattedAmount || billInfo.amount}*\n🔄 Thực hiện lệnh: \`${command}${billInfo.amount}\``, { parse_mode: 'Markdown' });
     
-    // Thực hiện lệnh + hoặc % tương ứng
+    // Thực hiện lệnh +, % hoặc - tương ứng
     if (replyText === '1') {
       // Thực hiện lệnh +
       const { handlePlusCommand } = require('./transactionCommands');
       await handlePlusCommand(bot, fakeMsg);
-    } else {
+    } else if (replyText === '2') {
       // Thực hiện lệnh %
       const { handlePercentCommand } = require('./transactionCommands');
       await handlePercentCommand(bot, fakeMsg);
+    } else {
+      // Thực hiện lệnh -
+      const { handleMinusCommand } = require('./transactionCommands');
+      await handleMinusCommand(bot, fakeMsg);
     }
     
   } catch (error) {

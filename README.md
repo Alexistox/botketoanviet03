@@ -18,7 +18,7 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 
 ## Recent Updates
 
-- **🆕 LATEST: Picture Bill Processing**: NEW automated bill processing feature! Use `/pic on` to enable, then reply "1" to bill images for automatic `+[amount]` command or "2" for `%[amount]` command. Uses GPT-4o to extract amounts from various bill formats (bank transfers, receipts, invoices) with Vietnamese number format support. Operator permission required.
+- **🆕 LATEST: Picture Bill Processing**: NEW automated bill processing feature! Use `/pic on` to enable, then reply "1" to bill images for automatic `+[amount]` command, "2" for `%[amount]` command, or "3" for `-[amount]` command. Uses GPT-4o to extract amounts from various bill formats (bank transfers, receipts, invoices) with Vietnamese number format support. Operator permission required.
 - **🆕 LATEST: Enhanced QR Code Generation**: Improved QR code generation with support for Vietnamese number formats (2.612.800), flexible message formats (3-line and 4-line with any order), field prefixes (名字：, Tên:, Name: for names; 银行：, Ngân hàng: for banks), and 70+ Vietnamese banks. Bot now sends QR code images directly instead of links. Supports all common Vietnamese number writing styles and flexible field ordering.
 - **🆕 LATEST: Groups Dashboard Website**: Use `/groups` command to get a link to a beautiful web dashboard showing all bot groups information with statistics, financial data, and operators list.
 - **🆕 LATEST: Auto Bank Transfer Processing**: Reply "1" to bank transfer notification messages to automatically execute `+[amount]` command! Bot intelligently parses bank notifications and extracts amounts automatically.
@@ -47,7 +47,7 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 
 ### Transaction Recording
 - `+ [amount] [note]` - Add deposit record (supports abbreviated, combined, mixed units, and comma-separated formats)
-- `- [amount] [note]` - Add withdrawal record (supports abbreviated, combined, mixed units, and comma-separated formats)
+- `- [amount] [note]` - Add withdrawal record (requires /d2 setup first, uses wrate/wexchangeRate)
 - `% [amount] [note]` - Mark paid USDT amount (supports abbreviated, combined, mixed units, and comma-separated formats)
 - `上课` - Clear current transaction records
 - `结束` - Display transaction report
@@ -103,6 +103,7 @@ When picture bill processing is enabled, the bot will automatically extract amou
 2. When you see a bill/receipt image, reply with:
    - **"1"** → Automatically executes `+[amount]` command (add deposit)
    - **"2"** → Automatically executes `%[amount]` command (mark paid USDT)
+   - **"3"** → Automatically executes `-[amount]` command (add withdrawal)
 3. The bot will use GPT-4o to extract the amount from the image and execute the corresponding command
 4. Disable when done: `/pic off`
 
@@ -167,6 +168,8 @@ The bot will automatically generate and send a VietQR code image for easy bank t
 - `/t [amount]` - Convert VND to USDT
 - `/v [amount]` - Convert USDT to VND
 - `/d [rate] [exchange rate]` - Set temporary rate and exchange rate
+- `/d2 [wrate] [wexchange rate]` - Set withdrawal rate and exchange rate (enables advanced mode)
+- `/d2 off` - Turn off advanced mode and return to basic display
 - `/m [unit]` - Set currency unit
 
 ### USDT Address Management

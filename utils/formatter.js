@@ -441,23 +441,39 @@ const formatTelegramMessage = (jsonData) => {
   } else {
     output += "*Đã thanh toán* ([0](https://t.me/@id7590104666) Đơn):\n\n";
   }
-  output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}\n`;
-  // Rate information
-  const rateInfo = `Phí: [${jsonData.rate}](https://t.me/@id7590104666)|  Tỷ giá: [${jsonData.exchangeRate}](https://t.me/@id7590104666)\n`;
- 
-  // Thêm ví dụ nếu có
-  let rateInfoWithExample = rateInfo;
-
-  if (jsonData.example) {
-    rateInfoWithExample += `\nVD: 100000 = [${jsonData.example}](https://t.me/@id7590104666) ${jsonData.currencyUnit || 'USDT'}`;
+  // Rate information - hiển thị khác nhau dựa trên có wrate/wexchangeRate hay không
+  if ((jsonData.wrate > 0 || jsonData.wexchangeRate > 0) && jsonData.wrate !== undefined && jsonData.wexchangeRate !== undefined) {
+    // Hiển thị đầy đủ khi có wrate/wexchangeRate
+    output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}  |  ${jsonData.totalUSDTPlus} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `*Tổng tiền rút*: ${jsonData.totalVNDMinus || '0'} |   ${jsonData.totalUSDTMinus} ${jsonData.currencyUnit || 'USDT'}\n`;
+    
+    const rateInfo = `Phí: [${jsonData.rate}](https://t.me/@id7590104666)|  Tỷ giá: [${jsonData.exchangeRate}](https://t.me/@id7590104666)\n`;
+    const wrateInfo = `W-Phí: [${jsonData.wrate}](https://t.me/@id7590104666)|  W-Tỷ giá: [${jsonData.wexchangeRate}](https://t.me/@id7590104666)\n`;
+    
+    output += `${rateInfo}${wrateInfo}\n`;
+    
+    // Summary section với thông tin mới
+    output += `*USDT đã thanh toán (%)*: ${jsonData.paidUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `*Tổng USDT phải trả*: ${jsonData.totalUSDTGross} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `*USDT phải trả còn lại*: ${jsonData.remainingUSDTOwed} ${jsonData.currencyUnit || 'USDT'}\n`;
+  } else {
+    // Hiển thị theo cách cũ khi chưa có wrate/wexchangeRate
+    const rateInfo = `Phí: [${jsonData.rate}](https://t.me/@id7590104666)|  Tỷ giá: [${jsonData.exchangeRate}](https://t.me/@id7590104666)\n`;
+    
+    // Thêm ví dụ nếu có
+    let rateInfoWithExample = rateInfo;
+    if (jsonData.example) {
+      rateInfoWithExample += `\nVD: 100000 = [${jsonData.example}](https://t.me/@id7590104666) ${jsonData.currencyUnit || 'USDT'}`;
+    }
+    
+    output += `${rateInfoWithExample}\n`;
+    
+    // Summary section cũ
+    output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}\n`;
+    output += `*Tiền phải trả*: ${jsonData.totalUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `*Tiền đã trả*: ${jsonData.paidUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `*Tiền còn lại*: ${jsonData.remainingUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
   }
-  
-  output += `${rateInfoWithExample}\n`;
- 
-  // Summary section
-  output += `*Tiền phải trả*: ${jsonData.totalUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
-  output += `*Tiền đã trả*: ${jsonData.paidUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
-  output += `*Tiền còn lại*: ${jsonData.remainingUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
   
    // Cards section (if present)
    if (jsonData.cards && jsonData.cards.length > 0) {

@@ -10,6 +10,14 @@ const GroupSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  totalVNDPlus: {
+    type: Number,
+    default: 0
+  },
+  totalVNDMinus: {
+    type: Number,
+    default: 0
+  },
   totalUSDT: {
     type: Number,
     default: 0
@@ -27,6 +35,22 @@ const GroupSchema = new mongoose.Schema({
     default: 0
   },
   exchangeRate: {
+    type: Number,
+    default: 0
+  },
+  wrate: {
+    type: Number,
+    default: 0
+  },
+  wexchangeRate: {
+    type: Number,
+    default: 0
+  },
+  totalUSDTPlus: {
+    type: Number,
+    default: 0
+  },
+  totalUSDTMinus: {
     type: Number,
     default: 0
   },
