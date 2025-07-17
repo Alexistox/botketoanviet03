@@ -8,6 +8,7 @@ const Transaction = require('../models/Transaction');
 const fs = require('fs');
 const path = require('path');
 const BUTTONS2_PATH = path.join(__dirname, '../config/inline_buttons2.json');
+const messages = require('../src/messages/vi');
 
 function readButtons2() {
   if (!fs.existsSync(BUTTONS2_PATH)) return [];
@@ -1425,6 +1426,65 @@ const handleQROffCommand = async (bot, msg) => {
   }
 };
 
+/**
+ * Xử lý lệnh /pic on - bật chế độ xử lý ảnh bill
+ */
+const handlePicOnCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    // Kiểm tra quyền Operator
+    if (!(await isUserOperator(userId, chatId))) {
+      bot.sendMessage(chatId, messages.operatorOnly);
+      return;
+    }
+    
+    // Lưu trạng thái pic mode vào Config
+    await Config.findOneAndUpdate(
+      { key: `pic_mode_${chatId}` },
+      { 
+        key: `pic_mode_${chatId}`,
+        value: true,
+        description: 'Picture bill processing mode',
+        updatedBy: userId.toString()
+      },
+      { upsert: true }
+    );
+    
+    bot.sendMessage(chatId, "✅ Đã bật chế độ xử lý ảnh bill!\n\n📋 Hướng dẫn:\n• Reply \"1\" vào ảnh bill → Tự động thực hiện lệnh +[số tiền]\n• Reply \"2\" vào ảnh bill → Tự động thực hiện lệnh %[số tiền]\n\nSử dụng /pic off để tắt chế độ này.", { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    console.error('Error in handlePicOnCommand:', error);
+    bot.sendMessage(chatId, "❌ Lỗi khi bật chế độ xử lý ảnh bill!");
+  }
+};
+
+/**
+ * Xử lý lệnh /pic off - tắt chế độ xử lý ảnh bill
+ */
+const handlePicOffCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    // Kiểm tra quyền Operator
+    if (!(await isUserOperator(userId, chatId))) {
+      bot.sendMessage(chatId, messages.operatorOnly);
+      return;
+    }
+    
+    // Xóa trạng thái pic mode
+    await Config.findOneAndDelete({ key: `pic_mode_${chatId}` });
+    
+    bot.sendMessage(chatId, "❌ Đã tắt chế độ xử lý ảnh bill!");
+    
+  } catch (error) {
+    console.error('Error in handlePicOffCommand:', error);
+    bot.sendMessage(chatId, "❌ Lỗi khi tắt chế độ xử lý ảnh bill!");
+  }
+};
+
 module.exports = {
   handleListUsersCommand,
   handleCurrencyUnitCommand,
@@ -1455,5 +1515,7 @@ module.exports = {
   handleChatWithButtons2Command,
   handleRemoveCommand,
   handleQROnCommand,
-  handleQROffCommand
+  handleQROffCommand,
+  handlePicOnCommand,
+  handlePicOffCommand
 }; 

@@ -18,6 +18,7 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 
 ## Recent Updates
 
+- **🆕 LATEST: Picture Bill Processing**: NEW automated bill processing feature! Use `/pic on` to enable, then reply "1" to bill images for automatic `+[amount]` command or "2" for `%[amount]` command. Uses GPT-4o to extract amounts from various bill formats (bank transfers, receipts, invoices) with Vietnamese number format support. Operator permission required.
 - **🆕 LATEST: Enhanced QR Code Generation**: Improved QR code generation with support for Vietnamese number formats (2.612.800), flexible message formats (3-line and 4-line with any order), field prefixes (名字：, Tên:, Name: for names; 银行：, Ngân hàng: for banks), and 70+ Vietnamese banks. Bot now sends QR code images directly instead of links. Supports all common Vietnamese number writing styles and flexible field ordering.
 - **🆕 LATEST: Groups Dashboard Website**: Use `/groups` command to get a link to a beautiful web dashboard showing all bot groups information with statistics, financial data, and operators list.
 - **🆕 LATEST: Auto Bank Transfer Processing**: Reply "1" to bank transfer notification messages to automatically execute `+[amount]` command! Bot intelligently parses bank notifications and extracts amounts automatically.
@@ -37,6 +38,8 @@ A Telegram bot for transaction management, built with Node.js and MongoDB.
 - `/start` - Start the bot
 - `/help` - Display help information
 - `/off` - End session message
+- `/pic on` - Enable automatic bill processing from images (operator only)
+- `/pic off` - Disable automatic bill processing from images (operator only)
 
 ### Group Management
 - `/groups` - Get link to web dashboard with all groups information (admin only)
@@ -88,6 +91,27 @@ The bot now supports multiple number formats:
 ### QR Code Generation
 - `/qr on` - Enable automatic QR code generation for transfer messages (operator only)
 - `/qr off` - Disable automatic QR code generation (operator only)
+
+### Picture Bill Processing
+- `/pic on` - Enable automatic bill processing from images (operator only)
+- `/pic off` - Disable automatic bill processing from images (operator only)
+
+When picture bill processing is enabled, the bot will automatically extract amounts from bill images when you reply to them:
+
+**How to use:**
+1. Enable the feature: `/pic on`
+2. When you see a bill/receipt image, reply with:
+   - **"1"** → Automatically executes `+[amount]` command (add deposit)
+   - **"2"** → Automatically executes `%[amount]` command (mark paid USDT)
+3. The bot will use GPT-4o to extract the amount from the image and execute the corresponding command
+4. Disable when done: `/pic off`
+
+**Features:**
+- ✅ Uses GPT-4o for accurate amount extraction
+- ✅ Supports various bill formats (bank transfers, receipts, invoices)
+- ✅ Automatic number format detection (Vietnamese comma/dot separators)
+- ✅ Operator permission required
+- ✅ Configurable per group
 
 When QR code generation is enabled, the bot will automatically detect messages with bank transfer information. The bot supports flexible formats:
 

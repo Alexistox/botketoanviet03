@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { extractBankInfoFromImage } = require('../utils/openai');
+const { extractBankInfoFromImage, extractAmountFromBill } = require('../utils/openai');
 const { getDownloadLink, logMessage } = require('../utils/telegramUtils');
 const { 
   formatSmart, 
@@ -58,7 +58,9 @@ const {
 
 const {
   handleQROnCommand,
-  handleQROffCommand
+  handleQROffCommand,
+  handlePicOnCommand,
+  handlePicOffCommand
 } = require('./userCommands');
 
 const {
@@ -146,6 +148,12 @@ const handleMessage = async (bot, msg, cache) => {
     // Xử lý reply "1" vào tin nhắn thông báo chuyển tiền ngân hàng
     if (msg.reply_to_message && msg.reply_to_message.text && messageText.trim() === '1') {
       await handleBankTransferReply(bot, msg);
+      return;
+    }
+    
+    // Xử lý reply "1" hoặc "2" vào ảnh bill
+    if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2')) {
+      await handleBillImageReply(bot, msg);
       return;
     }
     
@@ -333,6 +341,17 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText === '/qr off') {
         await handleQROffCommand(bot, msg);
+        return;
+      }
+      
+      // Lệnh xử lý ảnh bill
+      if (messageText === '/pic on') {
+        await handlePicOnCommand(bot, msg);
+        return;
+      }
+      
+      if (messageText === '/pic off') {
+        await handlePicOffCommand(bot, msg);
         return;
       }
 
@@ -792,6 +811,102 @@ const handleAutoQRGeneration = async (bot, msg) => {
   }
 };
 
+
+
+/**
+ * Xử lý reply "1" hoặc "2" vào ảnh bill
+ */
+const handleBillImageReply = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const replyText = msg.text.trim();
+    
+    // Kiểm tra quyền Operator
+    if (!(await isUserOperator(userId, chatId))) {
+      bot.sendMessage(chatId, messages.operatorOnly);
+      return;
+    }
+    
+    // Kiểm tra xem chế độ pic có bật không
+    const picModeConfig = await Config.findOne({ key: `pic_mode_${chatId}` });
+    if (!picModeConfig || !picModeConfig.value) {
+      bot.sendMessage(chatId, "❌ Chế độ xử lý ảnh bill chưa được bật! Sử dụng /pic on để bật.");
+      return;
+    }
+    
+    // Kiểm tra reply có phải là "1" hoặc "2"
+    if (replyText !== '1' && replyText !== '2') {
+      return; // Không xử lý nếu không phải "1" hoặc "2"
+    }
+    
+    // Kiểm tra tin nhắn được reply có ảnh không
+    const repliedMsg = msg.reply_to_message;
+    if (!repliedMsg || !repliedMsg.photo) {
+      bot.sendMessage(chatId, "❌ Vui lòng reply \"1\" hoặc \"2\" vào tin nhắn có ảnh!");
+      return;
+    }
+    
+    // Gửi thông báo đang xử lý và lưu message ID để xóa sau
+    const processingMessage = await bot.sendMessage(chatId, "🔄 Đang xử lý ảnh bill...");
+    
+    // Lấy ảnh từ Telegram
+    const photo = repliedMsg.photo[repliedMsg.photo.length - 1]; // Lấy ảnh có độ phân giải cao nhất
+    const fileLink = await getDownloadLink(photo.file_id, process.env.TELEGRAM_BOT_TOKEN);
+    
+    if (!fileLink) {
+      // Xóa thông báo đang xử lý
+      bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
+      bot.sendMessage(chatId, "❌ Không thể tải ảnh!");
+      return;
+    }
+    
+    // Tải ảnh
+    const imageResponse = await axios.get(fileLink, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(imageResponse.data);
+    
+    // Trích xuất số tiền từ ảnh
+    const billInfo = await extractAmountFromBill(imageBuffer);
+    
+    if (!billInfo || !billInfo.amount) {
+      // Xóa thông báo đang xử lý
+      bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
+      bot.sendMessage(chatId, "❌ Không thể trích xuất số tiền từ ảnh! Vui lòng thử lại hoặc nhập thủ công.");
+      return;
+    }
+    
+    // Tạo tin nhắn giả với lệnh + hoặc %
+    const command = replyText === '1' ? '+' : '%';
+    const fakeMsg = {
+      ...msg,
+      text: `${command}${billInfo.amount}`,
+      reply_to_message: undefined
+    };
+    
+    // Xóa thông báo đang xử lý
+    bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
+    
+    // Gửi thông báo về số tiền được trích xuất
+    bot.sendMessage(chatId, `✅ Đã trích xuất số tiền: *${billInfo.formattedAmount || billInfo.amount}*\n🔄 Thực hiện lệnh: \`${command}${billInfo.amount}\``, { parse_mode: 'Markdown' });
+    
+    // Thực hiện lệnh + hoặc % tương ứng
+    if (replyText === '1') {
+      // Thực hiện lệnh +
+      const { handlePlusCommand } = require('./transactionCommands');
+      await handlePlusCommand(bot, fakeMsg);
+    } else {
+      // Thực hiện lệnh %
+      const { handlePercentCommand } = require('./transactionCommands');
+      await handlePercentCommand(bot, fakeMsg);
+    }
+    
+  } catch (error) {
+    console.error('Error in handleBillImageReply:', error);
+    bot.sendMessage(chatId, "❌ Lỗi khi xử lý ảnh bill!");
+  }
+};
+
 module.exports = {
-  handleMessage
+  handleMessage,
+  handleBillImageReply
 }; 
