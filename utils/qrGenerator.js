@@ -18,6 +18,7 @@ const BANK_MAPPING = {
   'VTB': 'VTB',
   'VIETINBANK': 'VTB',
   'VIETIN BANK': 'VTB',
+  'VIETTIN': 'VTB',
   'CONG THUONG': 'VTB',
   
   // Ngân hàng Thương mại Cổ phần Quốc tế Việt Nam
@@ -61,6 +62,7 @@ const BANK_MAPPING = {
   // Ngân hàng Thương mại Cổ phần Tiên Phong
   'TPB': 'TPB',
   'TPBANK': 'TPB',
+  'TP BANK': 'TPB',
   'TIEN PHONG': 'TPB',
   
   // Ngân hàng Thương mại Cổ phần Việt Nam Thịnh Vượng
@@ -316,36 +318,36 @@ const parseVietnameseAmount = (amountStr) => {
     return parseFloat(cleanStr);
   }
   
-  // Kiểu 1: Dấu phẩy phân cách hàng nghìn (1,234,567)
+  // Kiểu Việt Nam: Dấu chấm phân cách hàng nghìn (55.000 = 55000)
+  const vietnameseFormatRegex = /^\d{1,3}(\.\d{3})+$/;
+  if (vietnameseFormatRegex.test(cleanStr)) {
+    const numberStr = cleanStr.replace(/\./g, '');
+    return parseFloat(numberStr);
+  }
+  
+  // Kiểu Mỹ: Dấu phẩy phân cách hàng nghìn (1,234,567)
   const commaFormatRegex = /^\d{1,3}(,\d{3})*(\.\d+)?$/;
   if (commaFormatRegex.test(cleanStr)) {
     const numberStr = cleanStr.replace(/,/g, '');
     return parseFloat(numberStr);
   }
   
-  // Kiểu 2: Dấu chấm phân cách hàng nghìn (2.612.800) - phổ biến ở Việt Nam
-  const dotFormatRegex = /^\d{1,3}(\.\d{3})*$/;
-  if (dotFormatRegex.test(cleanStr)) {
-    const numberStr = cleanStr.replace(/\./g, '');
-    return parseFloat(numberStr);
-  }
-  
-  // Kiểu 3: Dấu chấm phân cách hàng nghìn + phần thập phân với phẩy (1.234.567,89)
+  // Kiểu châu Âu: Dấu chấm phân cách hàng nghìn + phần thập phân với phẩy (1.234.567,89)
   const europeanFormatRegex = /^\d{1,3}(\.\d{3})*,\d+$/;
   if (europeanFormatRegex.test(cleanStr)) {
     const numberStr = cleanStr.replace(/\./g, '').replace(',', '.');
     return parseFloat(numberStr);
   }
   
-  // Kiểu 4: Sử dụng parseNumberWithUnits cho các trường hợp có đơn vị (2tr, 500k, v.v.)
+  // Kiểu số thập phân thuần túy (123456.78) - chỉ khi có ít hơn 3 chữ số sau dấu chấm
+  if (/^\d+\.\d{1,2}$/.test(cleanStr)) {
+    return parseFloat(cleanStr);
+  }
+  
+  // Sử dụng parseNumberWithUnits cho các trường hợp có đơn vị (2tr, 500k, v.v.)
   const unitAmount = parseNumberWithUnits(amountStr);
   if (!isNaN(unitAmount)) {
     return unitAmount;
-  }
-  
-  // Kiểu 5: Số có dấu chấm thập phân (123456.78)
-  if (/^\d+\.\d+$/.test(cleanStr)) {
-    return parseFloat(cleanStr);
   }
   
   return NaN;
