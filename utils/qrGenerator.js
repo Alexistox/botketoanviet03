@@ -40,6 +40,7 @@ const BANK_MAPPING = {
   // Ngân hàng Thương mại Cổ phần Sài Gòn Thương Tín
   'STB': 'STB',
   'SACOMBANK': 'STB',
+  'SACOM BANK': 'STB',
   'SAI GON THUONG TIN': 'STB',
   
   // Ngân hàng Thương mại Cổ phần Sài Gòn
@@ -68,6 +69,7 @@ const BANK_MAPPING = {
   // Ngân hàng Thương mại Cổ phần Việt Nam Thịnh Vượng
   'VPB': 'VPB',
   'VPBANK': 'VPB',
+  'VP BANK': 'VPB',
   'THINH VUONG': 'VPB',
   
   // Ngân hàng Thương mại Cổ phần Bắc Á
@@ -140,7 +142,11 @@ const BANK_MAPPING = {
   
   // Ngân hàng Thương mại Cổ phần Bưu điện Liên Việt
   'LPB': 'LPB',
+  'LPBANK': 'LPB',
+  'LP BANK': 'LPB',
   'LIEN VIET POST': 'LPB',
+  'LIEN VIET POST BANK': 'LPB',
+  'LIENVIETPOSTBANK': 'LPB',
   'BUU DIEN LIEN VIET': 'LPB',
   
   // Ngân hàng Thương mại Cổ phần Đông Á
@@ -295,6 +301,17 @@ const BANK_MAPPING = {
   'COOPBANK': 'COOPBANK',
   'COOPERATIVE': 'COOPBANK',
   'HOP TAC XA': 'COOPBANK'
+};
+
+/**
+ * Mapping ngân hàng sử dụng SePay.vn thay vì VietQR.io
+ * Key: mã bank code của BANK_MAPPING
+ * Value: tên bank parameter cho SePay API
+ */
+const SEPAY_BANK_MAPPING = {
+  'VTB': 'VietinBank',
+  'LPB': 'LienVietPostBank',
+  // Có thể thêm các ngân hàng khác cần dùng SePay ở đây
 };
 
 /**
@@ -530,27 +547,33 @@ const parseTransferInfo = (message) => {
 };
 
 /**
- * Tạo URL VietQR
+ * Tạo URL VietQR hoặc SePay tùy theo ngân hàng
  * @param {Object} transferInfo - Thông tin chuyển khoản
  * @param {string} transferInfo.bankCode - Mã ngân hàng
  * @param {string} transferInfo.accountNumber - Số tài khoản
  * @param {string} transferInfo.accountName - Tên chủ tài khoản
  * @param {number} transferInfo.amount - Số tiền
  * @param {string} [remark=''] - Ghi chú chuyển khoản
- * @returns {string} - URL VietQR
+ * @returns {string} - URL QR code
  */
 const generateVietQRUrl = (transferInfo, remark = '') => {
   const { bankCode, accountNumber, accountName, amount } = transferInfo;
   
-  // Encode tên chủ tài khoản để tránh lỗi URL
-  const encodedAccountName = encodeURIComponent(accountName);
-  const encodedRemark = encodeURIComponent(remark);
-  
-  // Tạo URL VietQR
-  const baseUrl = 'https://img.vietqr.io/image';
-  const url = `${baseUrl}/${bankCode}-${accountNumber}-compact2.jpg?amount=${amount}&addInfo=${encodedRemark}&accountName=${encodedAccountName}`;
-  
-  return url;
+  // Kiểm tra xem ngân hàng có cần dùng SePay không
+  if (SEPAY_BANK_MAPPING[bankCode]) {
+    // Sử dụng SePay API
+    const sepayBankName = SEPAY_BANK_MAPPING[bankCode];
+    const encodedRemark = encodeURIComponent(remark);
+    
+    return `https://qr.sepay.vn/img?bank=${sepayBankName}&acc=${accountNumber}&template=compact&amount=${amount}&des=${encodedRemark}`;
+  } else {
+    // Sử dụng VietQR API (logic cũ)
+    const encodedAccountName = encodeURIComponent(accountName);
+    const encodedRemark = encodeURIComponent(remark);
+    
+    const baseUrl = 'https://img.vietqr.io/image';
+    return `${baseUrl}/${bankCode}-${accountNumber}-compact2.jpg?amount=${amount}&addInfo=${encodedRemark}&accountName=${encodedAccountName}`;
+  }
 };
 
 /**
@@ -598,5 +621,6 @@ module.exports = {
   generateQRResponse,
   parseVietnameseAmount,
   normalizeName,
-  BANK_MAPPING
+  BANK_MAPPING,
+  SEPAY_BANK_MAPPING
 }; 
