@@ -302,7 +302,13 @@ const BANK_MAPPING = {
   // Ngân hàng Thương mại Cổ phần Việt Nam Thịnh Vượng
   'COOPBANK': 'COOPBANK',
   'COOPERATIVE': 'COOPBANK',
-  'HOP TAC XA': 'COOPBANK'
+  'HOP TAC XA': 'COOPBANK',
+  
+  // Ngân hàng Nông nghiệp và Phát triển Nông thôn Việt Nam
+  'AGRIBANK': 'AGRIBANK',
+  'AGRI BANK': 'AGRIBANK',
+  'NONG NGHIEP PHAT TRIEN NONG THON': 'AGRIBANK',
+  'VBA': 'AGRIBANK'
 };
 
 /**
@@ -313,6 +319,7 @@ const BANK_MAPPING = {
 const SEPAY_BANK_MAPPING = {
   'VTB': 'VietinBank',
   'LPB': 'LienVietPostBank',
+  'AGRIBANK': 'Agribank',
   // Có thể thêm các ngân hàng khác cần dùng SePay ở đây
 };
 
