@@ -89,6 +89,8 @@ const BANK_MAPPING = {
   
   // Ngân hàng Thương mại Cổ phần An Bình
   'ABB': 'ABB',
+  'ABBANK': 'ABB',
+  'AB BANK': 'ABB',
   'AN BINH': 'ABB',
   'ANBINH': 'ABB',
   
