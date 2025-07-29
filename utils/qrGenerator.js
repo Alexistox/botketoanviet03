@@ -308,7 +308,19 @@ const BANK_MAPPING = {
   'AGRIBANK': 'AGRIBANK',
   'AGRI BANK': 'AGRIBANK',
   'NONG NGHIEP PHAT TRIEN NONG THON': 'AGRIBANK',
-  'VBA': 'AGRIBANK'
+  'VBA': 'AGRIBANK',
+  
+  // Vikki Digital Bank
+  'VIKKI': 'VIKKI',
+  'VIKKI DIGITAL': 'VIKKI',
+  'VIKKI DIGITAL BANK': 'VIKKI',
+  'VIKKI BANK': 'VIKKI',
+  
+  // Timo Digital Bank
+  'TIMO': 'TIMO',
+  'TIMO DIGITAL': 'TIMO',
+  'TIMO DIGITAL BANK': 'TIMO',
+  'TIMO BANK': 'TIMO'
 };
 
 /**
