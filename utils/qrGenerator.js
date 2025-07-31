@@ -187,6 +187,7 @@ const BANK_MAPPING = {
   
   // Ngân hàng Thương mại Cổ phần Hóa Chất
   'HDB': 'HDB',
+  'HDBANK': 'HDB',
   'HOA CHAT': 'HDB',
   'HD BANK': 'HDB',
   
