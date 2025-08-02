@@ -138,6 +138,65 @@ const handleMessage = async (bot, msg, cache) => {
         await handleImageBankInfo(bot, msg);
         return;
       }
+      
+      // Xử lý các lệnh +, -, % trong caption của ảnh
+      if (msg.caption) {
+        const caption = msg.caption.trim();
+        
+        // Kiểm tra lệnh + trong caption
+        if (caption.startsWith('+')) {
+          // Kiểm tra quyền Operator
+          if (await isUserOperator(userId, chatId)) {
+            // Tạo tin nhắn giả với caption làm text để xử lý
+            const fakeMsg = {
+              ...msg,
+              text: caption,
+              photo: undefined,
+              caption: undefined
+            };
+            await handlePlusCommand(bot, fakeMsg);
+          } else {
+            bot.sendMessage(chatId, messages.operatorOnly);
+          }
+          return;
+        }
+        
+        // Kiểm tra lệnh - trong caption
+        if (caption.startsWith('-')) {
+          // Kiểm tra quyền Operator
+          if (await isUserOperator(userId, chatId)) {
+            // Tạo tin nhắn giả với caption làm text để xử lý
+            const fakeMsg = {
+              ...msg,
+              text: caption,
+              photo: undefined,
+              caption: undefined
+            };
+            await handleMinusCommand(bot, fakeMsg);
+          } else {
+            bot.sendMessage(chatId, messages.operatorOnly);
+          }
+          return;
+        }
+        
+        // Kiểm tra lệnh % hoặc 下发 trong caption
+        if (caption.startsWith('%') || caption.startsWith('下发')) {
+          // Kiểm tra quyền Operator
+          if (await isUserOperator(userId, chatId)) {
+            // Tạo tin nhắn giả với caption làm text để xử lý
+            const fakeMsg = {
+              ...msg,
+              text: caption,
+              photo: undefined,
+              caption: undefined
+            };
+            await handlePercentCommand(bot, fakeMsg);
+          } else {
+            bot.sendMessage(chatId, messages.operatorOnly);
+          }
+          return;
+        }
+      }
     }
     
     // Xử lý khi người dùng reply một tin nhắn có ảnh
