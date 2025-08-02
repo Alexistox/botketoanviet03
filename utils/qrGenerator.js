@@ -321,7 +321,75 @@ const BANK_MAPPING = {
   'TIMO': 'TIMO',
   'TIMO DIGITAL': 'TIMO',
   'TIMO DIGITAL BANK': 'TIMO',
-  'TIMO BANK': 'TIMO'
+  'TIMO BANK': 'TIMO',
+
+  // Cake Digital Bank (by VPBank)
+  'CAKE': 'CAKE',
+  'CAKE BANK': 'CAKE',
+  'CAKE DIGITAL': 'CAKE',
+  'CAKE DIGITAL BANK': 'CAKE',
+  'CAKE BY VPBANK': 'CAKE',
+
+  // Lio Digital Bank (by VIB)
+  'LIO': 'LIO',
+  'LIO BANK': 'LIO',
+  'LIO DIGITAL': 'LIO',
+  'LIO DIGITAL BANK': 'LIO',
+  'LIO BY VIB': 'LIO',
+
+  // Ubank Digital Bank (by VIB)
+  'UBANK': 'UBANK',
+  'U BANK': 'UBANK',
+  'UBANK DIGITAL': 'UBANK',
+  'UBANK BY VIB': 'UBANK',
+
+  // VIB Digital
+  'VIB DIGITAL': 'VIB',
+  'VIB ONLINE': 'VIB',
+
+  // VPBank Digital
+  'VPB DIGITAL': 'VPB',
+  'VPBANK DIGITAL': 'VPB',
+  'VP DIGITAL': 'VPB',
+
+  // OCB Digital
+  'OCB DIGITAL': 'OCB',
+  'OCB ONLINE': 'OCB',
+
+  // TPBank Digital
+  'TPB DIGITAL': 'TPB',
+  'TPBANK DIGITAL': 'TPB',
+  'TP DIGITAL': 'TPB',
+
+  // SHB Digital
+  'SHB DIGITAL': 'SHB',
+  'SHB ONLINE': 'SHB',
+
+  // MSB Digital
+  'MSB DIGITAL': 'MSB',
+  'MSB ONLINE': 'MSB',
+
+  // ACB Digital
+  'ACB DIGITAL': 'ACB',
+  'ACB ONLINE': 'ACB',
+
+  // VietinBank Digital
+  'VTB DIGITAL': 'VTB',
+  'VIETINBANK DIGITAL': 'VTB',
+  'VIETIN DIGITAL': 'VTB',
+
+  // Techcombank Digital
+  'TCB DIGITAL': 'TCB',
+  'TECHCOMBANK DIGITAL': 'TCB',
+  'TECH DIGITAL': 'TCB',
+
+  // BIDV Digital
+  'BIDV DIGITAL': 'BIDV',
+  'BIDV ONLINE': 'BIDV',
+
+  // VCB Digital
+  'VCB DIGITAL': 'VCB',
+  'VIETCOMBANK DIGITAL': 'VCB'
 };
 
 /**
