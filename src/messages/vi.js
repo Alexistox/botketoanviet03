@@ -3,18 +3,18 @@ module.exports = {
   welcome: "Chào mừng {name} tham gia nhóm! 🎉",
   error: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
   processing: "⏳ Đang xử lý...",
-  noPermission: "⛔ Bạn không có quyền sử dụng lệnh này!",
-  ownerOnly: "⛔ Chỉ chủ sở hữu bot mới có thể sử dụng lệnh này!",
-  adminOnly: "⛔ Chỉ quản trị viên mới có thể sử dụng lệnh này!",
-  operatorOnly: "⛔ Chỉ người điều hành mới có thể sử dụng lệnh này!",
+  noPermission: "",
+  ownerOnly: "",
+  adminOnly: "",
+  operatorOnly: "",
 
   // Thông báo lỗi
-  errorProcessingMessage: "Xử lý tin nhắn bị lỗi. Vui lòng thử lại sau.",
-  errorProcessingImage: "Xử lý hình ảnh bị lỗi. Vui lòng thử lại sau.",
-  errorProcessingRate: "Xử lý lệnh tỷ lệ bị lỗi. Vui lòng thử lại sau.",
-  errorProcessingExchangeRate: "Xử lý lệnh tỷ giá bị lỗi. Vui lòng thử lại sau.",
-  errorProcessingDualRate: "Xử lý lệnh tỷ lệ kép bị lỗi. Vui lòng thử lại sau.",
-  errorDisplayHelp: "Hiển thị thông tin trợ giúp bị lỗi. Vui lòng thử lại sau.",
+  errorProcessingMessage: "Xử lý tin nhắn bị lỗi",
+  errorProcessingImage: "Xử lý hình ảnh bị lỗi",
+  errorProcessingRate: "Xử lý lệnh tỷ lệ bị lỗi",
+  errorProcessingExchangeRate: "Xử lý lệnh tỷ giá bị lỗi",
+  errorProcessingDualRate: "Xử lý lệnh tỷ lệ kép bị lỗi",
+  errorDisplayHelp: "Hiển thị thông tin trợ giúp bị lỗi",
 
   // Thông báo ngân hàng
   bankInfoNotFound: "❌ Không thể nhận dạng thông tin tài khoản ngân hàng từ hình ảnh này.",
@@ -27,8 +27,8 @@ module.exports = {
 
   // Thông báo quyền
   permissionMessages: {
-    owner: "⛔ Chỉ chủ sở hữu bot mới có thể sử dụng lệnh này",
-    admin: "⛔ Chỉ quản trị viên mới có thể sử dụng lệnh này",
-    operator: "⛔ Chỉ người điều hành mới có thể sử dụng lệnh này"
+    owner: "",
+    admin: "",
+    operator: ""
   }
 }; 
