@@ -60,65 +60,21 @@ const handleClearCommand = async (bot, msg) => {
     
     await transaction.save();
     
-    // Tính toán giá trị ví dụ
-    let exampleValue = 0;
-    if (currentExRate > 0) {
-      exampleValue = (100000 / currentExRate) * (1 - currentRate / 100);
-    }
+    // Tạo thông báo đơn giản về tỷ giá hiện tại
+    let rateMessage = "🔄 Đã bắt đầu phiên mới!";
     
-    // Lấy đơn vị tiền tệ và định dạng số
-    const currencyUnit = await getCurrencyForGroup(msg.chat.id);
-    const numberFormat = await getNumberFormat(msg.chat.id);
-    
-    // Lấy thông tin giao dịch gần đây
-    const todayDate = new Date();
-    const depositData = await getDepositHistory(msg.chat.id);
-    const paymentData = await getPaymentHistory(msg.chat.id);
-    const cardSummary = await getCardSummary(msg.chat.id, numberFormat);
-    
-    // Tạo response JSON
-    const responseData = {
-      date: formatDateUS(todayDate),
-      depositData,
-      paymentData,
-      rate: formatRateValue(currentRate) + "%",
-      exchangeRate: formatRateValue(currentExRate),
-      example: formatSmart(exampleValue, numberFormat),
-      totalAmount: "0",
-      currencyUnit,
-      numberFormat,
-      cards: [] // Empty after clear
-    };
-
-    // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
-    if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
-      // Hiển thị thông tin mới khi đã có /d2 - tất cả giá trị = 0 sau clear
-      responseData.wrate = formatRateValue(group.wrate) + "%";
-      responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
-      responseData.totalVNDMinus = "0";
-      responseData.totalUSDTPlus = "0";
-      responseData.totalUSDTMinus = "0";
-      responseData.totalUSDTGross = "0";
-      responseData.paidUSDT = "0";
-      responseData.remainingUSDTOwed = "0";
+    if (currentRate > 0 || currentExRate > 0) {
+      rateMessage += `\n\n **Tỷ giá hiện tại:**\n Phí: ${formatRateValue(currentRate)}% | Tỷ giá: ${formatRateValue(currentExRate)}`;
+      
+      // Hiển thị W-tỷ giá nếu có
+      if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
+        rateMessage += `\n\n **W-Tỷ giá:**\n W-Phí: ${formatRateValue(group.wrate)}% | W-Tỷ giá: ${formatRateValue(group.wexchangeRate)}`;
+      }
     } else {
-      // Hiển thị thông tin cũ khi chưa có /d2
-      responseData.totalUSDT = "0";
-      responseData.paidUSDT = "0";
-      responseData.remainingUSDT = "0";
+      rateMessage += "\n\n⚠️ Chưa thiết lập tỷ giá. Sử dụng `/d` để thiết lập.";
     }
     
-    // Format và gửi tin nhắn
-    const response = formatTelegramMessage(responseData);
-    
-    // Kiểm tra trạng thái hiển thị buttons
-    const showButtons = await getButtonsStatus(msg.chat.id);
-    const keyboard = showButtons ? await getInlineKeyboard(msg.chat.id) : null;
-    
-    bot.sendMessage(msg.chat.id, response, { 
-      parse_mode: 'Markdown',
-      reply_markup: keyboard
-    });
+    bot.sendMessage(msg.chat.id, rateMessage, { parse_mode: 'Markdown' });
     
   } catch (error) {
     console.error('Error in handleClearCommand:', error);
@@ -410,56 +366,8 @@ const handleDualRateCommand = async (bot, msg) => {
     
     await transaction.save();
     
-    // Tính toán giá trị ví dụ
-    const exampleValue = (100000 / newExRate) * (1 - newRate / 100);
-    
-    // Lấy đơn vị tiền tệ và định dạng số
-    const currencyUnit = await getCurrencyForGroup(chatId);
-    const numberFormat = await getNumberFormat(chatId);
-    
-    // Lấy thông tin giao dịch gần đây
-    const todayDate = new Date();
-    const depositData = await getDepositHistory(chatId);
-    const paymentData = await getPaymentHistory(chatId);
-    const cardSummary = await getCardSummary(chatId, numberFormat);
-    
-    // Tạo response JSON
-    const responseData = {
-      date: formatDateUS(todayDate),
-      depositData,
-      paymentData,
-      rate: formatRateValue(newRate) + "%",
-      exchangeRate: formatRateValue(newExRate),
-      example: formatSmart(exampleValue, numberFormat),
-      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
-      currencyUnit,
-      numberFormat,
-      cards: cardSummary
-    };
-
-    // Kiểm tra có thiết lập wrate/wexchangeRate hay không để hiển thị thông tin phù hợp
-    if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
-      // Hiển thị thông tin mới khi đã có /d2
-      const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
-      const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
-      responseData.wrate = formatRateValue(group.wrate) + "%";
-      responseData.wexchangeRate = formatRateValue(group.wexchangeRate);
-      responseData.totalVNDMinus = formatSmart(group.totalVNDMinus, numberFormat);
-      responseData.totalUSDTPlus = formatSmart(group.totalUSDTPlus, numberFormat);
-      responseData.totalUSDTMinus = formatSmart(group.totalUSDTMinus, numberFormat);
-      responseData.totalUSDTGross = formatSmart(totalUSDTGross, numberFormat);
-      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
-      responseData.remainingUSDTOwed = formatSmart(remainingUSDTOwed, numberFormat);
-    } else {
-      // Hiển thị thông tin cũ khi chưa có /d2
-      responseData.totalUSDT = formatSmart(group.totalUSDT, numberFormat);
-      responseData.paidUSDT = formatSmart(group.usdtPaid, numberFormat);
-      responseData.remainingUSDT = formatSmart(group.remainingUSDT, numberFormat);
-    }
-    
-    // Format và gửi tin nhắn
-    const response = formatTelegramMessage(responseData);
-    bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+    // Gửi thông báo đơn giản về việc đã thay đổi tỷ giá
+    bot.sendMessage(chatId, `✅ Đã thay đổi tỷ giá:\n📊 Phí: ${formatRateValue(newRate)}%\n💱 Tỷ giá: ${formatRateValue(newExRate)}`, { parse_mode: 'Markdown' });
     
   } catch (error) {
     console.error('Error in handleDualRateCommand:', error);
@@ -558,44 +466,8 @@ const handleDualRateCommand2 = async (bot, msg) => {
     
     await transaction.save();
     
-    // Lấy đơn vị tiền tệ và định dạng số
-    const currencyUnit = await getCurrencyForGroup(chatId);
-    const numberFormat = await getNumberFormat(chatId);
-    
-    // Lấy thông tin giao dịch gần đây
-    const todayDate = new Date();
-    const depositData = await getDepositHistory(chatId);
-    const paymentData = await getPaymentHistory(chatId);
-    const cardSummary = await getCardSummary(chatId, numberFormat);
-    
-    // Tính toán các chỉ số mới
-    const totalUSDTGross = group.totalUSDTPlus - group.totalUSDTMinus;
-    const remainingUSDTOwed = totalUSDTGross - group.usdtPaid;
-    
-    // Tạo response JSON
-    const responseData = {
-      date: formatDateUS(todayDate),
-      depositData,
-      paymentData,
-      rate: formatRateValue(group.rate) + "%",
-      exchangeRate: formatRateValue(group.exchangeRate),
-      wrate: formatRateValue(newWRate) + "%",
-      wexchangeRate: formatRateValue(newWExRate),
-      totalAmount: formatSmart(group.totalVNDPlus, numberFormat),
-      totalVNDMinus: formatSmart(group.totalVNDMinus, numberFormat),
-      totalUSDTPlus: formatSmart(group.totalUSDTPlus, numberFormat),
-      totalUSDTMinus: formatSmart(group.totalUSDTMinus, numberFormat),
-      totalUSDTGross: formatSmart(totalUSDTGross, numberFormat),
-      paidUSDT: formatSmart(group.usdtPaid, numberFormat),
-      remainingUSDTOwed: formatSmart(remainingUSDTOwed, numberFormat),
-      currencyUnit,
-      numberFormat,
-      cards: cardSummary
-    };
-    
-    // Format và gửi tin nhắn
-    const response = formatTelegramMessage(responseData);
-    bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+    // Gửi thông báo đơn giản về việc đã thay đổi W-tỷ giá
+    bot.sendMessage(chatId, `✅ Đã thay đổi W-tỷ giá:\n📊 W-Phí: ${formatRateValue(newWRate)}%\n💱 W-Tỷ giá: ${formatRateValue(newWExRate)}`, { parse_mode: 'Markdown' });
     
   } catch (error) {
     console.error('Error in handleDualRateCommand2:', error);
