@@ -1269,7 +1269,7 @@ const handleChatWithButtons2Command = async (bot, msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   if (!(await isUserOperator(userId, chatId))) {
-    bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
+    bot.sendMessage(chatId, "");
     return;
   }
   const buttons = readButtons2();
@@ -1372,7 +1372,7 @@ const handleQROnCommand = async (bot, msg) => {
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
+      bot.sendMessage(chatId, "");
       return;
     }
     
@@ -1404,7 +1404,7 @@ const handleQROffCommand = async (bot, msg) => {
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId, "⛔ Bạn không có quyền sử dụng lệnh này! Cần quyền điều hành viên.");
+      bot.sendMessage(chatId, "");
       return;
     }
     
@@ -1456,7 +1456,7 @@ const handlePicOnCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handlePicOnCommand:', error);
-    bot.sendMessage(chatId, "❌ Lỗi khi bật chế độ xử lý ảnh bill!");
+    bot.sendMessage(chatId, "");
   }
 };
 
@@ -1481,7 +1481,7 @@ const handlePicOffCommand = async (bot, msg) => {
     
   } catch (error) {
     console.error('Error in handlePicOffCommand:', error);
-    bot.sendMessage(chatId, "❌ Lỗi khi tắt chế độ xử lý ảnh bill!");
+    bot.sendMessage(chatId, "");
   }
 };
 

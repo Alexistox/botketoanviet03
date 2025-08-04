@@ -902,7 +902,7 @@ const handleBillImageReply = async (bot, msg) => {
     // Kiểm tra xem chế độ pic có bật không
     const picModeConfig = await Config.findOne({ key: `pic_mode_${chatId}` });
     if (!picModeConfig || !picModeConfig.value) {
-      bot.sendMessage(chatId, "❌ Chế độ xử lý ảnh bill chưa được bật! Sử dụng /pic on để bật.");
+      bot.sendMessage(chatId, "");
       return;
     }
     

@@ -66,7 +66,7 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
     // Lấy số tiền VND
     const amount = parseFloat(parts[1].trim().replace(/,/g, ''));
     if (isNaN(amount)) {
-      bot.sendMessage(chatId, "Số tiền không hợp lệ.");
+      bot.sendMessage(chatId, "");
       return;
     }
     
@@ -110,7 +110,7 @@ const handleCalculateVndCommand = async (bot, msg) => {
     // Lấy số tiền USDT
     const amount = parseFloat(parts[1].trim());
     if (isNaN(amount)) {
-      bot.sendMessage(chatId, "Số tiền không hợp lệ.");
+      bot.sendMessage(chatId, "");
       return;
     }
     
@@ -148,12 +148,12 @@ const handleMathExpression = async (bot, chatId, expression, senderName) => {
     try {
       result = eval(preprocessedExpression);
     } catch (error) {
-      bot.sendMessage(chatId, "Biểu thức không hợp lệ, vui lòng thử lại.");
+      bot.sendMessage(chatId, "");
       return;
     }
     
     if (isNaN(result)) {
-      bot.sendMessage(chatId, "Kết quả tính toán không hợp lệ.");
+      bot.sendMessage(chatId, "");
       return;
     }
     
