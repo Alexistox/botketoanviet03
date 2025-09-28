@@ -415,15 +415,14 @@ const formatTelegramMessage = (jsonData) => {
       return timestampB - timestampA; // Sắp xếp giảm dần (mới nhất trước)
     });
     
-    // Format giao dịch với ID và link - ID được sắp xếp ngược lại
+    // Format giao dịch với ID và link - sử dụng ID từ groupCommands.js
     sortedDepositEntries.forEach((entry, index) => {
-      // ID mới được gán theo thứ tự sắp xếp (mới nhất = ID lớn nhất)
-      const totalEntries = sortedDepositEntries.length;
-      const id = totalEntries - index; // ID giảm dần từ tổng số xuống 1
+      // Sử dụng ID từ entry (đã được tính từ groupCommands.js)
+      const id = entry.id;
       if (entry.messageId && entry.chatLink) {
         // Làm nổi bật giao dịch mới nhất (đầu tiên trong danh sách đã sắp xếp)
         const detailsText = index === 0 ? `${entry.details}🟢` : entry.details;
-        console.log(`Debug - Index: ${index}, Details: ${detailsText}`); // Debug log
+        console.log(`Debug - Index: ${index}, ID: ${id}, Details: ${detailsText}`); // Debug log
         // Tạo link đến tin nhắn gốc với ID là phần clickable
         output += `${detailsText} ([${id}](${entry.chatLink}))\n`;
       }
@@ -445,14 +444,13 @@ const formatTelegramMessage = (jsonData) => {
       return timestampB - timestampA; // Sắp xếp giảm dần (mới nhất trước)
     });
     
-    // Format giao dịch với ID và link - ID được sắp xếp ngược lại
+    // Format giao dịch với ID và link - sử dụng ID từ groupCommands.js
     sortedPaymentEntries.forEach((entry, index) => {
-      // ID mới được gán theo thứ tự sắp xếp (mới nhất = ID lớn nhất)
-      const totalEntries = sortedPaymentEntries.length;
-      const id = `!${totalEntries - index}`; // ID giảm dần từ tổng số xuống 1
+      // Sử dụng ID từ entry (đã được tính từ groupCommands.js)
+      const id = `!${entry.id}`;
       if (entry.messageId && entry.chatLink) {
         // Làm nổi bật giao dịch mới nhất (đầu tiên trong danh sách đã sắp xếp)
-        const detailsText = index === 0 ? `🔥 ${entry.details}` : entry.details;
+        const detailsText = index === 0 ? `${entry.details}🟢` : entry.details;
         // Tạo link đến tin nhắn gốc với ID là phần clickable ok
         output += `${detailsText} ([${id}](${entry.chatLink}))\n`;
       }

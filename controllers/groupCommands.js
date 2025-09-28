@@ -551,10 +551,11 @@ const getDepositHistory = async (chatId) => {
     if (transactions.length === 0) return { entries: [] };
     
     // Format lại các chi tiết với messageId và senderName
-    // Gán ID theo thứ tự giao dịch
+    // Gán ID theo vị trí thực tế trong tổng số giao dịch (từ mới nhất đến cũ nhất)
+    const totalCount = transactions.length;
     const entries = transactions.map((t, index) => {
       return {
-        id: index + 1, // ID theo thứ tự trong mảng
+        id: totalCount - index, // ID theo vị trí thực tế (10, 9, 8, 7, 6...)
         details: t.details,
         messageId: t.messageId || null,
         chatLink: t.messageId ? `https://t.me/c/${chatId.toString().replace('-100', '')}/${t.messageId}` : null,
@@ -563,8 +564,8 @@ const getDepositHistory = async (chatId) => {
       };
     });
     
-    // Chỉ lấy 6 giao dịch gần đây nhất nếu có quá nhiều giao dịch
-    return { entries: entries.slice(-5), totalCount: entries.length };
+    // Chỉ lấy 5 giao dịch gần đây nhất nếu có quá nhiều giao dịch
+    return { entries: entries.slice(0, 5), totalCount: entries.length };
   } catch (error) {
     console.error('Error in getDepositHistory:', error);
     return { entries: [], totalCount: 0 };
@@ -593,10 +594,11 @@ const getPaymentHistory = async (chatId) => {
     if (transactions.length === 0) return { entries: [] };
     
     // Format lại các chi tiết với messageId và senderName
-    // Gán ID theo thứ tự giao dịch
+    // Gán ID theo vị trí thực tế trong tổng số giao dịch (từ mới nhất đến cũ nhất)
+    const totalCount = transactions.length;
     const entries = transactions.map((t, index) => {
       return {
-        id: index + 1, // ID theo thứ tự trong mảng
+        id: totalCount - index, // ID theo vị trí thực tế (6, 5, 4, 3, 2...)
         details: t.details,
         messageId: t.messageId || null,
         chatLink: t.messageId ? `https://t.me/c/${chatId.toString().replace('-100', '')}/${t.messageId}` : null,
@@ -606,7 +608,7 @@ const getPaymentHistory = async (chatId) => {
     });
     
     // Chỉ lấy 3 giao dịch gần đây nhất nếu có quá nhiều giao dịch
-    return { entries: entries.slice(-3), totalCount: entries.length };
+    return { entries: entries.slice(0, 3), totalCount: entries.length };
   } catch (error) {
     console.error('Error in getPaymentHistory:', error);
     return { entries: [], totalCount: 0 };
