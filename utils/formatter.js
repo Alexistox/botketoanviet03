@@ -408,13 +408,24 @@ const formatTelegramMessage = (jsonData) => {
     const depositCount = jsonData.depositData.totalCount || jsonData.depositData.entries.length;
     output += `*Tiền đã nạp* ([${depositCount}](https://t.me/@id7590104666) Đơn):\n`;
     
-    // Format giao dịch với ID và link
-    jsonData.depositData.entries.forEach((entry) => {
-      // Sử dụng ID từ entry thay vì tạo ID mới
-      const id = entry.id || (entry.index + 1);
+    // Sắp xếp entries theo timestamp giảm dần (mới nhất ở đầu)
+    const sortedDepositEntries = [...jsonData.depositData.entries].sort((a, b) => {
+      const timestampA = new Date(a.timestamp || 0);
+      const timestampB = new Date(b.timestamp || 0);
+      return timestampB - timestampA; // Sắp xếp giảm dần (mới nhất trước)
+    });
+    
+    // Format giao dịch với ID và link - ID được sắp xếp ngược lại
+    sortedDepositEntries.forEach((entry, index) => {
+      // ID mới được gán theo thứ tự sắp xếp (mới nhất = ID lớn nhất)
+      const totalEntries = sortedDepositEntries.length;
+      const id = totalEntries - index; // ID giảm dần từ tổng số xuống 1
       if (entry.messageId && entry.chatLink) {
+        // Làm nổi bật giao dịch mới nhất (đầu tiên trong danh sách đã sắp xếp)
+        const detailsText = index === 0 ? `${entry.details}🟢` : entry.details;
+        console.log(`Debug - Index: ${index}, Details: ${detailsText}`); // Debug log
         // Tạo link đến tin nhắn gốc với ID là phần clickable
-        output += `${entry.details} ([${id}](${entry.chatLink}))\n`;
+        output += `${detailsText} ([${id}](${entry.chatLink}))\n`;
       }
     });
     output += '\n';
@@ -427,14 +438,23 @@ const formatTelegramMessage = (jsonData) => {
     const paymentCount = jsonData.paymentData.totalCount || jsonData.paymentData.entries.length;
     output += `*Đã thanh toán* ([${paymentCount}](https://t.me/@id7590104666) Đơn):\n`;
     
-    // Format giao dịch với ID và link
-    jsonData.paymentData.entries.forEach((entry) => {
-      // Dùng ký hiệu ! trước ID của payment
-      // Sử dụng ID từ entry thay vì tạo ID mới
-      const id = `!${entry.id || (entry.index + 1)}`;
+    // Sắp xếp entries theo timestamp giảm dần (mới nhất ở đầu)
+    const sortedPaymentEntries = [...jsonData.paymentData.entries].sort((a, b) => {
+      const timestampA = new Date(a.timestamp || 0);
+      const timestampB = new Date(b.timestamp || 0);
+      return timestampB - timestampA; // Sắp xếp giảm dần (mới nhất trước)
+    });
+    
+    // Format giao dịch với ID và link - ID được sắp xếp ngược lại
+    sortedPaymentEntries.forEach((entry, index) => {
+      // ID mới được gán theo thứ tự sắp xếp (mới nhất = ID lớn nhất)
+      const totalEntries = sortedPaymentEntries.length;
+      const id = `!${totalEntries - index}`; // ID giảm dần từ tổng số xuống 1
       if (entry.messageId && entry.chatLink) {
+        // Làm nổi bật giao dịch mới nhất (đầu tiên trong danh sách đã sắp xếp)
+        const detailsText = index === 0 ? `🔥 ${entry.details}` : entry.details;
         // Tạo link đến tin nhắn gốc với ID là phần clickable ok
-        output += `${entry.details} ([${id}](${entry.chatLink}))\n`;
+        output += `${detailsText} ([${id}](${entry.chatLink}))\n`;
       }
     });
     output += '\n';

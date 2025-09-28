@@ -517,7 +517,8 @@ const handleCurrencyUnitCommand = async (bot, msg) => {
 const handleSetUsdtAddressCommand = async (bot, msg) => {
   try {
     const chatId = msg.chat.id;
-    const messageText = msg.text;
+    // Cho phép nhận địa chỉ qua caption của ảnh/video/gif
+    const messageText = msg.text || msg.caption || '';
     
     // Phân tích tin nhắn
     const parts = messageText.split('/usdt ');
@@ -544,13 +545,28 @@ const handleSetUsdtAddressCommand = async (bot, msg) => {
     } else {
       config.value = address;
     }
+
+    // Lưu kèm file_id nếu có media
+    // Ưu tiên: photo > video > animation (gif)
+    if (msg.photo && msg.photo.length > 0) {
+      // Lấy size lớn nhất (phần tử cuối)
+      const largest = msg.photo[msg.photo.length - 1];
+      config.description = JSON.stringify({ mediaType: 'photo', fileId: largest.file_id });
+    } else if (msg.video) {
+      config.description = JSON.stringify({ mediaType: 'video', fileId: msg.video.file_id });
+    } else if (msg.animation) { // gif
+      config.description = JSON.stringify({ mediaType: 'animation', fileId: msg.animation.file_id });
+    } else {
+      // Không có media kèm theo
+      config.description = '';
+    }
     
     await config.save();
     
     if (oldAddress) {
-      bot.sendMessage(chatId, "🔄 Đã cập nhật địa chỉ USDT-TRC20:\n`" + address + "`");
+      bot.sendMessage(chatId, "🔄 Đã cập nhật địa chỉ USDT-TRC20:\n`" + address + "`", { parse_mode: 'Markdown' });
     } else {
-      bot.sendMessage(chatId, "✅ Đã lưu địa chỉ USDT-TRC20 toàn cục:\n`" + address + "`");
+      bot.sendMessage(chatId, "✅ Đã lưu địa chỉ USDT-TRC20 toàn cục:\n`" + address + "`", { parse_mode: 'Markdown' });
     }
   } catch (error) {
     console.error('Error in handleSetUsdtAddressCommand:', error);
@@ -573,11 +589,26 @@ const handleGetUsdtAddressCommand = async (bot, msg) => {
       return;
     }
     
-    const responseMsg = "💰 *Địa chỉ USDT-TRC20* 💰\n\n" +
-                       "`" + config.value + "`\n\n" +
-                       "💵 Vui lòng xác nhận với nhiều người trước khi giao dịch! 💱";
-
-    bot.sendMessage(chatId, responseMsg, { parse_mode: 'Markdown' });
+    const responseMsg = "`" + config.value + "`" ;
+    // Nếu có media lưu trong description, gửi kèm media với caption là địa chỉ
+    let mediaInfo = null;
+    if (config.description) {
+      try {
+        mediaInfo = JSON.parse(config.description);
+      } catch (_) {
+        mediaInfo = null;
+      }
+    }
+    
+    if (mediaInfo && mediaInfo.mediaType === 'photo' && mediaInfo.fileId) {
+      await bot.sendPhoto(chatId, mediaInfo.fileId, { caption: responseMsg, parse_mode: 'Markdown' });
+    } else if (mediaInfo && mediaInfo.mediaType === 'video' && mediaInfo.fileId) {
+      await bot.sendVideo(chatId, mediaInfo.fileId, { caption: responseMsg, parse_mode: 'Markdown' });
+    } else if (mediaInfo && mediaInfo.mediaType === 'animation' && mediaInfo.fileId) {
+      await bot.sendAnimation(chatId, mediaInfo.fileId, { caption: responseMsg, parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(chatId, responseMsg, { parse_mode: 'Markdown' });
+    }
   } catch (error) {
     console.error('Error in handleGetUsdtAddressCommand:', error);
     bot.sendMessage(msg.chat.id, "Xử lý lệnh lấy địa chỉ USDT bị lỗi. Vui lòng thử lại sau.");

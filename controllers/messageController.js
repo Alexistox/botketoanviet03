@@ -114,7 +114,8 @@ const handleMessage = async (bot, msg, cache) => {
     const firstName = msg.from.first_name || '';
     const lastName = msg.from.last_name || '';
     const timestamp = new Date();
-    const messageText = msg.text || '';
+    // Hỗ trợ caption như văn bản lệnh
+    const messageText = msg.text || msg.caption || '';
     
     // Nếu người dùng gửi '开始', chuyển thành '/st' để dùng chung logic
     if (messageText === '开始') {
@@ -217,13 +218,13 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
-    // Nếu không có văn bản, không xử lý
-    if (!msg.text) {
+    // Nếu không có văn bản/caption, không xử lý
+    if (!msg.text && !msg.caption) {
       return;
     }
     
-    // Kiểm tra và đăng ký người dùng mới
-    await checkAndRegisterUser(userId, username, firstName, lastName);
+    // Kiểm tra và đăng ký người dùng mới + phát hiện đổi tên/username
+    await checkAndRegisterUser(userId, username, firstName, lastName, bot, chatId);
     
     // Xử lý các lệnh tiếng Trung
     if (messageText === '上课' || messageText === 'start' || messageText === 'Start'|| messageText === 'Bắt đầu') {
@@ -703,12 +704,6 @@ const handleMessage = async (bot, msg, cache) => {
       }
     }
     
-    // Xử lý địa chỉ TRC20
-    if (isTrc20Address(messageText.trim())) {
-      // Gửi địa chỉ TRC20 dạng markdown
-      bot.sendMessage(chatId, `TRC20地址:\n\`${messageText.trim()}\``, { parse_mode: 'Markdown' });
-      return;
-    }
     
     // Alias cho lệnh admin/operator tiếng Trung
     if (messageText.startsWith('添加管理员')) {
@@ -805,8 +800,8 @@ const handleBankTransferReply = async (bot, msg) => {
   }
 };
 
-// Hàm kiểm tra và đăng ký người dùng mới
-const checkAndRegisterUser = async (userId, username, firstName, lastName) => {
+// Hàm kiểm tra và đăng ký người dùng mới + phát hiện đổi tên/username theo userId
+const checkAndRegisterUser = async (userId, username, firstName, lastName, bot, chatId) => {
   try {
     let user = await User.findOne({ userId: userId.toString() });
     
@@ -831,6 +826,52 @@ const checkAndRegisterUser = async (userId, username, firstName, lastName) => {
       
       if (isFirstUser) {
         console.log(`User ${username} (ID: ${userId}) is now the bot owner and admin`);
+      }
+    }
+    
+    // Nếu đã tồn tại, kiểm tra thay đổi tên/username
+    if (user) {
+      const oldUsername = user.username || '';
+      const oldFirst = user.firstName || '';
+      const oldLast = user.lastName || '';
+      const hasUsernameChanged = (username || '') !== oldUsername;
+      const hasFirstChanged = (firstName || '') !== oldFirst;
+      const hasLastChanged = (lastName || '') !== oldLast;
+      
+      if (hasUsernameChanged || hasFirstChanged || hasLastChanged) {
+        user.username = username;
+        user.firstName = firstName;
+        user.lastName = lastName;
+        await user.save();
+        
+        // Thông báo trong nhóm (nếu có chatId & bot)
+        if (bot && chatId) {
+          const oldName = `${oldFirst} ${oldLast}`.trim() || '(Không tên)';
+          const newName = `${firstName || ''} ${lastName || ''}`.trim() || '(Không tên)';
+          const oldU = oldUsername ? `@${oldUsername}` : '(không username)';
+          const newU = username ? `@${username}` : '(không username)';
+          
+          let notice = `🔄 *Người dùng đã thay đổi tên*: `;
+          notice += `\`${userId}\`\n`;
+          
+          if (hasFirstChanged || hasLastChanged) {
+            notice += `📝 *Tên:*\n`;
+            notice += `\`${oldName}\`=>`;
+            notice += `\`${newName}\`\n`;
+          }
+          
+          if (hasUsernameChanged) {
+            notice += `🏷️ *Username:*\n`;
+            notice += `\`${oldU}\`=>`;
+            notice += `\`${newU}\``;
+          }
+          
+          try {
+            await bot.sendMessage(chatId, notice, { parse_mode: 'Markdown' });
+          } catch (_) {
+            // ignore send errors
+          }
+        }
       }
     }
     
@@ -869,10 +910,11 @@ const handleAutoQRGeneration = async (bot, msg) => {
     // Tạo thông tin QR code
     const qrResponse = generateQRResponse(transferInfo);
     
-    // Gửi ảnh QR code
+    // Gửi ảnh QR code với reply vào tin nhắn của người dùng
     await bot.sendPhoto(chatId, qrResponse.photo, { 
       caption: qrResponse.caption,
-      parse_mode: 'Markdown' 
+      parse_mode: 'Markdown',
+      reply_to_message_id: msg.message_id
     });
     
     console.log(`QR code generated for transfer: ${transferInfo.accountNumber} - ${transferInfo.bankName} - ${transferInfo.amount}`);

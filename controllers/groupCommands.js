@@ -61,17 +61,17 @@ const handleClearCommand = async (bot, msg) => {
     await transaction.save();
     
     // Tạo thông báo đơn giản về tỷ giá hiện tại
-    let rateMessage = "🔄 Đã bắt đầu phiên mới!";
+    let rateMessage = "Bắt đầu! ";
     
     if (currentRate > 0 || currentExRate > 0) {
-      rateMessage += `\n\n **Tỷ giá hiện tại:**\n Phí: ${formatRateValue(currentRate)}% | Tỷ giá: ${formatRateValue(currentExRate)}`;
+      rateMessage += `Phí: ${formatRateValue(currentRate)}% | Tỷ giá: ${formatRateValue(currentExRate)}`;
       
       // Hiển thị W-tỷ giá nếu có
       if ((group.wrate > 0 || group.wexchangeRate > 0) && group.wrate !== undefined && group.wexchangeRate !== undefined) {
-        rateMessage += `\n\n **W-Tỷ giá:**\n W-Phí: ${formatRateValue(group.wrate)}% | W-Tỷ giá: ${formatRateValue(group.wexchangeRate)}`;
+        rateMessage += `\nW-Phí: ${formatRateValue(group.wrate)}% | W-Tỷ giá: ${formatRateValue(group.wexchangeRate)}`;
       }
     } else {
-      rateMessage += "\n\n⚠️ Chưa thiết lập tỷ giá. Sử dụng `/d` để thiết lập.";
+      rateMessage += "Chưa thiết lập tỷ giá. Sử dụng `/d` để thiết lập.";
     }
     
     bot.sendMessage(msg.chat.id, rateMessage, { parse_mode: 'Markdown' });
@@ -367,7 +367,7 @@ const handleDualRateCommand = async (bot, msg) => {
     await transaction.save();
     
     // Gửi thông báo đơn giản về việc đã thay đổi tỷ giá
-    bot.sendMessage(chatId, `✅ Đã thay đổi tỷ giá:\n📊 Phí: ${formatRateValue(newRate)}%\n💱 Tỷ giá: ${formatRateValue(newExRate)}`, { parse_mode: 'Markdown' });
+    bot.sendMessage(chatId, `Phí: ${formatRateValue(newRate)}% | Tỷ giá: ${formatRateValue(newExRate)}`, { parse_mode: 'Markdown' });
     
   } catch (error) {
     console.error('Error in handleDualRateCommand:', error);
@@ -467,7 +467,7 @@ const handleDualRateCommand2 = async (bot, msg) => {
     await transaction.save();
     
     // Gửi thông báo đơn giản về việc đã thay đổi W-tỷ giá
-    bot.sendMessage(chatId, `✅ Đã thay đổi W-tỷ giá:\n📊 W-Phí: ${formatRateValue(newWRate)}%\n💱 W-Tỷ giá: ${formatRateValue(newWExRate)}`, { parse_mode: 'Markdown' });
+    bot.sendMessage(chatId, `W-Phí: ${formatRateValue(newWRate)}% | W-Tỷ giá: ${formatRateValue(newWExRate)}`, { parse_mode: 'Markdown' });
     
   } catch (error) {
     console.error('Error in handleDualRateCommand2:', error);
@@ -546,7 +546,7 @@ const getDepositHistory = async (chatId) => {
       type: { $in: ['deposit', 'withdraw'] },
       timestamp: { $gt: lastClearDate },
       skipped: { $ne: true } // Không lấy các giao dịch đã bị skip
-    }).sort({ timestamp: 1 }); // Sắp xếp theo thời gian tăng dần (ID sẽ tăng dần, cũ đến mới)
+    }).sort({ timestamp: -1 }); // Sắp xếp theo thời gian giảm dần (mới đến cũ)
     
     if (transactions.length === 0) return { entries: [] };
     
@@ -588,7 +588,7 @@ const getPaymentHistory = async (chatId) => {
       type: 'payment',
       timestamp: { $gt: lastClearDate },
       skipped: { $ne: true } // Không lấy các giao dịch đã bị skip
-    }).sort({ timestamp: 1 }); // Sắp xếp theo thời gian tăng dần (ID sẽ tăng dần, cũ đến mới)
+    }).sort({ timestamp: -1 }); // Sắp xếp theo thời gian giảm dần (mới đến cũ)
     
     if (transactions.length === 0) return { entries: [] };
     
