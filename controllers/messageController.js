@@ -2,7 +2,6 @@ const axios = require('axios');
 const { extractBankInfoFromImage, extractAmountFromBill } = require('../utils/openai');
 const { getDownloadLink, logMessage } = require('../utils/telegramUtils');
 const { 
-  formatSmart, 
   formatRateValue, 
   isMathExpression, 
   isSingleNumber, 
@@ -10,7 +9,7 @@ const {
   formatTelegramMessage
 } = require('../utils/formatter');
 const { isUserOwner, isUserAdmin, isUserOperator } = require('../utils/permissions');
-const { parseBankTransferMessage, isBankTransferMessage } = require('../utils/bankParser');
+const { parseBankTransferMessage } = require('../utils/bankParser');
 const messages = require('../src/messages/vi');
 
 const Group = require('../models/Group');
@@ -206,15 +205,16 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
-    // Xử lý reply "1" vào tin nhắn thông báo chuyển tiền ngân hàng
-    if (msg.reply_to_message && msg.reply_to_message.text && messageText.trim() === '1') {
-      await handleBankTransferReply(bot, msg);
-      return;
-    }
-    
-    // Xử lý reply "1", "2" hoặc "3" vào ảnh bill
+    // Reply "1" / "2" / "3" vào ảnh bill (pic mode) — kiểm tra ảnh trước để không nhầm với tin có caption
     if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2' || messageText.trim() === '3')) {
       await handleBillImageReply(bot, msg);
+      return;
+    }
+
+    // Reply "1" / "2" / "3" vào tin text hoặc caption (thông báo CK ngân hàng dạng chữ)
+    const bankSmsParentBody = msg.reply_to_message && (msg.reply_to_message.text || msg.reply_to_message.caption);
+    if (msg.reply_to_message && bankSmsParentBody && /^[123]$/.test(messageText.trim())) {
+      await handleBankTransferReply(bot, msg);
       return;
     }
     
@@ -743,60 +743,52 @@ const handleMessage = async (bot, msg, cache) => {
 };
 
 /**
- * Xử lý reply "1" vào tin nhắn thông báo chuyển tiền ngân hàng
+ * Reply "1" / "2" / "3" vào tin text (hoặc caption) thông báo CK — giống flow pic bill: reply vào tin được reply, xóa tin lệnh.
  */
 const handleBankTransferReply = async (bot, msg) => {
   try {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
-    const firstName = msg.from.first_name || '';
-    
-    // Kiểm tra quyền người dùng - phải có quyền Operator
+    const replyText = msg.text.trim();
+    const repliedMsg = msg.reply_to_message;
+    const repliedBody = (repliedMsg.text || repliedMsg.caption || '').trim();
+
     if (!(await isUserOperator(userId, chatId))) {
-      bot.sendMessage(chatId,);
+      bot.sendMessage(chatId, messages.operatorOnly);
       return;
     }
-    
-    const repliedMessage = msg.reply_to_message.text;
-    
-    
-    // Parse số tiền từ tin nhắn
-    const bankInfo = parseBankTransferMessage(repliedMessage);
-    
+
+    const bankInfo = parseBankTransferMessage(repliedBody);
     if (!bankInfo) {
-      bot.sendMessage(chatId,);
+      bot.sendMessage(chatId, '❌ Không đọc được số tiền từ tin nhắn này.', {
+        reply_to_message_id: repliedMsg.message_id
+      });
       return;
     }
-    
-    // Tạo tin nhắn giả lập lệnh +[số tiền]
-    const simulatedMsg = {
+
+    const threadId = repliedMsg.message_id;
+    const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
+
+    const fakeMsg = {
       ...msg,
-      text: `+${bankInfo.amount}`,
-      message_id: msg.message_id // Giữ nguyên message ID để tracking
+      text: `${command}${bankInfo.amount}`,
+      reply_to_message: undefined,
+      replyToMessageId: threadId
     };
-    
-    // Gọi handlePlusCommand để xử lý tự động
-    const { handlePlusCommand } = require('./transactionCommands');
-    
-    // Thông báo cho người dùng biết đang xử lý
-    const confirmMessage = await bot.sendMessage(
-      chatId, 
-      `✅ Đã nhận lệnh tự động: +${formatSmart(bankInfo.amount)}\n🔄 Đang xử lý...`
-    );
-    
-    // Thực hiện lệnh cộng tiền
-    await handlePlusCommand(bot, simulatedMsg);
-    
-    // Xóa tin nhắn thông báo tạm thời sau 3 giây
-    setTimeout(() => {
-      bot.deleteMessage(chatId, confirmMessage.message_id).catch(() => {
-        // Ignore error if message already deleted
-      });
-    }, 3000);
-    
+
+    if (replyText === '1') {
+      await handlePlusCommand(bot, fakeMsg);
+    } else if (replyText === '2') {
+      await handlePercentCommand(bot, fakeMsg);
+    } else {
+      await handleMinusCommand(bot, fakeMsg);
+    }
+
+    bot.deleteMessage(chatId, msg.message_id).catch(() => {});
   } catch (error) {
     console.error('Error in handleBankTransferReply:', error);
-    bot.sendMessage(msg.chat.id,);
+    const rid = msg.reply_to_message && msg.reply_to_message.message_id;
+    bot.sendMessage(msg.chat.id, '❌ Lỗi xử lý tin nhắn ngân hàng.', rid ? { reply_to_message_id: rid } : {}).catch(() => {});
   }
 };
 
@@ -988,34 +980,34 @@ const handleBillImageReply = async (bot, msg) => {
       return;
     }
     
-    // Tạo tin nhắn giả với lệnh +, % hoặc -
+    const billPhotoMessageId = repliedMsg.message_id;
+
+    // Tạo tin nhắn giả với lệnh +, % hoặc — replyToMessageId để mọi tin bot gửi bám vào ảnh bill
     const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
     const fakeMsg = {
       ...msg,
       text: `${command}${billInfo.amount}`,
-      reply_to_message: undefined
+      reply_to_message: undefined,
+      replyToMessageId: billPhotoMessageId
     };
     
     // Xóa thông báo đang xử lý
     bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
-    
-    // Gửi thông báo về số tiền được trích xuất
-    bot.sendMessage(chatId, `✅ Đã trích xuất số tiền: *${billInfo.formattedAmount || billInfo.amount}*\n🔄 Thực hiện lệnh: \`${command}${billInfo.amount}\``, { parse_mode: 'Markdown' });
-    
+
     // Thực hiện lệnh +, % hoặc - tương ứng
     if (replyText === '1') {
-      // Thực hiện lệnh +
       const { handlePlusCommand } = require('./transactionCommands');
       await handlePlusCommand(bot, fakeMsg);
     } else if (replyText === '2') {
-      // Thực hiện lệnh %
       const { handlePercentCommand } = require('./transactionCommands');
       await handlePercentCommand(bot, fakeMsg);
     } else {
-      // Thực hiện lệnh -
       const { handleMinusCommand } = require('./transactionCommands');
       await handleMinusCommand(bot, fakeMsg);
     }
+
+    // Xóa tin nhắn lệnh "1" / "2" / "3" của người dùng
+    bot.deleteMessage(chatId, msg.message_id).catch(() => {});
     
   } catch (error) {
     console.error('Error in handleBillImageReply:', error);

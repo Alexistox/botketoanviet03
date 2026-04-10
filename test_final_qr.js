@@ -46,6 +46,42 @@ Card No: 1111111111
 VTB
 987654321
 500.000`
+  },
+
+  // Nhãn ZH + số tiền có VND (plan)
+  {
+    name: 'KV tiếng Trung — 账号 / 金额',
+    input: `账号 : 0336157167
+银行名称 : VietinBank
+持卡人姓名 : NGUYEN VAN A
+金额 : 810,000 vnd`
+  },
+
+  // KV đủ STK + bank + tên, không số tiền → amount 0, URL không gắn amount
+  {
+    name: 'KV thiếu amount',
+    input: `stk: 0123456789
+ngân hàng: VCB
+tên: TRAN THI TEST`
+  },
+
+  // Nhãn cách khoảng (không dấu :) — tránh nhầm STK với dòng số tiền dài hơn
+  {
+    name: 'stk / ten / bank + số dòng — không đảo STK và tiền',
+    input: `stk 2349785
+ten Ha van tien
+bidv
+12000000
+5623`
+  },
+
+  // Một dòng: số tiền + nội dung (không được làm amount=0 vì replace chữ n trong câu)
+  {
+    name: 'Số tiền ghép nội dung trên cùng dòng',
+    input: `stk 103006887134
+ten HA THI PHO RIN
+nh VietinBank
+798.000 vnd HTTH chuyen tien`
   }
 ];
 

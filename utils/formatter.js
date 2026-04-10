@@ -23,10 +23,10 @@ const formatWithComma = (num) => {
 /**
  * Định dạng số thông minh dựa trên numberFormat của nhóm
  * @param {Number} num - Số cần định dạng
- * @param {String} numberFormat - Định dạng số ('default' hoặc 'comma')
+ * @param {String} numberFormat - Định dạng số ('default' hoặc 'comma'; mặc định: 'comma' = format A)
  * @returns {String} - Chuỗi đã định dạng
  */
-const formatSmart = (num, numberFormat = 'default') => {
+const formatSmart = (num, numberFormat = 'comma') => {
   if (numberFormat === 'comma') {
     return formatWithComma(num);
   }
@@ -385,6 +385,26 @@ const formatTimeString = (date) => {
 };
 
 /**
+ * Tên người gửi dạng Markdown: bấm vào mở chat/profile Telegram.
+ */
+const formatSenderMarkdown = (senderName, userId) => {
+  const name = (senderName != null && senderName !== '') ? String(senderName) : '';
+  if (userId == null || userId === '') return name;
+  const safeLabel = name.replace(/\]/g, '');
+  return `[${safeLabel}](tg://user?id=${String(userId)})`;
+};
+
+/** Bỏ 📌 sau khối giờ; nếu isNewest thì chèn 📌 một lần sau giờ (chỉ dòng giao dịch mới nhất). */
+const formatTransactionDetailLine = (details, isNewest) => {
+  if (!details || typeof details !== 'string') return details || '';
+  let d = details.replace(/(`[^`]+`)\s*📌\s*/g, '$1 ');
+  if (isNewest) {
+    d = d.replace(/^(`[^`]+`)\s*/, '$1 📌 ');
+  }
+  return d;
+};
+
+/**
  * Tạo tin nhắn telegram không sử dụng markdown
  * @param {Object} jsonData - Dữ liệu cần format
  * @returns {String} - Chuỗi đã định dạng
@@ -393,7 +413,7 @@ const formatTelegramMessage = (jsonData) => {
   let output = '';
   
   // Lấy định dạng số từ jsonData hoặc sử dụng default
-  const numberFormat = jsonData.numberFormat || 'default';
+  const numberFormat = jsonData.numberFormat || 'comma';
   
   // Helper function để format số với định dạng của nhóm
   const formatNumber = (num) => formatSmart(num, numberFormat);
@@ -420,11 +440,8 @@ const formatTelegramMessage = (jsonData) => {
       // Sử dụng ID từ entry (đã được tính từ groupCommands.js)
       const id = entry.id;
       if (entry.messageId && entry.chatLink) {
-        // Làm nổi bật giao dịch mới nhất (đầu tiên trong danh sách đã sắp xếp)
-        const detailsText = index === 0 ? `${entry.details}🟢` : entry.details;
-        console.log(`Debug - Index: ${index}, ID: ${id}, Details: ${detailsText}`); // Debug log
-        // Tạo link đến tin nhắn gốc với ID là phần clickable
-        output += `${detailsText} ([${id}](${entry.chatLink}))\n`;
+        const line = formatTransactionDetailLine(entry.details, index === 0);
+        output += `${line} ([${id}](${entry.chatLink}))\n`;
       }
     });
     output += '\n';
@@ -449,10 +466,8 @@ const formatTelegramMessage = (jsonData) => {
       // Sử dụng ID từ entry (đã được tính từ groupCommands.js)
       const id = `!${entry.id}`;
       if (entry.messageId && entry.chatLink) {
-        // Làm nổi bật giao dịch mới nhất (đầu tiên trong danh sách đã sắp xếp)
-        const detailsText = index === 0 ? `${entry.details}🟢` : entry.details;
-        // Tạo link đến tin nhắn gốc với ID là phần clickable ok
-        output += `${detailsText} ([${id}](${entry.chatLink}))\n`;
+        const line = formatTransactionDetailLine(entry.details, index === 0);
+        output += `${line} ([${id}](${entry.chatLink}))\n`;
       }
     });
     output += '\n';
@@ -512,7 +527,7 @@ const formatSmartWithGroup = async (num, chatId) => {
     return formatSmart(num, numberFormat);
   } catch (error) {
     console.error('Error in formatSmartWithGroup:', error);
-    return formatSmart(num, 'default');
+    return formatSmart(num, 'comma');
   }
 };
 
@@ -525,10 +540,10 @@ const getNumberFormat = async (chatId) => {
   try {
     const Group = require('../models/Group');
     const group = await Group.findOne({ chatId: chatId.toString() });
-    return group && group.numberFormat ? group.numberFormat : 'default';
+    return group && group.numberFormat ? group.numberFormat : 'comma';
   } catch (error) {
     console.error('Error in getNumberFormat:', error);
-    return 'default';
+    return 'comma';
   }
 };
 
@@ -543,6 +558,7 @@ module.exports = {
   formatTelegramMessage,
   formatDateUS,
   formatTimeString,
+  formatSenderMarkdown,
   getNumberFormat,
   parseNumberWithUnits,
   preprocessMathExpression

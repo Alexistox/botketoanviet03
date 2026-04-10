@@ -21,25 +21,25 @@ const handleFormatCommand = async (bot, msg) => {
     if (!group) {
       group = new Group({
         chatId: chatId.toString(),
-        numberFormat: 'default'
+        numberFormat: 'comma'
       });
       await group.save();
     }
     
     // Kiểm tra định dạng lệnh
     if (messageText === '/format') {
-      // Quay lại format ban đầu
+      // Quay lại format không dấu phẩy (khác mặc định format A)
       group.numberFormat = 'default';
       await group.save();
-      bot.sendMessage(chatId, "✅ Đã chuyển về định dạng số ban đầu (không có dấu phẩy)");
+      bot.sendMessage(chatId, "✅ Đã chuyển sang định dạng không dấu phẩy. Gửi `/format A` để về mặc định có dấu phẩy.");
     } else if (messageText.toLowerCase() === '/format a') {
-      // Chuyển sang format có dấu phẩy
+      // Format A — mặc định của bot (dấu phẩy phân cách hàng nghìn)
       group.numberFormat = 'comma';
       await group.save();
-      bot.sendMessage(chatId, "✅ Đã chuyển sang định dạng số có dấu phẩy phân cách hàng nghìn");
+      bot.sendMessage(chatId, "✅ Đã bật định dạng A (có dấu phẩy phân cách hàng nghìn) — đây là định dạng mặc định");
     } else {
       // Lệnh không hợp lệ
-      bot.sendMessage(chatId, "❌ Cú pháp không hợp lệ.\n\n📝 Cách sử dụng:\n• `/format A` - Bật định dạng số có dấu phẩy\n• `/format` - Quay lại định dạng ban đầu");
+      bot.sendMessage(chatId, "❌ Cú pháp không hợp lệ.\n\n📝 Cách sử dụng:\n• `/format A` — Định dạng mặc định (có dấu phẩy)\n• `/format` — Định dạng không dấu phẩy");
     }
     
   } catch (error) {
@@ -322,8 +322,8 @@ const handleHelpCommand = async (bot, chatId) => {
 /v [số] - Chuyển đổi USDT sang VND
 
 *Lệnh định dạng số:*
-/format A - Bật định dạng số có dấu phẩy (ví dụ: 1,000,000)
-/format - Quay lại định dạng số ban đầu (ví dụ: 1000000)
+/format A - Định dạng mặc định: có dấu phẩy (ví dụ: 1,000,000)
+/format - Định dạng không dấu phẩy (ví dụ: 1000000)
 
 *Lệnh quản lý:*
 /m [đơn vị] - Đặt đơn vị tiền tệ cho nhóm này (VND/USDT)

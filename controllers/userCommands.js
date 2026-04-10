@@ -1417,7 +1417,23 @@ const handleQROnCommand = async (bot, msg) => {
     group.qrEnabled = true;
     await group.save();
     
-    bot.sendMessage(chatId, "✅ Đã bật tính năng QR code tự động!\n\n📋 Khi có tin nhắn theo format:\n```\n[Số tài khoản]\n[Tên chủ tài khoản]\n[Tên ngân hàng]\n[Số tiền]\n```\n\nBot sẽ tự động tạo QR code VietQR.", { parse_mode: 'Markdown' });
+    bot.sendMessage(
+      chatId,
+      `✅ *Đã bật tính năng QR code tự động!*
+
+📋 Trong nhóm, khi tin nhắn có đủ *số tài khoản*, *tên chủ tài khoản*, *tên ngân hàng* và *số tiền*, bot sẽ tự gửi ảnh *QR VietQR* để quét chuyển khoản.
+
+
+*Ví dụ:*
+\`\`\`
+0123456789
+NGUYEN VAN A
+VietinBank
+798.000 vnd
+Ghi Chú (Tùy chọn)
+\`\`\``,
+      { parse_mode: 'Markdown' }
+    );
     
   } catch (error) {
     console.error('Error in handleQROnCommand:', error);
