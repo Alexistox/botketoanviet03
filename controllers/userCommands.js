@@ -1423,6 +1423,8 @@ const handleQROnCommand = async (bot, msg) => {
 
 📋 Trong nhóm, khi tin nhắn có đủ *số tài khoản*, *tên chủ tài khoản*, *tên ngân hàng* và *số tiền*, bot sẽ tự gửi ảnh *QR VietQR* để quét chuyển khoản.
 
+• Dòng chỉ *1 ký tự* (vd. \`1\` đánh số thứ tự) sẽ *bỏ qua*.
+• *Số tiền* ưu tiên lấy từ dòng số nằm *dưới* dòng STK (có thể cách vài dòng, vd. xen ngân hàng).
 
 *Ví dụ:*
 \`\`\`

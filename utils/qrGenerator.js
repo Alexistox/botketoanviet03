@@ -118,6 +118,69 @@ const ACCOUNT_LINE_PREFIX = /^(卡号|账号|帐号)[：:]|^Card No[.:]|^card no
 const BANK_LINE_PREFIX = /^(银行名称|银行)[：:]|^Bank[.:]|^bank[.:]|^ngân hàng[：:]|^Ngân hàng[：:]/i;
 const NAME_LINE_PREFIX = /^(提款姓名|持卡人姓名|名字|姓名|Tên|tên|ten|Name|name)([:：]|\s+)/i;
 
+/** Dòng chỉ 1 ký tự (vd. số thứ tự "1") — bỏ qua khi nhận diện QR. */
+const isSkippableNoiseLine = (line) => String(line || '').trim().length === 1;
+
+const compactDigitsOnly = (line) => String(line || '').trim().replace(/\s+/g, '');
+
+/** STK: dòng chỉ gồm số (≥6 chữ số), bỏ qua dòng nhiễu 1 ký tự. */
+const findFirstAccountInLines = (lines) => {
+  for (let i = 0; i < lines.length; i++) {
+    if (isSkippableNoiseLine(lines[i])) continue;
+    let cleanLine = lines[i].trim();
+    cleanLine = cleanLine.replace(ACCOUNT_LINE_PREFIX, '').trim();
+    const compact = cleanLine.replace(/\s+/g, '');
+    if (/^\d+$/.test(compact) && compact.length >= 6) {
+      return { index: i, accountNumber: compact };
+    }
+  }
+  return null;
+};
+
+const findAccountLineIndexByNumber = (lines, accountNumber) => {
+  const acct = String(accountNumber || '').replace(/\s+/g, '');
+  if (!acct) return -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (compactDigitsOnly(lines[i]) === acct) return i;
+  }
+  return -1;
+};
+
+/**
+ * Số tiền: ưu tiên dòng số (hoặc định dạng tiền) nằm *dưới* dòng STK trong tin.
+ */
+const findAmountBelowAccount = (lines, accountIndex, accountNumber) => {
+  if (accountIndex < 0) return null;
+  const acct = String(accountNumber || '').replace(/\s+/g, '');
+
+  for (let i = accountIndex + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (isSkippableNoiseLine(line)) continue;
+    if (/[:：]/.test(line)) {
+      const sep = line.search(/[:：]/);
+      if (matchLabelToField(line.slice(0, sep).trim())) continue;
+    }
+    if (matchSpaceSeparatedLine(line)) continue;
+
+    const compact = compactDigitsOnly(line);
+    if (/^\d+$/.test(compact) && compact !== acct) {
+      const v = parseFloat(compact);
+      if (v > 0) return v;
+    }
+
+    if (
+      line.includes(',') ||
+      line.includes('.') ||
+      /[trkkmb]/i.test(line) ||
+      /[vnđdong]/i.test(line)
+    ) {
+      const p = parseVietnameseAmount(line);
+      if (!isNaN(p) && p > 0) return p;
+    }
+  }
+  return null;
+};
+
 /** Lấy chuỗi số dài nhất (≥5) từ value nhãn STK — giữ số 0 đầu. */
 const extractAccountDigitsFromValue = (value) => {
   if (!value || typeof value !== 'string') return null;
@@ -244,9 +307,14 @@ const extractLabeledFields = (message) => {
 const scanUnlabeledAmountLine = (message, accountNumber) => {
   const lines = message.split(/\n/).map((l) => l.trim()).filter(Boolean);
   const acctCompact = accountNumber ? String(accountNumber).replace(/\s+/g, '') : '';
-  let bestDigit = null;
+  const accountIdx = findAccountLineIndexByNumber(lines, acctCompact);
 
+  const below = findAmountBelowAccount(lines, accountIdx, acctCompact);
+  if (below != null && below > 0) return below;
+
+  let bestDigit = null;
   for (const line of lines) {
+    if (isSkippableNoiseLine(line)) continue;
     if (/[:：]/.test(line)) {
       const sep = line.search(/[:：]/);
       const key = line.slice(0, sep).trim();
@@ -301,6 +369,7 @@ const parseTransferInfoHeuristic = (message) => {
   }
 
   let accountNumber = null;
+  let accountLineIndex = -1;
   let accountName = null;
   let bankName = null;
   let bankCode = null;
@@ -314,25 +383,26 @@ const parseTransferInfoHeuristic = (message) => {
       const acct = extractAccountDigitsFromValue(sp.value);
       if (acct) {
         accountNumber = acct;
+        accountLineIndex = i;
         break;
       }
     }
   }
 
   if (!accountNumber) {
-    for (let i = 0; i < lines.length; i++) {
-      let cleanLine = lines[i].trim();
-      cleanLine = cleanLine.replace(ACCOUNT_LINE_PREFIX, '').trim();
-      cleanLine = cleanLine.replace(/\s+/g, '');
-      if (/^\d+$/.test(cleanLine)) {
-        accountNumber = cleanLine;
-        break;
-      }
+    const acctHit = findFirstAccountInLines(lines);
+    if (acctHit) {
+      accountNumber = acctHit.accountNumber;
+      accountLineIndex = acctHit.index;
     }
   }
 
   if (!accountNumber) {
     return null;
+  }
+
+  if (accountLineIndex < 0) {
+    accountLineIndex = findAccountLineIndexByNumber(lines, accountNumber);
   }
 
   for (let i = 0; i < lines.length; i++) {
@@ -350,27 +420,14 @@ const parseTransferInfoHeuristic = (message) => {
     return null;
   }
 
-  for (let i = 0; i < lines.length; i++) {
-    const amountStr = lines[i].trim();
-    if (
-      amountStr.includes(',') ||
-      amountStr.includes('.') ||
-      /[trkkmb]/.test(amountStr.toLowerCase()) ||
-      /[vnđdong]/i.test(amountStr)
-    ) {
-      const parsedAmount = parseVietnameseAmount(amountStr);
-      if (!isNaN(parsedAmount) && parsedAmount > 0) {
-        amount = parsedAmount;
-        break;
-      }
-    }
-  }
+  amount = findAmountBelowAccount(lines, accountLineIndex, accountNumber);
 
   if (!amount) {
     const acctCmp = String(accountNumber).replace(/\s+/g, '');
     let bestPure = null;
     for (let i = 0; i < lines.length; i++) {
       const amountStr = lines[i].trim();
+      if (isSkippableNoiseLine(amountStr)) continue;
       const compact = amountStr.replace(/\s+/g, '');
       if (compact === acctCmp) continue;
       if (/^\d+$/.test(compact)) {
@@ -397,7 +454,9 @@ const parseTransferInfoHeuristic = (message) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+    if (isSkippableNoiseLine(line)) continue;
     if (line === accountNumber || line === bankName) continue;
+    if (compactDigitsOnly(line) === String(accountNumber).replace(/\s+/g, '')) continue;
     const parsedAmount = parseVietnameseAmount(line);
     if (!isNaN(parsedAmount) && parsedAmount > 0) continue;
     const candidate = looksLikeNameLine(line);
@@ -413,7 +472,9 @@ const parseTransferInfoHeuristic = (message) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+    if (isSkippableNoiseLine(line)) continue;
     if (line === accountNumber || line === bankName || line === accountName) continue;
+    if (compactDigitsOnly(line) === String(accountNumber).replace(/\s+/g, '')) continue;
     const parsedAmount = parseVietnameseAmount(line);
     if (!isNaN(parsedAmount) && parsedAmount > 0) continue;
     if (line.length > 0) {

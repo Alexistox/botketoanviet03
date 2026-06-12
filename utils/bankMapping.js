@@ -102,6 +102,7 @@ const BANK_MAPPING = {
   'BANVIET': '970454',
   'VIETCAPITALBANK': '970454',
   'BVBank': '970454',
+  'BVB': '970454',
   
   // Ngân hàng TMCP Sài Gòn (SCB) - 970429
   'SCB': '970429',
@@ -216,7 +217,6 @@ const BANK_MAPPING = {
   'THUONG TIN': '970433',
   
   // Ngân hàng TMCP Bảo Việt (BaoVietBank) - 970438
-  'BVB': '970438',
   'BAOVIET': '970438',
   'BAO VIET': '970438',
   'BAOVIETBANK': '970438',
@@ -409,6 +409,8 @@ const BANK_EXTRA_ALIASES = {
   'VIETINBNK': '970415',
   'VIETTINBANK': '970415',
   'TECHCOMBNK': '970407',
+  'TECkCOM': '970407',
+  'TECKCOMbank': '970407',
   'TECHCOMBANKK': '970407',
   'MBBANKK': '970422',
   'MBANK': '970422',

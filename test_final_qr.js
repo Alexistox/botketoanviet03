@@ -82,6 +82,16 @@ bidv
 ten HA THI PHO RIN
 nh VietinBank
 798.000 vnd HTTH chuyen tien`
+  },
+
+  // Dòng đầu "1" bỏ qua; STK trước; số tiền là dòng số dưới STK
+  {
+    name: 'Format số thứ tự + STK + bank + tiền dưới STK',
+    input: `1
+Tran Hoai Chau
+060937320889
+Sacombank
+335223504`
   }
 ];
 
