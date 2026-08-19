@@ -127,10 +127,12 @@ router.get('/api/messagelogs', async (req, res) => {
       ];
     }
 
+    const sortDir = String(req.query.sort || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+
     const [total, messages] = await Promise.all([
       MessageLog.countDocuments(filter),
       MessageLog.find(filter)
-        .sort({ timestamp: -1 })
+        .sort({ timestamp: sortDir })
         .skip(skip)
         .limit(limit)
         .lean()
@@ -142,6 +144,7 @@ router.get('/api/messagelogs', async (req, res) => {
       limit,
       totalPages: Math.ceil(total / limit) || 1,
       query: searchText || null,
+      sort: sortDir === 1 ? 'asc' : 'desc',
       messages: messages.map((m) => ({
         id: m._id,
         senderName: m.senderName || '',

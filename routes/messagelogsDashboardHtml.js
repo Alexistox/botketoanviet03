@@ -94,9 +94,26 @@ function generateDashboardHTML(token, hoursLeft) {
       color: var(--accent); text-decoration: none; padding: 8px 12px;
       border: 1px solid var(--border); border-radius: 8px; background: var(--panel2);
     }
-    .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
+    .pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }
     .pager button { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer; font: inherit; }
     .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pager-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .page-input {
+      width: 64px; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font: inherit; text-align: center;
+    }
+    .page-input:focus { outline: none; border-color: var(--accent); }
+    .feed-options {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-bottom: 10px; padding: 8px 12px;
+      background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    }
+    .feed-options label { font-size: 0.85rem; color: var(--muted); }
+    .sort-select {
+      min-width: 140px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font: inherit; cursor: pointer;
+    }
+    .sort-select:focus { outline: none; border-color: var(--accent); }
     .empty, .loading { color: var(--muted); padding: 40px 0; text-align: center; }
     .detail-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100;
@@ -195,6 +212,13 @@ function generateDashboardHTML(token, hoursLeft) {
           <button type="button" class="btn btn-primary" id="detailBtn" disabled>📊 <span data-i18n="details">Chi tiết</span></button>
         </div>
       </div>
+      <div class="feed-options">
+        <label for="msgSort" data-i18n="sortLabel">Thứ tự đọc tin</label>
+        <select id="msgSort" class="sort-select">
+          <option value="desc" data-i18n="sortNewest">Mới → Cũ</option>
+          <option value="asc" data-i18n="sortOldest">Cũ → Mới</option>
+        </select>
+      </div>
       <div class="feed-search">
         <input type="search" id="msgSearch" data-i18n="msgSearchPlaceholder" data-i18n-attr="placeholder" placeholder="Tìm nội dung, tên người gửi, @username..." autocomplete="off">
         <button type="button" class="btn btn-primary" id="msgSearchBtn">🔍 <span data-i18n="searchBtn">Tìm</span></button>
@@ -204,7 +228,12 @@ function generateDashboardHTML(token, hoursLeft) {
       <div id="feed"><div class="empty" data-i18n="selectGroupHint">Chọn nhóm bên trái để xem tin nhắn</div></div>
       <div class="pager" id="pager" style="display:none">
         <button type="button" id="prevBtn">← <span data-i18n="prev">Trước</span></button>
-        <span class="meta" id="pageInfo"></span>
+        <div class="pager-jump">
+          <span data-i18n="page">Trang</span>
+          <input type="number" class="page-input" id="pageInput" min="1" value="1">
+          <span class="meta" id="pageTotal">/ 1</span>
+          <button type="button" class="btn" id="pageGoBtn" data-i18n="pageGo">Đi</button>
+        </div>
         <button type="button" id="nextBtn"><span data-i18n="next">Sau</span> →</button>
       </div>
     </section>
@@ -242,6 +271,7 @@ function generateDashboardHTML(token, hoursLeft) {
     let msgStartDate = '';
     let msgEndDate = '';
     let msgSearchQuery = '';
+    let msgSortOrder = localStorage.getItem('messagelogs_sort') || 'desc';
     let detailStartDate = '';
     let detailEndDate = '';
     let searchDebounceTimer = null;
@@ -263,6 +293,12 @@ function generateDashboardHTML(token, hoursLeft) {
         if (attr) el.setAttribute(attr, t(key));
         else el.textContent = t(key);
       });
+      var sortEl = document.getElementById('msgSort');
+      if (sortEl && sortEl.options.length >= 2) {
+        sortEl.options[0].textContent = t('sortNewest');
+        sortEl.options[1].textContent = t('sortOldest');
+      }
+      updatePagerUi();
     }
     function setLang(next) {
       lang = next;
@@ -369,12 +405,35 @@ function generateDashboardHTML(token, hoursLeft) {
       await loadMessages();
     }
 
+    function updatePagerUi() {
+      var input = document.getElementById('pageInput');
+      var totalEl = document.getElementById('pageTotal');
+      if (!input) return;
+      input.max = String(totalPages);
+      input.value = String(page);
+      totalEl.textContent = t('pageOf') + ' ' + totalPages;
+      document.getElementById('prevBtn').disabled = page <= 1;
+      document.getElementById('nextBtn').disabled = page >= totalPages;
+    }
+    function goToPage(target) {
+      var n = parseInt(target, 10);
+      if (isNaN(n) || n < 1 || n > totalPages) {
+        alert(t('invalidPage') + ' (1-' + totalPages + ')');
+        updatePagerUi();
+        return;
+      }
+      page = n;
+      loadMessages();
+    }
+
     async function loadMessages() {
       if (!activeChatId) return;
       const feed = document.getElementById('feed');
       feed.innerHTML = '<div class="loading">' + t('loadingMessages') + '</div>';
+      msgSortOrder = document.getElementById('msgSort').value || msgSortOrder;
+      localStorage.setItem('messagelogs_sort', msgSortOrder);
       let url = '/api/messagelogs?token=' + encodeURIComponent(TOKEN) +
-        '&chatId=' + encodeURIComponent(activeChatId) + '&page=' + page + '&limit=30';
+        '&chatId=' + encodeURIComponent(activeChatId) + '&page=' + page + '&limit=30&sort=' + encodeURIComponent(msgSortOrder);
       if (msgStartDate) url += '&startDate=' + encodeURIComponent(msgStartDate);
       if (msgEndDate) url += '&endDate=' + encodeURIComponent(msgEndDate);
       if (msgSearchQuery) url += '&q=' + encodeURIComponent(msgSearchQuery);
@@ -382,11 +441,13 @@ function generateDashboardHTML(token, hoursLeft) {
       if (!res.ok) { feed.innerHTML = '<div class="empty">' + t('loadMessagesFail') + '</div>'; return; }
       const data = await res.json();
       totalPages = data.totalPages || 1;
+      if (page > totalPages) {
+        page = totalPages;
+        return loadMessages();
+      }
       updateSearchInfo(data.total || 0, msgSearchQuery);
       document.getElementById('pager').style.display = totalPages > 1 ? 'flex' : 'none';
-      document.getElementById('pageInfo').textContent = t('page') + ' ' + page + '/' + totalPages;
-      document.getElementById('prevBtn').disabled = page <= 1;
-      document.getElementById('nextBtn').disabled = page >= totalPages;
+      updatePagerUi();
       const msgs = data.messages || [];
       if (!msgs.length) {
         feed.innerHTML = '<div class="empty">' +
@@ -655,8 +716,19 @@ function generateDashboardHTML(token, hoursLeft) {
     }
 
     document.getElementById('groupSearch').addEventListener('input', e => renderGroups(e.target.value));
-    document.getElementById('prevBtn').addEventListener('click', () => { if (page > 1) { page -= 1; loadMessages(); } });
-    document.getElementById('nextBtn').addEventListener('click', () => { if (page < totalPages) { page += 1; loadMessages(); } });
+    document.getElementById('prevBtn').addEventListener('click', function() { if (page > 1) { page -= 1; loadMessages(); } });
+    document.getElementById('nextBtn').addEventListener('click', function() { if (page < totalPages) { page += 1; loadMessages(); } });
+    document.getElementById('pageGoBtn').addEventListener('click', function() {
+      goToPage(document.getElementById('pageInput').value);
+    });
+    document.getElementById('pageInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); goToPage(e.target.value); }
+    });
+    document.getElementById('msgSort').addEventListener('change', function() {
+      msgSortOrder = document.getElementById('msgSort').value;
+      page = 1;
+      loadMessages();
+    });
     document.getElementById('msgFilterBtn').addEventListener('click', () => {
       msgStartDate = document.getElementById('msgStartDate').value;
       msgEndDate = document.getElementById('msgEndDate').value;
@@ -702,6 +774,7 @@ function generateDashboardHTML(token, hoursLeft) {
 
     document.getElementById('langVi').addEventListener('click', function() { setLang('vi'); });
     document.getElementById('langZh').addEventListener('click', function() { setLang('zh'); });
+    document.getElementById('msgSort').value = msgSortOrder;
     applyStaticI18n();
     loadGroups();
   </script>
