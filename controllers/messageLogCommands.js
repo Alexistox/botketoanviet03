@@ -2,20 +2,7 @@ const crypto = require('crypto');
 const MessageLog = require('../models/MessageLog');
 const MessageLogsAuth = require('../models/MessageLogsAuth');
 const { isUserAdmin } = require('../utils/permissions');
-
-function getBaseUrl() {
-  if (process.env.SERVER_URL) {
-    return process.env.SERVER_URL.replace(/\/$/, '');
-  }
-  if (process.env.BASE_URL) {
-    return process.env.BASE_URL.replace(/\/$/, '');
-  }
-  if (process.env.HEROKU_APP_NAME) {
-    return `https://${process.env.HEROKU_APP_NAME}.herokuapp.com`;
-  }
-  const port = process.env.PORT || 3003;
-  return `http://localhost:${port}`;
-}
+const { getBaseUrl } = require('../utils/serverUrl');
 
 /**
  * /messagelogs — Admin/Owner: tạo token 24h và gửi link dashboard
@@ -61,6 +48,5 @@ const handleMessageLogsCommand = async (bot, msg) => {
 };
 
 module.exports = {
-  handleMessageLogsCommand,
-  getBaseUrl
+  handleMessageLogsCommand
 };

@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const BUTTONS2_PATH = path.join(__dirname, '../config/inline_buttons2.json');
 const messages = require('../src/messages/vi');
+const { getBaseUrl } = require('../utils/serverUrl');
 
 function readButtons2() {
   if (!fs.existsSync(BUTTONS2_PATH)) return [];
@@ -780,8 +781,7 @@ const handleGroupsCommand = async (bot, msg) => {
     }
     
     // Tạo URL website
-    const serverUrl = process.env.SERVER_URL || 'https://your-server.com';
-    const websiteUrl = `${serverUrl}/groups`;
+    const websiteUrl = `${getBaseUrl()}/groups`;
     
     // Tạo message với link
     const message = `
