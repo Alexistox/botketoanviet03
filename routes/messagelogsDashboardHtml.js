@@ -215,6 +215,11 @@ function generateDashboardHTML(token, hoursLeft) {
       if (isNaN(v)) return '0';
       return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
     }
+    function fmtRate(n, suffix) {
+      const v = Number(n);
+      if (isNaN(v) || v === 0) return '—';
+      return v.toLocaleString('vi-VN', { maximumFractionDigits: 4 }) + (suffix || '');
+    }
 
     async function loadGroups() {
       const res = await fetch('/api/messagelogs/groups?token=' + encodeURIComponent(TOKEN));
@@ -235,9 +240,12 @@ function generateDashboardHTML(token, hoursLeft) {
       if (!list.length) { el.innerHTML = '<div class="empty">Không có nhóm</div>'; return; }
       el.innerHTML = list.map(g => {
         const active = g.chatId === activeChatId ? ' active' : '';
+        const rateHint = g.hasBotData
+          ? ' · Rate ' + fmtRate(g.rate, '%') + ' · TG ' + fmtRate(g.exchangeRate)
+          : '';
         return '<button type="button" class="group-item' + active + '" data-id="' + escapeHtml(g.chatId) + '">' +
           '<div>' + escapeHtml(g.groupName || g.chatId) + '</div>' +
-          '<div class="count">' + g.count + ' tin · ' + escapeHtml(g.chatType || '') + '</div></button>';
+          '<div class="count">' + g.count + ' tin · ' + escapeHtml(g.chatType || '') + rateHint + '</div></button>';
       }).join('');
       el.querySelectorAll('.group-item').forEach(btn => {
         btn.addEventListener('click', () => selectGroup(btn.getAttribute('data-id')));
@@ -313,21 +321,47 @@ function generateDashboardHTML(token, hoursLeft) {
     }
 
     function renderDetailContent(data) {
+      if (!data.registered) {
+        document.getElementById('detailContent').innerHTML =
+          '<div class="stat-grid">' +
+          statCard('Chat ID', escapeHtml(data.chatId)) +
+          statCard('Tin nhắn log', fmtNum(data.messageLogCount)) +
+          '</div>' +
+          '<p class="meta" style="margin-top:12px">' + escapeHtml(data.hint || 'Nhóm chưa có dữ liệu kế toán.') + '</p>';
+        return;
+      }
+
       const g = data.group || {};
       const s = data.summary || {};
       const p = data.periodTotals || {};
       const hasFilter = data.filters && (data.filters.startDate || data.filters.endDate);
       const periodLabel = hasFilter ? ' (kỳ lọc)' : '';
+      const trs = data.transactionRateStats || {};
 
-      let html = '<div class="stat-grid">' +
+      let html = '<div class="section-title">Tỷ giá hiện tại (DB nhóm)</div><div class="stat-grid">' +
+        statCard('Rate', fmtRate(g.rate, '%')) +
+        statCard('Tỷ giá', fmtRate(g.exchangeRate)) +
+        statCard('WRate', fmtRate(g.wrate, '%')) +
+        statCard('WTỷ giá', fmtRate(g.wexchangeRate)) +
+        statCard('Loại tiền', escapeHtml(g.currency || 'USDT')) +
+        statCard('Định dạng số', escapeHtml(g.numberFormat || 'comma')) +
+        '</div>';
+
+      html += '<div class="section-title">Thống kê tỷ giá giao dịch (DB)</div><div class="stat-grid">' +
+        statCard('Rate TB', fmtRate(trs.avgRate, '%')) +
+        statCard('Rate min/max', fmtRate(trs.minRate, '%') + ' / ' + fmtRate(trs.maxRate, '%')) +
+        statCard('Tỷ giá TB', fmtRate(trs.avgExchangeRate)) +
+        statCard('TG min/max', fmtRate(trs.minExchangeRate) + ' / ' + fmtRate(trs.maxExchangeRate)) +
+        statCard('Số lệnh +/-', fmtNum(trs.count || 0)) +
+        '</div>';
+
+      html += '<div class="section-title">Tài chính tổng (DB nhóm)</div><div class="stat-grid">' +
         statCard('Tổng VND', fmtNum(g.totalVND)) +
+        statCard('Nạp VND', fmtNum(g.totalVNDPlus)) +
+        statCard('Rút VND', fmtNum(g.totalVNDMinus)) +
         statCard('Tổng USDT', fmtNum(g.totalUSDT), true) +
         statCard('Đã trả USDT', fmtNum(s.totalPaid)) +
         statCard('Còn lại USDT', fmtNum(s.remaining), true) +
-        statCard('Rate', fmtNum(g.rate)) +
-        statCard('Tỷ giá', fmtNum(g.exchangeRate)) +
-        statCard('WRate', fmtNum(g.wrate)) +
-        statCard('WTỷ giá', fmtNum(g.wexchangeRate)) +
         '</div>';
 
       if (hasFilter) {
@@ -340,10 +374,27 @@ function generateDashboardHTML(token, hoursLeft) {
           '</div>';
       }
 
+      html += '<div class="section-title">Lịch sử thay đổi tỷ giá (' + (data.rateHistory || []).length + ')</div>' +
+        '<table class="data-table"><thead><tr><th>Thời gian</th><th>Loại</th><th>Rate</th><th>Tỷ giá</th><th>Người</th></tr></thead><tbody>';
+      (data.rateHistory || []).forEach(r => {
+        html += '<tr><td class="meta">' + escapeHtml(formatTime(r.timestamp)) + '</td>' +
+          '<td>' + escapeHtml(r.typeLabel || r.type) + '</td>' +
+          '<td>' + fmtRate(r.rate, '%') + '</td>' +
+          '<td>' + fmtRate(r.exchangeRate) + '</td>' +
+          '<td>' + escapeHtml(r.senderName || '—') + '</td></tr>';
+      });
+      if (!(data.rateHistory || []).length) {
+        html += '<tr><td colspan="5" class="meta">Chưa có lịch sử /d, /d1, /d2 trong DB</td></tr>';
+      }
+      html += '</tbody></table>';
+
       html += '<div class="section-title">Thống kê loại giao dịch</div><table class="data-table"><thead><tr>' +
         '<th>Loại</th><th>Số lệnh</th><th>VND</th><th>USDT</th></tr></thead><tbody>';
       const types = data.statsByType || {};
-      const typeNames = { deposit: 'Nạp (+)', withdraw: 'Rút (-)', payment: 'Thanh toán (%)', clear: 'Start/Clear' };
+      const typeNames = {
+        deposit: 'Nạp (+)', withdraw: 'Rút (-)', payment: 'Thanh toán (%)',
+        clear: 'Start/Clear', setRate: 'Set Rate', setExchangeRate: 'Set Tỷ giá', setWRate: 'Set WRate'
+      };
       Object.keys(types).sort().forEach(t => {
         const row = types[t];
         html += '<tr><td>' + escapeHtml(typeNames[t] || t) + '</td><td>' + row.count + '</td>' +
@@ -351,6 +402,16 @@ function generateDashboardHTML(token, hoursLeft) {
       });
       if (!Object.keys(types).length) html += '<tr><td colspan="4" class="meta">Chưa có giao dịch</td></tr>';
       html += '</tbody></table>';
+
+      if ((data.cards || []).length) {
+        html += '<div class="section-title">Thẻ / mã thẻ (' + data.cards.length + ')</div>' +
+          '<table class="data-table"><thead><tr><th>Mã</th><th>Tổng</th><th>Đã trả</th><th>Còn</th><th>Limit</th></tr></thead><tbody>';
+        data.cards.forEach(c => {
+          html += '<tr><td>' + escapeHtml(c.cardCode) + '</td><td>' + fmtNum(c.total) + '</td>' +
+            '<td>' + fmtNum(c.paid) + '</td><td>' + fmtNum(c.remaining) + '</td><td>' + fmtNum(c.limit) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
 
       html += '<div class="section-title">Thành viên Telegram (' + (data.members || []).length + ')</div>' +
         '<table class="data-table"><thead><tr><th>Tên</th><th>Vai trò</th></tr></thead><tbody>';
@@ -371,16 +432,18 @@ function generateDashboardHTML(token, hoursLeft) {
       html += '</tbody></table>';
 
       html += '<div class="section-title">Tổng kết theo ngày</div><table class="data-table"><thead><tr>' +
-        '<th>Ngày</th><th>Nạp VND</th><th>Rút</th><th>USDT</th><th>Trả</th><th>Lệnh</th></tr></thead><tbody>';
+        '<th>Ngày</th><th>Nạp VND</th><th>Rút</th><th>USDT</th><th>Trả</th><th>Rate TB</th><th>TG TB</th><th>Lệnh</th></tr></thead><tbody>';
       (data.dailySummary || []).slice(0, 31).forEach(d => {
         html += '<tr><td>' + escapeHtml(d.date) + '</td>' +
           '<td>' + fmtNum(d.deposits && d.deposits.amount) + '</td>' +
           '<td>' + fmtNum(d.withdraws && d.withdraws.amount) + '</td>' +
           '<td>' + fmtNum(d.totalUSDT) + '</td>' +
           '<td>' + fmtNum(d.totalPaid) + '</td>' +
+          '<td>' + fmtRate(d.avgRate, '%') + '</td>' +
+          '<td>' + fmtRate(d.avgExchangeRate) + '</td>' +
           '<td>' + (d.transactionCount || 0) + '</td></tr>';
       });
-      if (!(data.dailySummary || []).length) html += '<tr><td colspan="6" class="meta">Không có dữ liệu</td></tr>';
+      if (!(data.dailySummary || []).length) html += '<tr><td colspan="8" class="meta">Không có dữ liệu</td></tr>';
       html += '</tbody></table>';
 
       if ((data.startHistory || []).length) {
@@ -391,8 +454,10 @@ function generateDashboardHTML(token, hoursLeft) {
         html += '</tbody></table>';
       }
 
-      html += '<p class="meta" style="margin-top:16px">Giao dịch trong kỳ: ' + fmtNum(data.transactionCount) +
-        ' · Thành viên nhóm: ' + fmtNum(data.memberCount) +
+      html += '<p class="meta" style="margin-top:16px">Chat ID: ' + escapeHtml(data.chatId) +
+        ' · Giao dịch: ' + fmtNum(data.transactionCount) +
+        ' · Tin log: ' + fmtNum(data.messageLogCount) +
+        ' · Thành viên: ' + fmtNum(data.memberCount) +
         (g.lastClearDate ? ' · Clear gần nhất: ' + formatTime(g.lastClearDate) : '') + '</p>';
 
       document.getElementById('detailContent').innerHTML = html;
@@ -411,7 +476,12 @@ function generateDashboardHTML(token, hoursLeft) {
       if (detailEndDate) url += '&endDate=' + encodeURIComponent(detailEndDate);
       const res = await fetch(url);
       if (!res.ok) {
-        document.getElementById('detailContent').innerHTML = '<div class="empty">Không tải được chi tiết nhóm</div>';
+        let msg = 'Không tải được chi tiết nhóm (HTTP ' + res.status + ')';
+        try {
+          const err = await res.json();
+          if (err.error) msg = err.error;
+        } catch (e) { /* ignore */ }
+        document.getElementById('detailContent').innerHTML = '<div class="empty">' + escapeHtml(msg) + '</div>';
         return;
       }
       const data = await res.json();

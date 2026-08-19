@@ -1,7 +1,10 @@
 const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
+const Card = require('../models/Card');
+const MessageLog = require('../models/MessageLog');
 
-function getBot() {
+function getBot(opts = {}) {
+  if (opts.bot) return opts.bot;
   try {
     return require('../app').bot || null;
   } catch (_) {
@@ -21,22 +24,81 @@ function buildDateFilter(startDate, endDate) {
   return ts;
 }
 
-/**
- * @param {string} chatId
- * @param {{ startDate?: string, endDate?: string }} opts
- */
-async function fetchGroupDetails(chatId, opts = {}) {
-  const { startDate, endDate } = opts;
-  const group = await Group.findOne({ chatId: String(chatId) }).lean();
-  if (!group) {
-    return null;
+/** Thử nhiều cách khớp chatId (string/number, -100…). */
+async function findGroupByChatId(chatId) {
+  const id = String(chatId);
+  let group = await Group.findOne({ chatId: id }).lean();
+  if (group) return group;
+
+  if (/^-?\d+$/.test(id)) {
+    group = await Group.findOne({ chatId: Number(id) }).lean();
+    if (group) return group;
   }
 
-  const bot = getBot();
-  let groupTitle = group.groupName || `Chat ${chatId}`;
+  const normalized = id.replace(/^-100/, '');
+  const candidates = await Group.find({}).lean();
+  for (const g of candidates) {
+    const gc = String(g.chatId);
+    if (gc === id || gc.replace(/^-100/, '') === normalized) {
+      return g;
+    }
+  }
+  return null;
+}
+
+async function getMessageLogMeta(chatId) {
+  const id = String(chatId);
+  const latest = await MessageLog.findOne({ chatId: id })
+    .sort({ timestamp: -1 })
+    .select('groupName chatType')
+    .lean();
+  const count = await MessageLog.countDocuments({ chatId: id });
+  return {
+    groupName: latest?.groupName || '',
+    chatType: latest?.chatType || '',
+    messageLogCount: count
+  };
+}
+
+/**
+ * @param {string} chatId
+ * @param {{ startDate?: string, endDate?: string, bot?: object }} opts
+ */
+async function fetchGroupDetails(chatId, opts = {}) {
+  const group = await findGroupByChatId(chatId);
+  const logMeta = await getMessageLogMeta(chatId);
+  const resolvedChatId = group ? String(group.chatId) : String(chatId);
+
+  if (!group) {
+    return {
+      chatId: resolvedChatId,
+      groupTitle: logMeta.groupName || `Chat ${resolvedChatId}`,
+      registered: false,
+      messageLogCount: logMeta.messageLogCount,
+      group: null,
+      summary: null,
+      periodTotals: null,
+      statsByType: {},
+      dailySummary: [],
+      members: [],
+      operators: [],
+      memberCount: 0,
+      transactionCount: 0,
+      rateHistory: [],
+      transactionRateStats: null,
+      cards: [],
+      startHistory: [],
+      filters: { startDate: opts.startDate || null, endDate: opts.endDate || null },
+      hint:
+        'Nhóm chưa có dữ liệu kế toán trong bot. Hãy dùng lệnh + hoặc /start trong nhóm Telegram trước.'
+    };
+  }
+
+  const bot = getBot(opts);
+  let groupTitle = group.groupName || logMeta.groupName || `Chat ${resolvedChatId}`;
   let memberCount = 0;
   let members = [];
-  let operators = (group.operators || []).map((op) => ({
+  const operators = (group.operators || []).map((op) => ({
     userId: op.userId,
     username: op.username || '',
     dateAdded: op.dateAdded,
@@ -47,14 +109,14 @@ async function fetchGroupDetails(chatId, opts = {}) {
 
   if (bot) {
     try {
-      const chatInfo = await bot.getChat(chatId);
+      const chatInfo = await bot.getChat(resolvedChatId);
       groupTitle = chatInfo.title || groupTitle;
-      memberCount = await bot.getChatMemberCount(chatId);
+      memberCount = await bot.getChatMemberCount(resolvedChatId);
     } catch (_) {
       /* ignore */
     }
     try {
-      const administrators = await bot.getChatAdministrators(chatId);
+      const administrators = await bot.getChatAdministrators(resolvedChatId);
       members = administrators.map((admin) => ({
         id: admin.user.id,
         username: admin.user.username || '',
@@ -72,7 +134,8 @@ async function fetchGroupDetails(chatId, opts = {}) {
     }
   }
 
-  const txFilter = { chatId: String(chatId), skipped: { $ne: true } };
+  const { startDate, endDate } = opts;
+  const txFilter = { chatId: resolvedChatId, skipped: { $ne: true } };
   const dateRange = buildDateFilter(startDate, endDate);
   if (dateRange) txFilter.timestamp = dateRange;
 
@@ -155,8 +218,8 @@ async function fetchGroupDetails(chatId, opts = {}) {
         count: item.count
       };
     }
-    summary[date].avgRate = item.avgRate || summary[date].avgRate;
-    summary[date].avgExchangeRate = item.avgExchangeRate || summary[date].avgExchangeRate;
+    if (item.avgRate) summary[date].avgRate = item.avgRate;
+    if (item.avgExchangeRate) summary[date].avgExchangeRate = item.avgExchangeRate;
     summary[date].transactionCount += item.count;
   });
 
@@ -175,19 +238,71 @@ async function fetchGroupDetails(chatId, opts = {}) {
   );
 
   const totalPaidAll = await Transaction.aggregate([
-    { $match: { chatId: String(chatId), type: 'payment', skipped: { $ne: true } } },
+    { $match: { chatId: resolvedChatId, type: 'payment', skipped: { $ne: true } } },
     { $group: { _id: null, total: { $sum: '$usdtAmount' } } }
   ]);
   const totalPaidAmount = totalPaidAll.length ? totalPaidAll[0].total : 0;
 
-  const startHistory = await Transaction.find({ chatId: String(chatId), type: 'clear' })
+  const rateHistoryRaw = await Transaction.find({
+    chatId: resolvedChatId,
+    type: { $in: ['setRate', 'setExchangeRate', 'setWRate'] }
+  })
+    .sort({ timestamp: -1 })
+    .limit(40)
+    .lean();
+
+  const rateHistory = rateHistoryRaw.map((t) => ({
+    type: t.type,
+    typeLabel:
+      t.type === 'setRate'
+        ? 'Rate (%)'
+        : t.type === 'setExchangeRate'
+          ? 'Tỷ giá'
+          : 'WRate / WTỷ giá',
+    rate: t.rate || 0,
+    exchangeRate: t.exchangeRate || 0,
+    message: t.message || t.details || '',
+    senderName: t.senderName || '',
+    timestamp: t.timestamp
+  }));
+
+  const txRateAgg = await Transaction.aggregate([
+    {
+      $match: {
+        chatId: resolvedChatId,
+        type: { $in: ['deposit', 'withdraw'] },
+        skipped: { $ne: true }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        count: { $sum: 1 },
+        avgRate: { $avg: '$rate' },
+        minRate: { $min: '$rate' },
+        maxRate: { $max: '$rate' },
+        avgExchangeRate: { $avg: '$exchangeRate' },
+        minExchangeRate: { $min: '$exchangeRate' },
+        maxExchangeRate: { $max: '$exchangeRate' }
+      }
+    }
+  ]);
+  const transactionRateStats = txRateAgg.length ? txRateAgg[0] : null;
+
+  const cards = await Card.find({ chatId: resolvedChatId, hidden: { $ne: true } })
+    .sort({ cardCode: 1 })
+    .lean();
+
+  const startHistory = await Transaction.find({ chatId: resolvedChatId, type: 'clear' })
     .sort({ timestamp: -1 })
     .limit(10)
     .lean();
 
   return {
-    chatId: String(chatId),
+    chatId: resolvedChatId,
     groupTitle,
+    registered: true,
+    messageLogCount: logMeta.messageLogCount,
     group: {
       totalVND: group.totalVND || 0,
       totalVNDPlus: group.totalVNDPlus || 0,
@@ -196,14 +311,15 @@ async function fetchGroupDetails(chatId, opts = {}) {
       totalUSDTPlus: group.totalUSDTPlus || 0,
       totalUSDTMinus: group.totalUSDTMinus || 0,
       usdtPaid: group.usdtPaid || 0,
-      remainingUSDT: group.remainingUSDT ?? group.totalUSDT - totalPaidAmount,
+      remainingUSDT: group.remainingUSDT ?? (group.totalUSDT || 0) - totalPaidAmount,
       rate: group.rate || 0,
       exchangeRate: group.exchangeRate || 0,
       wrate: group.wrate || 0,
       wexchangeRate: group.wexchangeRate || 0,
       currency: group.currency || 'USDT',
       lastClearDate: group.lastClearDate,
-      numberFormat: group.numberFormat || 'comma'
+      numberFormat: group.numberFormat || 'comma',
+      qrEnabled: group.qrEnabled || false
     },
     memberCount,
     members,
@@ -227,6 +343,15 @@ async function fetchGroupDetails(chatId, opts = {}) {
       wrate: group.wrate || 0,
       wexchangeRate: group.wexchangeRate || 0
     },
+    rateHistory,
+    transactionRateStats,
+    cards: cards.map((c) => ({
+      cardCode: c.cardCode,
+      total: c.total || 0,
+      paid: c.paid || 0,
+      limit: c.limit || 0,
+      remaining: (c.total || 0) - (c.paid || 0)
+    })),
     startHistory: startHistory.map((t) => ({
       date: t.timestamp.toISOString().split('T')[0],
       time: t.timestamp,
@@ -236,4 +361,4 @@ async function fetchGroupDetails(chatId, opts = {}) {
   };
 }
 
-module.exports = { fetchGroupDetails };
+module.exports = { fetchGroupDetails, findGroupByChatId };

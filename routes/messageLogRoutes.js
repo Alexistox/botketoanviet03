@@ -3,7 +3,7 @@ const router = express.Router();
 const MessageLog = require('../models/MessageLog');
 const MessageLogsAuth = require('../models/MessageLogsAuth');
 const { getDownloadLink } = require('../utils/telegramUtils');
-const { fetchGroupDetails } = require('../services/messagelogsGroupDetails');
+const { fetchGroupDetails, findGroupByChatId } = require('../services/messagelogsGroupDetails');
 const { generateDashboardHTML } = require('./messagelogsDashboardHtml');
 
 async function validateMessageLogsToken(token) {
@@ -63,13 +63,25 @@ router.get('/api/messagelogs/groups', async (req, res) => {
     ]);
 
     res.json({
-      groups: groups.map((g) => ({
-        chatId: g._id,
-        groupName: g.groupName || (g.chatType === 'private' ? 'Private DM' : g._id),
-        chatType: g.chatType || '',
-        count: g.count,
-        lastMessageAt: g.lastMessageAt
-      }))
+      groups: await Promise.all(
+        groups.map(async (g) => {
+          const botGroup = await findGroupByChatId(g._id);
+          return {
+            chatId: g._id,
+            groupName: g.groupName || (g.chatType === 'private' ? 'Private DM' : g._id),
+            chatType: g.chatType || '',
+            count: g.count,
+            lastMessageAt: g.lastMessageAt,
+            hasBotData: !!botGroup,
+            rate: botGroup?.rate || 0,
+            exchangeRate: botGroup?.exchangeRate || 0,
+            wrate: botGroup?.wrate || 0,
+            wexchangeRate: botGroup?.wexchangeRate || 0,
+            totalVND: botGroup?.totalVND || 0,
+            totalUSDT: botGroup?.totalUSDT || 0
+          };
+        })
+      )
     });
   } catch (error) {
     console.error('Error in /api/messagelogs/groups:', error);
@@ -150,11 +162,18 @@ router.get('/api/messagelogs/groups/:chatId/details', async (req, res) => {
 
     const data = await fetchGroupDetails(chatId, {
       startDate: req.query.startDate,
-      endDate: req.query.endDate
+      endDate: req.query.endDate,
+      bot: (() => {
+        try {
+          return require('../app').bot;
+        } catch (_) {
+          return null;
+        }
+      })()
     });
 
     if (!data) {
-      return res.status(404).json({ error: 'Group not found in bot database' });
+      return res.status(404).json({ error: 'Group not found' });
     }
 
     res.json(data);
