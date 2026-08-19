@@ -102,7 +102,7 @@ router.get('/api/messagelogs', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
     const skip = (page - 1) * limit;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, q } = req.query;
 
     const filter = { chatId: String(chatId) };
     if (startDate || endDate) {
@@ -113,6 +113,18 @@ router.get('/api/messagelogs', async (req, res) => {
         end.setHours(23, 59, 59, 999);
         filter.timestamp.$lte = end;
       }
+    }
+
+    const searchText = typeof q === 'string' ? q.trim() : '';
+    if (searchText) {
+      const escaped = searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped, 'i');
+      filter.$or = [
+        { content: re },
+        { senderName: re },
+        { username: re },
+        { senderId: re }
+      ];
     }
 
     const [total, messages] = await Promise.all([
@@ -129,6 +141,7 @@ router.get('/api/messagelogs', async (req, res) => {
       page,
       limit,
       totalPages: Math.ceil(total / limit) || 1,
+      query: searchText || null,
       messages: messages.map((m) => ({
         id: m._id,
         senderName: m.senderName || '',

@@ -129,6 +129,19 @@ function generateDashboardHTML(token, hoursLeft) {
       padding: 12px; margin-bottom: 16px;
     }
     .filter-bar .date-row { margin-top: 8px; }
+    .feed-search {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 14px; padding: 10px 12px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    }
+    .feed-search input {
+      flex: 1 1 220px; min-width: 180px;
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font: inherit;
+    }
+    .feed-search input:focus { outline: none; border-color: var(--accent); }
+    .feed-search .meta { flex: 1 1 100%; font-size: 0.8rem; }
+    mark.hl { background: rgba(255, 122, 0, 0.35); color: inherit; border-radius: 3px; padding: 0 2px; }
     .badge {
       display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem;
       background: var(--bg); border: 1px solid var(--border); color: var(--muted);
@@ -158,6 +171,12 @@ function generateDashboardHTML(token, hoursLeft) {
           </div>
           <button type="button" class="btn btn-primary" id="detailBtn" disabled>📊 Chi tiết</button>
         </div>
+      </div>
+      <div class="feed-search">
+        <input type="search" id="msgSearch" placeholder="Tìm nội dung, tên người gửi, @username..." autocomplete="off">
+        <button type="button" class="btn btn-primary" id="msgSearchBtn">🔍 Tìm</button>
+        <button type="button" class="btn" id="msgSearchClear" style="display:none">✕ Xóa</button>
+        <span class="meta" id="msgSearchInfo"></span>
       </div>
       <div id="feed"><div class="empty">Chọn nhóm bên trái để xem tin nhắn</div></div>
       <div class="pager" id="pager" style="display:none">
@@ -197,8 +216,10 @@ function generateDashboardHTML(token, hoursLeft) {
     let totalPages = 1;
     let msgStartDate = '';
     let msgEndDate = '';
+    let msgSearchQuery = '';
     let detailStartDate = '';
     let detailEndDate = '';
+    let searchDebounceTimer = null;
 
     function mediaUrl(fileId) {
       if (!fileId) return '';
@@ -219,6 +240,31 @@ function generateDashboardHTML(token, hoursLeft) {
       const v = Number(n);
       if (isNaN(v) || v === 0) return '—';
       return v.toLocaleString('vi-VN', { maximumFractionDigits: 4 }) + (suffix || '');
+    }
+    function escapeRegex(s) {
+      var special = '.*+?^$()|[]\\\\';
+      return String(s || '').split('').map(function(ch) {
+        if (special.indexOf(ch) >= 0 || ch === '{' || ch === '}') return '\\\\' + ch;
+        return ch;
+      }).join('');
+    }
+    function highlightText(text, query) {
+      const raw = String(text || '');
+      if (!query) return escapeHtml(raw);
+      const escaped = escapeHtml(raw);
+      const re = new RegExp('(' + escapeRegex(query) + ')', 'gi');
+      return escaped.replace(re, '<mark class="hl">$1</mark>');
+    }
+    function updateSearchInfo(total, query) {
+      const el = document.getElementById('msgSearchInfo');
+      const clearBtn = document.getElementById('msgSearchClear');
+      if (!query) {
+        el.textContent = '';
+        clearBtn.style.display = 'none';
+        return;
+      }
+      clearBtn.style.display = '';
+      el.textContent = 'Tìm "' + query + '": ' + total + ' kết quả';
     }
 
     async function loadGroups() {
@@ -255,6 +301,9 @@ function generateDashboardHTML(token, hoursLeft) {
     async function selectGroup(chatId) {
       activeChatId = chatId;
       page = 1;
+      msgSearchQuery = '';
+      document.getElementById('msgSearch').value = '';
+      updateSearchInfo(0, '');
       document.getElementById('detailBtn').disabled = false;
       renderGroups(document.getElementById('groupSearch').value);
       const g = groups.find(x => x.chatId === chatId);
@@ -271,16 +320,24 @@ function generateDashboardHTML(token, hoursLeft) {
         '&chatId=' + encodeURIComponent(activeChatId) + '&page=' + page + '&limit=30';
       if (msgStartDate) url += '&startDate=' + encodeURIComponent(msgStartDate);
       if (msgEndDate) url += '&endDate=' + encodeURIComponent(msgEndDate);
+      if (msgSearchQuery) url += '&q=' + encodeURIComponent(msgSearchQuery);
       const res = await fetch(url);
       if (!res.ok) { feed.innerHTML = '<div class="empty">Không tải được tin nhắn</div>'; return; }
       const data = await res.json();
       totalPages = data.totalPages || 1;
+      updateSearchInfo(data.total || 0, msgSearchQuery);
       document.getElementById('pager').style.display = totalPages > 1 ? 'flex' : 'none';
       document.getElementById('pageInfo').textContent = 'Trang ' + page + '/' + totalPages;
       document.getElementById('prevBtn').disabled = page <= 1;
       document.getElementById('nextBtn').disabled = page >= totalPages;
       const msgs = data.messages || [];
-      if (!msgs.length) { feed.innerHTML = '<div class="empty">Không có tin nhắn trong khoảng đã chọn</div>'; return; }
+      if (!msgs.length) {
+        feed.innerHTML = '<div class="empty">' +
+          (msgSearchQuery ? 'Không tìm thấy tin nhắn khớp "' + escapeHtml(msgSearchQuery) + '"' : 'Không có tin nhắn trong khoảng đã chọn') +
+          '</div>';
+        return;
+      }
+      const q = msgSearchQuery;
       feed.innerHTML = msgs.map(m => {
         let media = '';
         if (m.photoFileId || m.photoUrl) {
@@ -299,12 +356,12 @@ function generateDashboardHTML(token, hoursLeft) {
           const src = m.documentFileId ? mediaUrl(m.documentFileId) : m.documentUrl;
           media += '<a class="doc" href="' + escapeHtml(src) + '" target="_blank" rel="noopener">📄 Tài liệu</a>';
         }
-        const user = m.username ? '@' + escapeHtml(m.username) : '';
+        const user = m.username ? '@' + highlightText(m.username, q.replace(/^@/, '')) : '';
         return '<article class="msg"><div class="msg-head">' +
-          '<span class="msg-name">' + escapeHtml(m.senderName || 'Unknown') + '</span>' +
-          (user ? '<span class="msg-user">' + user + '</span>' : '') +
+          '<span class="msg-name">' + highlightText(m.senderName || 'Unknown', q) + '</span>' +
+          (m.username ? '<span class="msg-user">' + user + '</span>' : '') +
           '<span class="msg-time">' + escapeHtml(formatTime(m.timestamp)) + '</span></div>' +
-          (m.content ? '<div class="msg-body">' + escapeHtml(m.content) + '</div>' : '') +
+          (m.content ? '<div class="msg-body">' + highlightText(m.content, q) + '</div>' : '') +
           (media ? '<div class="msg-media">' + media + '</div>' : '') + '</article>';
       }).join('');
     }
@@ -495,6 +552,25 @@ function generateDashboardHTML(token, hoursLeft) {
     document.getElementById('msgFilterBtn').addEventListener('click', () => {
       msgStartDate = document.getElementById('msgStartDate').value;
       msgEndDate = document.getElementById('msgEndDate').value;
+      page = 1;
+      loadMessages();
+    });
+    function runMessageSearch() {
+      msgSearchQuery = document.getElementById('msgSearch').value.trim();
+      page = 1;
+      loadMessages();
+    }
+    document.getElementById('msgSearchBtn').addEventListener('click', runMessageSearch);
+    document.getElementById('msgSearch').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); runMessageSearch(); }
+    });
+    document.getElementById('msgSearch').addEventListener('input', () => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(runMessageSearch, 450);
+    });
+    document.getElementById('msgSearchClear').addEventListener('click', () => {
+      document.getElementById('msgSearch').value = '';
+      msgSearchQuery = '';
       page = 1;
       loadMessages();
     });
