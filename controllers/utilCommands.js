@@ -347,6 +347,7 @@ const handleHelpCommand = async (bot, chatId) => {
 /report - Xem báo cáo
 /repeat [text] - Lặp lại text (ví dụ: /repeat Hello World)
 
+
 *Lệnh QR Code:*
 /qr on - Bật tạo QR code tự động cho tin nhắn chuyển khoản
 /qr off - Tắt tạo QR code tự động

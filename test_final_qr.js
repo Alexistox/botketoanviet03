@@ -48,6 +48,15 @@ VTB
 500.000`
   },
 
+  // Nhãn ZH + dấu ； (semicolon fullwidth) + 下发
+  {
+    name: 'KV tiếng Trung — dấu ； + 下发',
+    input: `银行；VietinBank
+名字；NGUYEN THI YEN
+账号；100873099874
+下发；8693750vnd`
+  },
+
   // Nhãn ZH + số tiền có VND (plan)
   {
     name: 'KV tiếng Trung — 账号 / 金额',

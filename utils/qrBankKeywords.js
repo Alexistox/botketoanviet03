@@ -9,6 +9,17 @@ const normalizeLabelKey = (raw) =>
     .toLowerCase()
     .replace(/\s+/g, ' ');
 
+/** Dấu phân cách nhãn : value — hỗ trợ `:` `：` (fullwidth colon) và `；` (fullwidth semicolon). */
+const LABEL_VALUE_SEP = /[:：；]/;
+
+/** @returns {number} index của dấu phân cách (>0), hoặc -1 */
+const findLabelSeparatorIndex = (str) => {
+  const idx = String(str || '').search(LABEL_VALUE_SEP);
+  return idx > 0 ? idx : -1;
+};
+
+const hasLabelSeparator = (str) => findLabelSeparatorIndex(str) >= 0;
+
 /** @type {Map<string, 'account'|'bank'|'name'|'amount'|'note'>} */
 const LABEL_TO_FIELD = new Map();
 
@@ -81,6 +92,7 @@ register('name', [
 
 register('amount', [
   '金额',
+  '下发',
   'số tiền',
   'so tien',
   'amount',
@@ -130,7 +142,7 @@ const sortedLabelKeys = () =>
  */
 const matchSpaceSeparatedLine = (line) => {
   const trimmed = String(line || '').trim();
-  if (!trimmed || /[:：]/.test(trimmed)) return null;
+  if (!trimmed || hasLabelSeparator(trimmed)) return null;
   for (const key of sortedLabelKeys()) {
     const re = new RegExp(`^${escapeRegExp(key)}\\s+(.+)$`, 'iu');
     const m = trimmed.match(re);
@@ -145,5 +157,8 @@ module.exports = {
   normalizeLabelKey,
   matchLabelToField,
   matchSpaceSeparatedLine,
-  LABEL_TO_FIELD
+  LABEL_TO_FIELD,
+  LABEL_VALUE_SEP,
+  findLabelSeparatorIndex,
+  hasLabelSeparator
 };

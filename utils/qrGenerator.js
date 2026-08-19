@@ -1,6 +1,6 @@
 const { parseNumberWithUnits } = require('./formatter');
 const { findBankCode, BANK_MAPPING } = require('./bankMapping');
-const { matchLabelToField, matchSpaceSeparatedLine } = require('./qrBankKeywords');
+const { matchLabelToField, matchSpaceSeparatedLine, findLabelSeparatorIndex, hasLabelSeparator } = require('./qrBankKeywords');
 
 // Removed Sepay integration - only using VietQR now
 
@@ -114,9 +114,9 @@ const normalizeName = (name) => {
     .replace(/\s+/g, ' ');
 };
 
-const ACCOUNT_LINE_PREFIX = /^(卡号|账号|帐号)[：:]|^Card No[.:]|^card no[.:]|^Account[.:]|^account[.:]/i;
-const BANK_LINE_PREFIX = /^(银行名称|银行)[：:]|^Bank[.:]|^bank[.:]|^ngân hàng[：:]|^Ngân hàng[：:]/i;
-const NAME_LINE_PREFIX = /^(提款姓名|持卡人姓名|名字|姓名|Tên|tên|ten|Name|name)([:：]|\s+)/i;
+const ACCOUNT_LINE_PREFIX = /^(卡号|账号|帐号)[：:；]|^Card No[.:]|^card no[.:]|^Account[.:]|^account[.:]/i;
+const BANK_LINE_PREFIX = /^(银行名称|银行)[：:；]|^Bank[.:]|^bank[.:]|^ngân hàng[：:]|^Ngân hàng[：:]/i;
+const NAME_LINE_PREFIX = /^(提款姓名|持卡人姓名|名字|姓名|Tên|tên|ten|Name|name)([:：；]|\s+)/i;
 
 /** Dòng chỉ 1 ký tự (vd. số thứ tự "1") — bỏ qua khi nhận diện QR. */
 const isSkippableNoiseLine = (line) => String(line || '').trim().length === 1;
@@ -156,8 +156,8 @@ const findAmountBelowAccount = (lines, accountIndex, accountNumber) => {
   for (let i = accountIndex + 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (isSkippableNoiseLine(line)) continue;
-    if (/[:：]/.test(line)) {
-      const sep = line.search(/[:：]/);
+    if (hasLabelSeparator(line)) {
+      const sep = findLabelSeparatorIndex(line);
       if (matchLabelToField(line.slice(0, sep).trim())) continue;
     }
     if (matchSpaceSeparatedLine(line)) continue;
@@ -210,7 +210,7 @@ const extractLabeledFields = (message) => {
   for (const line of lines) {
     const segments = line.split('|').map((s) => s.trim()).filter(Boolean);
     for (const part of segments) {
-      const sep = part.search(/[:：]/);
+      const sep = findLabelSeparatorIndex(part);
       if (sep > 0) {
         const rawKey = part.slice(0, sep).trim();
         const value = part.slice(sep + 1).trim();
@@ -315,10 +315,9 @@ const scanUnlabeledAmountLine = (message, accountNumber) => {
   let bestDigit = null;
   for (const line of lines) {
     if (isSkippableNoiseLine(line)) continue;
-    if (/[:：]/.test(line)) {
-      const sep = line.search(/[:：]/);
-      const key = line.slice(0, sep).trim();
-      if (matchLabelToField(key)) continue;
+    if (hasLabelSeparator(line)) {
+      const sep = findLabelSeparatorIndex(line);
+      if (matchLabelToField(line.slice(0, sep).trim())) continue;
     }
     if (matchSpaceSeparatedLine(line)) continue;
 
@@ -346,8 +345,8 @@ const collectOrphanNumericRemarks = (message, accountNumber, amountNum) => {
   const parts = [];
   for (const line of lines) {
     if (matchSpaceSeparatedLine(line)) continue;
-    if (/[:：]/.test(line)) {
-      const sep = line.search(/[:：]/);
+    if (hasLabelSeparator(line)) {
+      const sep = findLabelSeparatorIndex(line);
       if (matchLabelToField(line.slice(0, sep).trim())) continue;
     }
     const c = line.replace(/\s+/g, '');
