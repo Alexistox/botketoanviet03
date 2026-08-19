@@ -60,6 +60,101 @@ async function getMessageLogMeta(chatId) {
   };
 }
 
+async function getChatParticipantsFromLogs(chatId) {
+  const rows = await MessageLog.aggregate([
+    { $match: { chatId: String(chatId), senderId: { $nin: ['', null] } } },
+    {
+      $group: {
+        _id: '$senderId',
+        fullName: { $last: '$senderName' },
+        username: { $last: '$username' },
+        messageCount: { $sum: 1 },
+        lastActive: { $max: '$timestamp' }
+      }
+    },
+    { $sort: { messageCount: -1, lastActive: -1 } }
+  ]);
+
+  return rows.map((r) => ({
+    senderId: String(r._id),
+    fullName: r.fullName || 'Unknown',
+    username: r.username || '',
+    telegramLink: r.username ? `https://t.me/${r.username}` : null,
+    messageCount: r.messageCount,
+    lastActive: r.lastActive,
+    roles: ['member']
+  }));
+}
+
+function mergeAllMembers(logParticipants, tgAdmins, operators) {
+  const map = new Map();
+
+  const upsert = (key, entry) => {
+    if (!key) return;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, {
+        senderId: entry.senderId || '',
+        fullName: entry.fullName || 'Unknown',
+        username: entry.username || '',
+        telegramLink: entry.telegramLink || (entry.username ? `https://t.me/${entry.username}` : null),
+        messageCount: entry.messageCount || 0,
+        lastActive: entry.lastActive || null,
+        roles: [...(entry.roles || [])]
+      });
+      return;
+    }
+    if (entry.username && !prev.username) {
+      prev.username = entry.username;
+      prev.telegramLink = `https://t.me/${entry.username}`;
+    }
+    if (entry.fullName && prev.fullName === 'Unknown') prev.fullName = entry.fullName;
+    if (entry.messageCount) prev.messageCount = Math.max(prev.messageCount, entry.messageCount);
+    if (entry.lastActive && (!prev.lastActive || entry.lastActive > prev.lastActive)) {
+      prev.lastActive = entry.lastActive;
+    }
+    (entry.roles || []).forEach((role) => {
+      if (!prev.roles.includes(role)) prev.roles.push(role);
+    });
+  };
+
+  logParticipants.forEach((p) => upsert(String(p.senderId), p));
+  tgAdmins.forEach((a) => {
+    upsert(String(a.id), {
+      senderId: String(a.id),
+      fullName: a.fullName,
+      username: a.username,
+      telegramLink: a.telegramLink,
+      messageCount: 0,
+      roles: [a.status === 'creator' ? 'creator' : 'admin']
+    });
+  });
+  operators.forEach((o) => {
+    upsert(String(o.userId || o.username), {
+      senderId: String(o.userId || ''),
+      fullName: o.fullName || o.username || 'Unknown',
+      username: o.username || '',
+      telegramLink: o.telegramLink,
+      messageCount: 0,
+      roles: ['operator']
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) => (b.messageCount || 0) - (a.messageCount || 0));
+}
+
+function extractUsernames(allMembers) {
+  const seen = new Set();
+  const list = [];
+  allMembers.forEach((m) => {
+    const u = (m.username || '').trim();
+    if (!u || seen.has(u.toLowerCase())) return;
+    seen.add(u.toLowerCase());
+    list.push(u);
+  });
+  return list.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
 /**
  * @param {string} chatId
  * @param {{ startDate?: string, endDate?: string, bot?: object }} opts
@@ -68,6 +163,9 @@ async function fetchGroupDetails(chatId, opts = {}) {
   const group = await findGroupByChatId(chatId);
   const logMeta = await getMessageLogMeta(chatId);
   const resolvedChatId = group ? String(group.chatId) : String(chatId);
+  const logParticipants = await getChatParticipantsFromLogs(resolvedChatId);
+  const allMembersPartial = mergeAllMembers(logParticipants, [], []);
+  const usernamesPartial = extractUsernames(allMembersPartial);
 
   if (!group) {
     return {
@@ -81,6 +179,8 @@ async function fetchGroupDetails(chatId, opts = {}) {
       statsByType: {},
       dailySummary: [],
       members: [],
+      allMembers: allMembersPartial,
+      usernames: usernamesPartial,
       operators: [],
       memberCount: 0,
       transactionCount: 0,
@@ -298,6 +398,9 @@ async function fetchGroupDetails(chatId, opts = {}) {
     .limit(10)
     .lean();
 
+  const allMembers = mergeAllMembers(logParticipants, members, operators);
+  const usernames = extractUsernames(allMembers);
+
   return {
     chatId: resolvedChatId,
     groupTitle,
@@ -323,6 +426,8 @@ async function fetchGroupDetails(chatId, opts = {}) {
     },
     memberCount,
     members,
+    allMembers,
+    usernames,
     operators,
     transactionCount,
     statsByType,

@@ -3,8 +3,11 @@
  * @param {string} token
  * @param {number} hoursLeft
  */
+const { getI18nBundle } = require('./messagelogsI18n');
+
 function generateDashboardHTML(token, hoursLeft) {
   const safeToken = String(token).replace(/[<>"'&]/g, '');
+  const i18nJson = JSON.stringify(getI18nBundle());
   return `<!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -31,6 +34,14 @@ function generateDashboardHTML(token, hoursLeft) {
       position: sticky; top: 0; z-index: 20;
     }
     header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .header-right { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .lang-switch { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .lang-btn {
+      background: var(--panel2); color: var(--muted); border: none; padding: 6px 12px;
+      cursor: pointer; font: inherit; font-size: 0.85rem;
+    }
+    .lang-btn.active { background: var(--accent); color: #fff; }
+    .lang-btn:hover:not(.active) { color: var(--text); }
     .meta { color: var(--muted); font-size: 0.875rem; }
     .layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 64px); }
     @media (max-width: 900px) {
@@ -142,6 +153,12 @@ function generateDashboardHTML(token, hoursLeft) {
     .feed-search input:focus { outline: none; border-color: var(--accent); }
     .feed-search .meta { flex: 1 1 100%; font-size: 0.8rem; }
     mark.hl { background: rgba(255, 122, 0, 0.35); color: inherit; border-radius: 3px; padding: 0 2px; }
+    .username-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .username-chip {
+      display: inline-block; padding: 4px 10px; border-radius: 999px;
+      background: var(--panel2); border: 1px solid var(--border); font-size: 0.82rem;
+    }
+    .username-chip a { color: var(--accent); text-decoration: none; }
     .badge {
       display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem;
       background: var(--bg); border: 1px solid var(--border); color: var(--muted);
@@ -150,39 +167,45 @@ function generateDashboardHTML(token, hoursLeft) {
 </head>
 <body>
   <header>
-    <h1>📋 Message Logs</h1>
-    <div class="meta">Token còn khoảng <strong id="hoursLeft">${hoursLeft}</strong> giờ</div>
+    <h1>📋 <span data-i18n="title">Message Logs</span></h1>
+    <div class="header-right">
+      <div class="lang-switch">
+        <button type="button" id="langVi" class="lang-btn active" data-i18n="langVi">Tiếng Việt</button>
+        <button type="button" id="langZh" class="lang-btn" data-i18n="langZh">中文</button>
+      </div>
+      <div class="meta"><span id="tokenHoursPrefix"></span><strong id="hoursLeft">${hoursLeft}</strong><span id="tokenHoursSuffix"></span></div>
+    </div>
   </header>
   <div class="layout">
     <aside class="sidebar">
-      <input class="search" id="groupSearch" type="search" placeholder="Tìm nhóm..." autocomplete="off">
-      <div id="groupList"><div class="loading">Đang tải nhóm...</div></div>
+      <input class="search" id="groupSearch" type="search" data-i18n="searchGroup" data-i18n-attr="placeholder" placeholder="Tìm nhóm..." autocomplete="off">
+      <div id="groupList"><div class="loading" data-i18n="loadingGroups">Đang tải nhóm...</div></div>
     </aside>
     <section class="main">
       <div class="feed-toolbar">
-        <h2 id="feedTitle">Chọn một nhóm</h2>
+        <h2 id="feedTitle" data-i18n="selectGroup">Chọn một nhóm</h2>
         <div class="toolbar-actions">
           <div class="date-row">
-            <label>Tin từ</label>
+            <label data-i18n="msgFrom">Tin từ</label>
             <input type="date" class="date-input" id="msgStartDate">
-            <label>đến</label>
+            <label data-i18n="msgTo">đến</label>
             <input type="date" class="date-input" id="msgEndDate">
-            <button type="button" class="btn" id="msgFilterBtn">Lọc tin</button>
+            <button type="button" class="btn" id="msgFilterBtn" data-i18n="filterMsg">Lọc tin</button>
           </div>
-          <button type="button" class="btn btn-primary" id="detailBtn" disabled>📊 Chi tiết</button>
+          <button type="button" class="btn btn-primary" id="detailBtn" disabled>📊 <span data-i18n="details">Chi tiết</span></button>
         </div>
       </div>
       <div class="feed-search">
-        <input type="search" id="msgSearch" placeholder="Tìm nội dung, tên người gửi, @username..." autocomplete="off">
-        <button type="button" class="btn btn-primary" id="msgSearchBtn">🔍 Tìm</button>
-        <button type="button" class="btn" id="msgSearchClear" style="display:none">✕ Xóa</button>
+        <input type="search" id="msgSearch" data-i18n="msgSearchPlaceholder" data-i18n-attr="placeholder" placeholder="Tìm nội dung, tên người gửi, @username..." autocomplete="off">
+        <button type="button" class="btn btn-primary" id="msgSearchBtn">🔍 <span data-i18n="searchBtn">Tìm</span></button>
+        <button type="button" class="btn" id="msgSearchClear" style="display:none">✕ <span data-i18n="clearBtn">Xóa</span></button>
         <span class="meta" id="msgSearchInfo"></span>
       </div>
-      <div id="feed"><div class="empty">Chọn nhóm bên trái để xem tin nhắn</div></div>
+      <div id="feed"><div class="empty" data-i18n="selectGroupHint">Chọn nhóm bên trái để xem tin nhắn</div></div>
       <div class="pager" id="pager" style="display:none">
-        <button type="button" id="prevBtn">← Trước</button>
+        <button type="button" id="prevBtn">← <span data-i18n="prev">Trước</span></button>
         <span class="meta" id="pageInfo"></span>
-        <button type="button" id="nextBtn">Sau →</button>
+        <button type="button" id="nextBtn"><span data-i18n="next">Sau</span> →</button>
       </div>
     </section>
   </div>
@@ -190,26 +213,28 @@ function generateDashboardHTML(token, hoursLeft) {
   <div class="detail-overlay" id="detailOverlay"></div>
   <aside class="detail-panel" id="detailPanel" aria-hidden="true">
     <div class="detail-head">
-      <h3 id="detailTitle">Chi tiết nhóm</h3>
-      <button type="button" class="btn" id="detailClose">✕</button>
+      <h3 id="detailTitle" data-i18n="detailTitle">Chi tiết nhóm</h3>
+      <button type="button" class="btn" id="detailClose" data-i18n="close">✕</button>
     </div>
     <div class="detail-body" id="detailBody">
       <div class="filter-bar">
-        <div class="meta">Lọc thống kê & giao dịch theo ngày</div>
+        <div class="meta" data-i18n="detailFilterHint">Lọc thống kê & giao dịch theo ngày</div>
         <div class="date-row">
           <input type="date" class="date-input" id="detailStartDate">
           <span class="meta">→</span>
           <input type="date" class="date-input" id="detailEndDate">
-          <button type="button" class="btn btn-primary" id="detailFilterBtn">Áp dụng</button>
-          <button type="button" class="btn" id="detailClearFilter">Xóa lọc</button>
+          <button type="button" class="btn btn-primary" id="detailFilterBtn" data-i18n="apply">Áp dụng</button>
+          <button type="button" class="btn" id="detailClearFilter" data-i18n="clearFilter">Xóa lọc</button>
         </div>
       </div>
-      <div id="detailContent"><div class="loading">Chọn nhóm và bấm Chi tiết</div></div>
+      <div id="detailContent"><div class="loading" data-i18n="loadingDetail">Đang tải...</div></div>
     </div>
   </aside>
 
   <script>
     const TOKEN = ${JSON.stringify(safeToken)};
+    const I18N = ${i18nJson};
+    let lang = localStorage.getItem('messagelogs_lang') || 'vi';
     let groups = [];
     let activeChatId = null;
     let page = 1;
@@ -220,6 +245,37 @@ function generateDashboardHTML(token, hoursLeft) {
     let detailStartDate = '';
     let detailEndDate = '';
     let searchDebounceTimer = null;
+    let lastDetailData = null;
+
+    function t(key) {
+      return (I18N[lang] && I18N[lang][key]) || I18N.vi[key] || key;
+    }
+    function applyStaticI18n() {
+      document.title = t('title');
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'vi';
+      document.getElementById('langVi').classList.toggle('active', lang === 'vi');
+      document.getElementById('langZh').classList.toggle('active', lang === 'zh');
+      document.getElementById('tokenHoursPrefix').textContent = t('tokenHours') + ' ';
+      document.getElementById('tokenHoursSuffix').textContent = ' ' + t('hours');
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        var key = el.getAttribute('data-i18n');
+        var attr = el.getAttribute('data-i18n-attr');
+        if (attr) el.setAttribute(attr, t(key));
+        else el.textContent = t(key);
+      });
+    }
+    function setLang(next) {
+      lang = next;
+      localStorage.setItem('messagelogs_lang', lang);
+      applyStaticI18n();
+      renderGroups(document.getElementById('groupSearch').value);
+      if (activeChatId) {
+        var g = groups.find(function(x) { return x.chatId === activeChatId; });
+        document.getElementById('feedTitle').textContent =
+          (g ? (g.groupName || activeChatId) : activeChatId) + (g ? ' · ' + g.count + ' ' + t('msgs') : '');
+      }
+      if (lastDetailData) renderDetailContent(lastDetailData);
+    }
 
     function mediaUrl(fileId) {
       if (!fileId) return '';
@@ -264,13 +320,14 @@ function generateDashboardHTML(token, hoursLeft) {
         return;
       }
       clearBtn.style.display = '';
-      el.textContent = 'Tìm "' + query + '": ' + total + ' kết quả';
+      el.textContent = t('searchFor') + ' "' + query + '": ' + total + ' ' + t('searchResults');
     }
 
     async function loadGroups() {
+      document.getElementById('groupList').innerHTML = '<div class="loading">' + t('loadingGroups') + '</div>';
       const res = await fetch('/api/messagelogs/groups?token=' + encodeURIComponent(TOKEN));
       if (!res.ok) {
-        document.getElementById('groupList').innerHTML = '<div class="empty">Không tải được nhóm</div>';
+        document.getElementById('groupList').innerHTML = '<div class="empty">' + t('loadGroupsFail') + '</div>';
         return;
       }
       const data = await res.json();
@@ -283,7 +340,7 @@ function generateDashboardHTML(token, hoursLeft) {
       const q = (filter || '').trim().toLowerCase();
       const list = groups.filter(g => !q || (g.groupName || '').toLowerCase().includes(q) || String(g.chatId).includes(q));
       const el = document.getElementById('groupList');
-      if (!list.length) { el.innerHTML = '<div class="empty">Không có nhóm</div>'; return; }
+      if (!list.length) { el.innerHTML = '<div class="empty">' + t('noGroups') + '</div>'; return; }
       el.innerHTML = list.map(g => {
         const active = g.chatId === activeChatId ? ' active' : '';
         const rateHint = g.hasBotData
@@ -308,32 +365,32 @@ function generateDashboardHTML(token, hoursLeft) {
       renderGroups(document.getElementById('groupSearch').value);
       const g = groups.find(x => x.chatId === chatId);
       document.getElementById('feedTitle').textContent =
-        (g ? (g.groupName || chatId) : chatId) + (g ? ' · ' + g.count + ' tin' : '');
+        (g ? (g.groupName || chatId) : chatId) + (g ? ' · ' + g.count + ' ' + t('msgs') : '');
       await loadMessages();
     }
 
     async function loadMessages() {
       if (!activeChatId) return;
       const feed = document.getElementById('feed');
-      feed.innerHTML = '<div class="loading">Đang tải tin nhắn...</div>';
+      feed.innerHTML = '<div class="loading">' + t('loadingMessages') + '</div>';
       let url = '/api/messagelogs?token=' + encodeURIComponent(TOKEN) +
         '&chatId=' + encodeURIComponent(activeChatId) + '&page=' + page + '&limit=30';
       if (msgStartDate) url += '&startDate=' + encodeURIComponent(msgStartDate);
       if (msgEndDate) url += '&endDate=' + encodeURIComponent(msgEndDate);
       if (msgSearchQuery) url += '&q=' + encodeURIComponent(msgSearchQuery);
       const res = await fetch(url);
-      if (!res.ok) { feed.innerHTML = '<div class="empty">Không tải được tin nhắn</div>'; return; }
+      if (!res.ok) { feed.innerHTML = '<div class="empty">' + t('loadMessagesFail') + '</div>'; return; }
       const data = await res.json();
       totalPages = data.totalPages || 1;
       updateSearchInfo(data.total || 0, msgSearchQuery);
       document.getElementById('pager').style.display = totalPages > 1 ? 'flex' : 'none';
-      document.getElementById('pageInfo').textContent = 'Trang ' + page + '/' + totalPages;
+      document.getElementById('pageInfo').textContent = t('page') + ' ' + page + '/' + totalPages;
       document.getElementById('prevBtn').disabled = page <= 1;
       document.getElementById('nextBtn').disabled = page >= totalPages;
       const msgs = data.messages || [];
       if (!msgs.length) {
         feed.innerHTML = '<div class="empty">' +
-          (msgSearchQuery ? 'Không tìm thấy tin nhắn khớp "' + escapeHtml(msgSearchQuery) + '"' : 'Không có tin nhắn trong khoảng đã chọn') +
+          (msgSearchQuery ? t('noSearchMatch') + ' "' + escapeHtml(msgSearchQuery) + '"' : t('noMessages')) +
           '</div>';
         return;
       }
@@ -354,7 +411,7 @@ function generateDashboardHTML(token, hoursLeft) {
         }
         if (m.documentFileId || m.documentUrl) {
           const src = m.documentFileId ? mediaUrl(m.documentFileId) : m.documentUrl;
-          media += '<a class="doc" href="' + escapeHtml(src) + '" target="_blank" rel="noopener">📄 Tài liệu</a>';
+          media += '<a class="doc" href="' + escapeHtml(src) + '" target="_blank" rel="noopener">📄 ' + t('document') + '</a>';
         }
         const user = m.username ? '@' + highlightText(m.username, q.replace(/^@/, '')) : '';
         return '<article class="msg"><div class="msg-head">' +
@@ -377,14 +434,64 @@ function generateDashboardHTML(token, hoursLeft) {
       document.getElementById('detailPanel').setAttribute('aria-hidden', 'true');
     }
 
+    function roleLabel(roles) {
+      if (!roles || !roles.length) return t('roleMember');
+      var labels = [];
+      if (roles.indexOf('creator') >= 0) labels.push(t('roleCreator'));
+      if (roles.indexOf('admin') >= 0) labels.push(t('roleAdmin'));
+      if (roles.indexOf('operator') >= 0) labels.push(t('roleOperator'));
+      if (roles.indexOf('member') >= 0 && labels.indexOf(t('roleMember')) < 0) labels.push(t('roleMember'));
+      return labels.length ? labels.join(', ') : t('roleMember');
+    }
+    function rateTypeLabel(type) {
+      if (type === 'setRate') return t('rateTypeSetRate');
+      if (type === 'setExchangeRate') return t('rateTypeSetEx');
+      if (type === 'setWRate') return t('rateTypeSetW');
+      return type || '—';
+    }
+    function txTypeLabel(type) {
+      var map = {
+        deposit: 'typeDeposit', withdraw: 'typeWithdraw', payment: 'typePayment',
+        clear: 'typeClear', setRate: 'typeSetRate', setExchangeRate: 'typeSetEx', setWRate: 'typeSetW'
+      };
+      return t(map[type] || type);
+    }
+    function renderMembersSection(data) {
+      var allMembers = data.allMembers || [];
+      var usernames = data.usernames || [];
+      var html = '<div class="section-title">' + t('allUsernames') + ' (' + usernames.length + ' ' + t('usernameCount') + ')</div>';
+      if (usernames.length) {
+        html += '<div class="username-list">';
+        usernames.forEach(function(u) {
+          html += '<span class="username-chip"><a href="https://t.me/' + escapeHtml(u) + '" target="_blank" rel="noopener">@' + escapeHtml(u) + '</a></span>';
+        });
+        html += '</div>';
+      } else {
+        html += '<p class="meta">' + t('noUsername') + '</p>';
+      }
+      html += '<div class="section-title">' + t('allMembers') + ' (' + allMembers.length + ')</div>';
+      html += '<table class="data-table"><thead><tr>' +
+        '<th>' + t('colName') + '</th><th>' + t('colUsername') + '</th><th>' + t('colMessages') + '</th><th>' + t('colRole') + '</th></tr></thead><tbody>';
+      allMembers.forEach(function(m) {
+        var uname = m.username
+          ? '<a href="' + escapeHtml(m.telegramLink || ('https://t.me/' + m.username)) + '" target="_blank" rel="noopener">@' + escapeHtml(m.username) + '</a>'
+          : '<span class="meta">' + t('noUsername') + '</span>';
+        html += '<tr><td>' + escapeHtml(m.fullName) + '</td><td>' + uname + '</td><td>' + fmtNum(m.messageCount || 0) + '</td><td><span class="badge">' + escapeHtml(roleLabel(m.roles)) + '</span></td></tr>';
+      });
+      if (!allMembers.length) html += '<tr><td colspan="4" class="meta">' + t('noData') + '</td></tr>';
+      html += '</tbody></table>';
+      return html;
+    }
+
     function renderDetailContent(data) {
       if (!data.registered) {
         document.getElementById('detailContent').innerHTML =
           '<div class="stat-grid">' +
-          statCard('Chat ID', escapeHtml(data.chatId)) +
-          statCard('Tin nhắn log', fmtNum(data.messageLogCount)) +
+          statCard(t('chatId'), escapeHtml(data.chatId)) +
+          statCard(t('messageLogs'), fmtNum(data.messageLogCount)) +
           '</div>' +
-          '<p class="meta" style="margin-top:12px">' + escapeHtml(data.hint || 'Nhóm chưa có dữ liệu kế toán.') + '</p>';
+          renderMembersSection(data) +
+          '<p class="meta" style="margin-top:12px">' + escapeHtml(t('unregisteredHint')) + '</p>';
         return;
       }
 
@@ -392,105 +499,104 @@ function generateDashboardHTML(token, hoursLeft) {
       const s = data.summary || {};
       const p = data.periodTotals || {};
       const hasFilter = data.filters && (data.filters.startDate || data.filters.endDate);
-      const periodLabel = hasFilter ? ' (kỳ lọc)' : '';
+      const periodLabel = hasFilter ? t('periodSuffix') : '';
       const trs = data.transactionRateStats || {};
 
-      let html = '<div class="section-title">Tỷ giá hiện tại (DB nhóm)</div><div class="stat-grid">' +
+      let html = renderMembersSection(data);
+
+      html += '<div class="section-title">' + t('currentRates') + '</div><div class="stat-grid">' +
         statCard('Rate', fmtRate(g.rate, '%')) +
-        statCard('Tỷ giá', fmtRate(g.exchangeRate)) +
+        statCard(t('colExchange'), fmtRate(g.exchangeRate)) +
         statCard('WRate', fmtRate(g.wrate, '%')) +
-        statCard('WTỷ giá', fmtRate(g.wexchangeRate)) +
-        statCard('Loại tiền', escapeHtml(g.currency || 'USDT')) +
-        statCard('Định dạng số', escapeHtml(g.numberFormat || 'comma')) +
+        statCard('W' + t('colExchange'), fmtRate(g.wexchangeRate)) +
+        statCard(t('currency'), escapeHtml(g.currency || 'USDT')) +
+        statCard(t('numberFormat'), escapeHtml(g.numberFormat || 'comma')) +
         '</div>';
 
-      html += '<div class="section-title">Thống kê tỷ giá giao dịch (DB)</div><div class="stat-grid">' +
-        statCard('Rate TB', fmtRate(trs.avgRate, '%')) +
-        statCard('Rate min/max', fmtRate(trs.minRate, '%') + ' / ' + fmtRate(trs.maxRate, '%')) +
-        statCard('Tỷ giá TB', fmtRate(trs.avgExchangeRate)) +
-        statCard('TG min/max', fmtRate(trs.minExchangeRate) + ' / ' + fmtRate(trs.maxExchangeRate)) +
-        statCard('Số lệnh +/-', fmtNum(trs.count || 0)) +
+      html += '<div class="section-title">' + t('txRateStats') + '</div><div class="stat-grid">' +
+        statCard(t('rateAvg'), fmtRate(trs.avgRate, '%')) +
+        statCard(t('rateMinMax'), fmtRate(trs.minRate, '%') + ' / ' + fmtRate(trs.maxRate, '%')) +
+        statCard(t('exAvg'), fmtRate(trs.avgExchangeRate)) +
+        statCard(t('exMinMax'), fmtRate(trs.minExchangeRate) + ' / ' + fmtRate(trs.maxExchangeRate)) +
+        statCard(t('orderCount'), fmtNum(trs.count || 0)) +
         '</div>';
 
-      html += '<div class="section-title">Tài chính tổng (DB nhóm)</div><div class="stat-grid">' +
-        statCard('Tổng VND', fmtNum(g.totalVND)) +
-        statCard('Nạp VND', fmtNum(g.totalVNDPlus)) +
-        statCard('Rút VND', fmtNum(g.totalVNDMinus)) +
-        statCard('Tổng USDT', fmtNum(g.totalUSDT), true) +
-        statCard('Đã trả USDT', fmtNum(s.totalPaid)) +
-        statCard('Còn lại USDT', fmtNum(s.remaining), true) +
+      html += '<div class="section-title">' + t('financeTotal') + '</div><div class="stat-grid">' +
+        statCard(t('totalVnd'), fmtNum(g.totalVND)) +
+        statCard(t('depositVnd'), fmtNum(g.totalVNDPlus)) +
+        statCard(t('withdrawVnd'), fmtNum(g.totalVNDMinus)) +
+        statCard(t('totalUsdt'), fmtNum(g.totalUSDT), true) +
+        statCard(t('paidUsdt'), fmtNum(s.totalPaid)) +
+        statCard(t('remainingUsdt'), fmtNum(s.remaining), true) +
         '</div>';
 
       if (hasFilter) {
-        html += '<div class="section-title">Tổng kỳ lọc' + periodLabel + '</div>' +
+        html += '<div class="section-title">' + t('periodTotal') + periodLabel + '</div>' +
           '<div class="stat-grid">' +
-          statCard('VND kỳ', fmtNum(p.totalVND)) +
-          statCard('USDT kỳ', fmtNum(p.totalUSDT), true) +
-          statCard('Trả kỳ', fmtNum(p.totalPaid)) +
-          statCard('Còn kỳ', fmtNum(p.remaining)) +
+          statCard(t('periodVnd'), fmtNum(p.totalVND)) +
+          statCard(t('periodUsdt'), fmtNum(p.totalUSDT), true) +
+          statCard(t('periodPaid'), fmtNum(p.totalPaid)) +
+          statCard(t('periodRemaining'), fmtNum(p.remaining)) +
           '</div>';
       }
 
-      html += '<div class="section-title">Lịch sử thay đổi tỷ giá (' + (data.rateHistory || []).length + ')</div>' +
-        '<table class="data-table"><thead><tr><th>Thời gian</th><th>Loại</th><th>Rate</th><th>Tỷ giá</th><th>Người</th></tr></thead><tbody>';
-      (data.rateHistory || []).forEach(r => {
+      html += '<div class="section-title">' + t('rateHistory') + ' (' + (data.rateHistory || []).length + ')</div>' +
+        '<table class="data-table"><thead><tr><th>' + t('colTime') + '</th><th>' + t('colType') + '</th><th>' + t('colRate') + '</th><th>' + t('colExchange') + '</th><th>' + t('colPerson') + '</th></tr></thead><tbody>';
+      (data.rateHistory || []).forEach(function(r) {
         html += '<tr><td class="meta">' + escapeHtml(formatTime(r.timestamp)) + '</td>' +
-          '<td>' + escapeHtml(r.typeLabel || r.type) + '</td>' +
+          '<td>' + escapeHtml(rateTypeLabel(r.type)) + '</td>' +
           '<td>' + fmtRate(r.rate, '%') + '</td>' +
           '<td>' + fmtRate(r.exchangeRate) + '</td>' +
           '<td>' + escapeHtml(r.senderName || '—') + '</td></tr>';
       });
       if (!(data.rateHistory || []).length) {
-        html += '<tr><td colspan="5" class="meta">Chưa có lịch sử /d, /d1, /d2 trong DB</td></tr>';
+        html += '<tr><td colspan="5" class="meta">' + t('noRateHistory') + '</td></tr>';
       }
       html += '</tbody></table>';
 
-      html += '<div class="section-title">Thống kê loại giao dịch</div><table class="data-table"><thead><tr>' +
-        '<th>Loại</th><th>Số lệnh</th><th>VND</th><th>USDT</th></tr></thead><tbody>';
+      html += '<div class="section-title">' + t('txTypeStats') + '</div><table class="data-table"><thead><tr>' +
+        '<th>' + t('colType') + '</th><th>' + t('colOrders') + '</th><th>' + t('colVnd') + '</th><th>' + t('colUsdt') + '</th></tr></thead><tbody>';
       const types = data.statsByType || {};
-      const typeNames = {
-        deposit: 'Nạp (+)', withdraw: 'Rút (-)', payment: 'Thanh toán (%)',
-        clear: 'Start/Clear', setRate: 'Set Rate', setExchangeRate: 'Set Tỷ giá', setWRate: 'Set WRate'
-      };
-      Object.keys(types).sort().forEach(t => {
-        const row = types[t];
-        html += '<tr><td>' + escapeHtml(typeNames[t] || t) + '</td><td>' + row.count + '</td>' +
+      Object.keys(types).sort().forEach(function(tp) {
+        const row = types[tp];
+        html += '<tr><td>' + escapeHtml(txTypeLabel(tp)) + '</td><td>' + row.count + '</td>' +
           '<td>' + fmtNum(row.totalAmount) + '</td><td>' + fmtNum(row.totalUsdt) + '</td></tr>';
       });
-      if (!Object.keys(types).length) html += '<tr><td colspan="4" class="meta">Chưa có giao dịch</td></tr>';
+      if (!Object.keys(types).length) html += '<tr><td colspan="4" class="meta">' + t('noTransactions') + '</td></tr>';
       html += '</tbody></table>';
 
       if ((data.cards || []).length) {
-        html += '<div class="section-title">Thẻ / mã thẻ (' + data.cards.length + ')</div>' +
-          '<table class="data-table"><thead><tr><th>Mã</th><th>Tổng</th><th>Đã trả</th><th>Còn</th><th>Limit</th></tr></thead><tbody>';
-        data.cards.forEach(c => {
+        html += '<div class="section-title">' + t('cards') + ' (' + data.cards.length + ')</div>' +
+          '<table class="data-table"><thead><tr><th>' + t('colCode') + '</th><th>' + t('colTotal') + '</th><th>' + t('colPaid') + '</th><th>' + t('colRemaining') + '</th><th>' + t('colLimit') + '</th></tr></thead><tbody>';
+        data.cards.forEach(function(c) {
           html += '<tr><td>' + escapeHtml(c.cardCode) + '</td><td>' + fmtNum(c.total) + '</td>' +
             '<td>' + fmtNum(c.paid) + '</td><td>' + fmtNum(c.remaining) + '</td><td>' + fmtNum(c.limit) + '</td></tr>';
         });
         html += '</tbody></table>';
       }
 
-      html += '<div class="section-title">Thành viên Telegram (' + (data.members || []).length + ')</div>' +
-        '<table class="data-table"><thead><tr><th>Tên</th><th>Vai trò</th></tr></thead><tbody>';
-      (data.members || []).forEach(m => {
-        const link = m.telegramLink ? '<a href="' + escapeHtml(m.telegramLink) + '" target="_blank" rel="noopener">' + escapeHtml(m.fullName) + '</a>' : escapeHtml(m.fullName);
-        html += '<tr><td>' + link + '</td><td><span class="badge">' + escapeHtml(m.statusText) + '</span></td></tr>';
+      html += '<div class="section-title">' + t('tgAdmins') + ' (' + (data.members || []).length + ')</div>' +
+        '<table class="data-table"><thead><tr><th>' + t('colName') + '</th><th>' + t('colUsername') + '</th><th>' + t('colRole') + '</th></tr></thead><tbody>';
+      (data.members || []).forEach(function(m) {
+        var nameLink = m.telegramLink ? '<a href="' + escapeHtml(m.telegramLink) + '" target="_blank" rel="noopener">' + escapeHtml(m.fullName) + '</a>' : escapeHtml(m.fullName);
+        var uname = m.username ? '@' + escapeHtml(m.username) : '—';
+        html += '<tr><td>' + nameLink + '</td><td>' + uname + '</td><td><span class="badge">' + escapeHtml(m.status === 'creator' ? t('roleCreator') : t('roleAdmin')) + '</span></td></tr>';
       });
-      if (!(data.members || []).length) html += '<tr><td colspan="2" class="meta">Không lấy được (bot cần quyền admin)</td></tr>';
+      if (!(data.members || []).length) html += '<tr><td colspan="3" class="meta">' + t('noAdmins') + '</td></tr>';
       html += '</tbody></table>';
 
-      html += '<div class="section-title">Operators bot (' + (data.operators || []).length + ')</div>' +
-        '<table class="data-table"><thead><tr><th>Username</th><th>Thêm</th></tr></thead><tbody>';
-      (data.operators || []).forEach(op => {
+      html += '<div class="section-title">' + t('operators') + ' (' + (data.operators || []).length + ')</div>' +
+        '<table class="data-table"><thead><tr><th>' + t('colUsername') + '</th><th>' + t('colAdded') + '</th></tr></thead><tbody>';
+      (data.operators || []).forEach(function(op) {
         const link = op.telegramLink ? '<a href="' + escapeHtml(op.telegramLink) + '" target="_blank" rel="noopener">@' + escapeHtml(op.username) + '</a>' : escapeHtml(op.username || '-');
         html += '<tr><td>' + link + '</td><td class="meta">' + escapeHtml(formatTime(op.dateAdded)) + '</td></tr>';
       });
-      if (!(data.operators || []).length) html += '<tr><td colspan="2" class="meta">Chưa có operator</td></tr>';
+      if (!(data.operators || []).length) html += '<tr><td colspan="2" class="meta">' + t('noOperators') + '</td></tr>';
       html += '</tbody></table>';
 
-      html += '<div class="section-title">Tổng kết theo ngày</div><table class="data-table"><thead><tr>' +
-        '<th>Ngày</th><th>Nạp VND</th><th>Rút</th><th>USDT</th><th>Trả</th><th>Rate TB</th><th>TG TB</th><th>Lệnh</th></tr></thead><tbody>';
-      (data.dailySummary || []).slice(0, 31).forEach(d => {
+      html += '<div class="section-title">' + t('dailySummary') + '</div><table class="data-table"><thead><tr>' +
+        '<th>' + t('colDate') + '</th><th>' + t('colDeposit') + '</th><th>' + t('colWithdraw') + '</th><th>' + t('colUsdt') + '</th><th>' + t('colPaidUsdt') + '</th><th>' + t('colAvgRate') + '</th><th>' + t('colAvgEx') + '</th><th>' + t('colOrders') + '</th></tr></thead><tbody>';
+      (data.dailySummary || []).slice(0, 31).forEach(function(d) {
         html += '<tr><td>' + escapeHtml(d.date) + '</td>' +
           '<td>' + fmtNum(d.deposits && d.deposits.amount) + '</td>' +
           '<td>' + fmtNum(d.withdraws && d.withdraws.amount) + '</td>' +
@@ -500,22 +606,22 @@ function generateDashboardHTML(token, hoursLeft) {
           '<td>' + fmtRate(d.avgExchangeRate) + '</td>' +
           '<td>' + (d.transactionCount || 0) + '</td></tr>';
       });
-      if (!(data.dailySummary || []).length) html += '<tr><td colspan="8" class="meta">Không có dữ liệu</td></tr>';
+      if (!(data.dailySummary || []).length) html += '<tr><td colspan="8" class="meta">' + t('noData') + '</td></tr>';
       html += '</tbody></table>';
 
       if ((data.startHistory || []).length) {
-        html += '<div class="section-title">Lịch sử Start (Clear)</div><table class="data-table"><thead><tr><th>Ngày</th><th>Người</th></tr></thead><tbody>';
-        data.startHistory.forEach(h => {
+        html += '<div class="section-title">' + t('startHistory') + '</div><table class="data-table"><thead><tr><th>' + t('colDate') + '</th><th>' + t('colPerson') + '</th></tr></thead><tbody>';
+        data.startHistory.forEach(function(h) {
           html += '<tr><td>' + escapeHtml(h.date) + '</td><td>' + escapeHtml(h.senderName) + '</td></tr>';
         });
         html += '</tbody></table>';
       }
 
-      html += '<p class="meta" style="margin-top:16px">Chat ID: ' + escapeHtml(data.chatId) +
-        ' · Giao dịch: ' + fmtNum(data.transactionCount) +
-        ' · Tin log: ' + fmtNum(data.messageLogCount) +
-        ' · Thành viên: ' + fmtNum(data.memberCount) +
-        (g.lastClearDate ? ' · Clear gần nhất: ' + formatTime(g.lastClearDate) : '') + '</p>';
+      html += '<p class="meta" style="margin-top:16px">' + t('chatId') + ': ' + escapeHtml(data.chatId) +
+        ' · ' + t('footerTx') + ': ' + fmtNum(data.transactionCount) +
+        ' · ' + t('footerLogs') + ': ' + fmtNum(data.messageLogCount) +
+        ' · ' + t('footerMembers') + ': ' + fmtNum(data.memberCount) +
+        (g.lastClearDate ? ' · ' + t('footerLastClear') + ': ' + formatTime(g.lastClearDate) : '') + '</p>';
 
       document.getElementById('detailContent').innerHTML = html;
     }
@@ -527,22 +633,24 @@ function generateDashboardHTML(token, hoursLeft) {
 
     async function loadGroupDetails() {
       if (!activeChatId) return;
-      document.getElementById('detailContent').innerHTML = '<div class="loading">Đang tải...</div>';
+      document.getElementById('detailContent').innerHTML = '<div class="loading">' + t('loadingDetail') + '</div>';
       let url = '/api/messagelogs/groups/' + encodeURIComponent(activeChatId) + '/details?token=' + encodeURIComponent(TOKEN);
       if (detailStartDate) url += '&startDate=' + encodeURIComponent(detailStartDate);
       if (detailEndDate) url += '&endDate=' + encodeURIComponent(detailEndDate);
       const res = await fetch(url);
       if (!res.ok) {
-        let msg = 'Không tải được chi tiết nhóm (HTTP ' + res.status + ')';
+        let msg = t('loadDetailFail') + ' (HTTP ' + res.status + ')';
         try {
           const err = await res.json();
           if (err.error) msg = err.error;
         } catch (e) { /* ignore */ }
         document.getElementById('detailContent').innerHTML = '<div class="empty">' + escapeHtml(msg) + '</div>';
+        lastDetailData = null;
         return;
       }
       const data = await res.json();
-      document.getElementById('detailTitle').textContent = 'Chi tiết · ' + (data.groupTitle || activeChatId);
+      lastDetailData = data;
+      document.getElementById('detailTitle').textContent = t('details') + ' · ' + (data.groupTitle || activeChatId);
       renderDetailContent(data);
     }
 
@@ -592,6 +700,9 @@ function generateDashboardHTML(token, hoursLeft) {
       loadGroupDetails();
     });
 
+    document.getElementById('langVi').addEventListener('click', function() { setLang('vi'); });
+    document.getElementById('langZh').addEventListener('click', function() { setLang('zh'); });
+    applyStaticI18n();
     loadGroups();
   </script>
 </body>
