@@ -316,10 +316,16 @@ const handleHelpCommand = async (bot, chatId) => {
 /start - Bắt đầu sử dụng bot
 /help - Hiển thị hướng dẫn này
 /off - Kết thúc phiên làm việc
+Start - xóa hết lịch sử giao dịch và thẻ để ghi lại từ đầu.(bắt đầu phiên làm việc mới)
 
 *Lệnh chuyển đổi tiền tệ:*
 /t [số] - Chuyển đổi VND sang USDT
 /v [số] - Chuyển đổi USDT sang VND
+
+*Lệnh subscription USDT (TRC20):*
+/plan hoặc /goi - Xem gói ngày/tháng/năm
+/subscribe day|month|year - Đăng ký và thanh toán USDT
+/mysub - Xem gói hiện tại và ngày hết hạn
 
 *Lệnh định dạng số:*
 /format A - Định dạng mặc định: có dấu phẩy (ví dụ: 1,000,000)
@@ -327,29 +333,31 @@ const handleHelpCommand = async (bot, chatId) => {
 
 *Lệnh quản lý:*
 /m [đơn vị] - Đặt đơn vị tiền tệ cho nhóm này (VND/USDT)
-/d [tỷ lệ] - Đặt tỷ lệ và tỷ giá
+/d [% vào tiền]/[Giá vào tiền] - Đặt tỷ lệ và tỷ giá
+/d2 [% rút tiền]/[Giá xuất tiền]
++[số tiền] (nạp tiền) nếu sau số tiền có kí tự thì bot sẽ tính riêng theo số tiền vào từng thẻ.
+%[số tiền] (thanh toán) nếu sau số tiền có kí tự thì bot sẽ tính riêng theo số tiền vào từng thẻ.
+-[số tiền] (rút tiền) nếu sau số tiền có kí tự thì bot sẽ tính riêng theo số tiền vào từng thẻ.
 /x [ID] - Ẩn thẻ
 /sx [ID] - Hiện thẻ
 /hiddenCards - Xem danh sách thẻ ẩn
 /delete [ID] - Xóa thẻ
+/skip [ID] - Bỏ qua thẻ khi ấn lệnh nhầm hoặc sai
 
 *Lệnh quản trị:*
-/ad [username] - Thêm quản trị viên
-/removead [username] - Xóa quản trị viên
-/admins - Xem danh sách quản trị viên
-/op [username] - Thêm người điều hành
-/removeop [username] - Xóa người điều hành
+/op [username] - Thêm người điều hành (cần gói subscription hoặc Admin)
+/removeop [username] - Xóa người điều hành (cần gói subscription hoặc Admin)
 /ops - Xem danh sách người điều hành
+/usdt2 [địa chỉ] - Đặt ví USDT nhận thanh toán gói (chỉ Owner)
 
 *Lệnh khác:*
-/u - Xem địa chỉ USDT
-/users - Xem danh sách người dùng
+/u - Xem địa chỉ USDT (kế toán nhóm)
 /report - Xem báo cáo
 /repeat [text] - Lặp lại text (ví dụ: /repeat Hello World)
 
 
 *Lệnh QR Code:*
-/qr on - Bật tạo QR code tự động cho tin nhắn chuyển khoản
+/qr on - Bật tạo QR code tự động cho tin nhắn chuyển khoản VN
 /qr off - Tắt tạo QR code tự động
 
 *Lệnh xử lý ảnh bill:*
@@ -359,7 +367,7 @@ const handleHelpCommand = async (bot, chatId) => {
 • Reply "2" vào ảnh bill → Lệnh %[số tiền] (thanh toán)
 • Reply "3" vào ảnh bill → Lệnh -[số tiền] (rút tiền)
 `;
-    bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    bot.sendMessage(chatId, helpMessage.trim());
   } catch (error) {
     console.error('Error in handleHelpCommand:', error);
     bot.sendMessage(chatId, messages.errorDisplayHelp);

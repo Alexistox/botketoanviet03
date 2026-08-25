@@ -126,10 +126,24 @@ const getCurrencyForGroup = async (chatId) => {
   }
 };
 
+/**
+ * Admin/Owner hoặc user có gói subscription còn hạn — được /op, /removeop, /ops
+ */
+const canManageGroupOperators = async (userId) => {
+  try {
+    const { hasActiveSubscription } = require('../services/subscriptionService');
+    return hasActiveSubscription(userId);
+  } catch (error) {
+    console.error('Error in canManageGroupOperators:', error);
+    return false;
+  }
+};
+
 module.exports = {
   isUserOwner,
   isUserAdmin,
   isUserOperator,
+  canManageGroupOperators,
   extractUserFromCommand,
   getCurrencyForGroup
 }; 

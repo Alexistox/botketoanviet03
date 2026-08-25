@@ -10,7 +10,10 @@ const ExcelJS = require('exceljs');
 // Import controllers và utils
 const { handleMessage } = require('./controllers/messageController');
 const { handleInlineButtonCallback } = require('./controllers/userCommands');
+const { handleSubscriptionCallback } = require('./controllers/subscriptionCommands');
 const { connectDB } = require('./config/db');
+const { seedSubscriptionPlans } = require('./services/subscriptionSeed');
+const { startUsdtWatcher } = require('./services/tronUsdtWatcher');
 const Group = require('./models/Group');
 const Transaction = require('./models/Transaction');
 const User = require('./models/User');
@@ -25,12 +28,20 @@ const app = express();
 app.use(express.json());
 app.use('/', messageLogRoutes);
 
-// Kết nối MongoDB
-connectDB();
-
-// Khởi tạo Telegram Bot
+// Kết nối MongoDB và khởi động subscription watcher
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
+
+connectDB().then(async () => {
+  try {
+    await seedSubscriptionPlans();
+    startUsdtWatcher(bot);
+  } catch (err) {
+    console.error('Subscription init error:', err.message);
+  }
+}).catch((err) => {
+  console.error('MongoDB connection failed:', err.message);
+});
 const messages = require('./src/messages/vi');
 
 // Xử lý tin nhắn
@@ -46,6 +57,10 @@ bot.on('message', async (msg) => {
 // Xử lý callback query từ inline keyboard
 bot.on('callback_query', async (callbackQuery) => {
   try {
+    if (callbackQuery.data?.startsWith('sub:')) {
+      await handleSubscriptionCallback(bot, callbackQuery);
+      return;
+    }
     await handleInlineButtonCallback(bot, callbackQuery);
   } catch (error) {
     console.error('Error handling callback query:', error);

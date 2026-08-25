@@ -34,6 +34,10 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  subscriptionIntroSent: {
+    type: Boolean,
+    default: false
+  },
   groupPermissions: [{
     chatId: String,
     isOperator: { type: Boolean, default: false }
@@ -230,8 +234,11 @@ const commandPermissions = {
   
   // Admin commands
   '/usdt': 'admin',
+  '/usdt2': 'owner',
   '/migrate': 'admin',
-  
+  '/setplan': 'admin',
+  '/grantsub': 'admin',
+
   // Operator commands
   '设置费率': 'operator',
   '设置汇率': 'operator',
@@ -253,6 +260,11 @@ const commandPermissions = {
   '/u': 'user',
   '/help': 'user',
   '/start': 'user',
+  '/st': 'user',
+  '/plan': 'user',
+  '/goi': 'user',
+  '/subscribe': 'user',
+  '/mysub': 'user',
   '/off': 'user',
   '/report': 'user',
   '结束': 'user'

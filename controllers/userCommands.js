@@ -3,7 +3,7 @@ const Group = require('../models/Group');
 const Config = require('../models/Config');
 const { isTrc20Address } = require('../utils/formatter');
 const { migrateUserGroupsToOperators } = require('../utils/dataConverter');
-const { isUserOwner, isUserAdmin, isUserOperator, extractUserFromCommand } = require('../utils/permissions');
+const { isUserOwner, isUserAdmin, isUserOperator, canManageGroupOperators, extractUserFromCommand } = require('../utils/permissions');
 const Transaction = require('../models/Transaction');
 const fs = require('fs');
 const path = require('path');
@@ -201,7 +201,7 @@ const handleListAdminsCommand = async (bot, msg) => {
 };
 
 /**
- * Xử lý lệnh thêm operator (/op) - Admin và Owner
+ * Xử lý lệnh thêm operator (/op) - Admin, Owner hoặc user có gói subscription
  */
 const handleAddOperatorInGroupCommand = async (bot, msg) => {
   try {
@@ -210,9 +210,8 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
     const senderName = msg.from.username || msg.from.first_name || 'unknown';
     const messageText = msg.text;
     
-    // Chỉ Admin và Owner có quyền thêm Operator
-    if (!await isUserAdmin(userId)) {
-      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền thêm điều hành viên!");
+    if (!(await canManageGroupOperators(userId))) {
+      bot.sendMessage(chatId, "⛔ Cần gói subscription còn hạn (hoặc quyền Admin) để thêm điều hành viên.\nDùng /plan hoặc /subscribe để đăng ký.");
       return;
     }
     
@@ -263,6 +262,7 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
       group.operators.push({
         userId: targetUser.userId,
         username: targetUser.username,
+        grantedByUserId: String(userId),
         dateAdded: new Date()
       });
       
@@ -296,7 +296,7 @@ const handleAddOperatorInGroupCommand = async (bot, msg) => {
 };
 
 /**
- * Xử lý lệnh xóa operator (/removeop) - Admin và Owner
+ * Xử lý lệnh xóa operator (/removeop) - Admin, Owner hoặc user có gói subscription
  */
 const handleRemoveOperatorInGroupCommand = async (bot, msg) => {
   try {
@@ -304,9 +304,8 @@ const handleRemoveOperatorInGroupCommand = async (bot, msg) => {
     const userId = msg.from.id;
     const messageText = msg.text;
     
-    // Chỉ Admin và Owner có quyền xóa Operator
-    if (!await isUserAdmin(userId)) {
-      bot.sendMessage(chatId, "⛔ Chỉ chủ sở hữu và quản trị viên mới có quyền xóa điều hành viên!");
+    if (!(await canManageGroupOperators(userId))) {
+      bot.sendMessage(chatId, "⛔ Cần gói subscription còn hạn (hoặc quyền Admin) để xóa điều hành viên.\nDùng /plan hoặc /subscribe để đăng ký.");
       return;
     }
     
@@ -572,6 +571,62 @@ const handleSetUsdtAddressCommand = async (bot, msg) => {
   } catch (error) {
     console.error('Error in handleSetUsdtAddressCommand:', error);
     bot.sendMessage(msg.chat.id, "Xử lý lệnh thiết lập địa chỉ USDT bị lỗi. Vui lòng thử lại sau.");
+  }
+};
+
+/**
+ * Xử lý lệnh thiết lập ví USDT cho subscription (/usdt2) — chỉ Owner
+ */
+const handleSetSubscriptionUsdtAddressCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const messageText = msg.text || msg.caption || '';
+
+    if (!(await isUserOwner(userId))) {
+      bot.sendMessage(chatId, "⛔ Chỉ Owner mới được dùng lệnh /usdt2.");
+      return;
+    }
+
+    const parts = messageText.split('/usdt2 ');
+    if (parts.length !== 2) {
+      bot.sendMessage(chatId, "ℹ️ Cú pháp: /usdt2 <địa chỉ TRC20>\n(Ví nhận thanh toán gói subscription)");
+      return;
+    }
+
+    const address = parts[1].trim();
+    if (!isTrc20Address(address)) {
+      bot.sendMessage(chatId, "❌ Địa chỉ TRC20 không hợp lệ! Địa chỉ phải bắt đầu bằng chữ T và có 34 ký tự.");
+      return;
+    }
+
+    let config = await Config.findOne({ key: 'SUBSCRIPTION_USDT_ADDRESS' });
+    const oldAddress = config ? config.value : null;
+
+    if (!config) {
+      config = new Config({ key: 'SUBSCRIPTION_USDT_ADDRESS', value: address });
+    } else {
+      config.value = address;
+    }
+
+    await config.save();
+
+    if (oldAddress) {
+      bot.sendMessage(
+        chatId,
+        "🔄 Đã cập nhật ví USDT nhận *subscription*:\n`" + address + "`\n\n(Lệnh /usdt vẫn dùng cho ví kế toán nhóm)",
+        { parse_mode: 'Markdown' }
+      );
+    } else {
+      bot.sendMessage(
+        chatId,
+        "✅ Đã lưu ví USDT nhận *subscription*:\n`" + address + "`\n\n(Lệnh /usdt vẫn dùng cho ví kế toán nhóm)",
+        { parse_mode: 'Markdown' }
+      );
+    }
+  } catch (error) {
+    console.error('Error in handleSetSubscriptionUsdtAddressCommand:', error);
+    bot.sendMessage(msg.chat.id, "Xử lý lệnh /usdt2 bị lỗi. Vui lòng thử lại sau.");
   }
 };
 
@@ -1493,6 +1548,7 @@ module.exports = {
   handleListUsersCommand,
   handleCurrencyUnitCommand,
   handleSetUsdtAddressCommand,
+  handleSetSubscriptionUsdtAddressCommand,
   handleGetUsdtAddressCommand,
   handleSetOwnerCommand,
   handleMigrateDataCommand,

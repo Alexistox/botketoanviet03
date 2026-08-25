@@ -71,6 +71,7 @@ const GroupSchema = new mongoose.Schema({
     type: [{
       userId: String,
       username: String,
+      grantedByUserId: { type: String, default: '' },
       dateAdded: {
         type: Date,
         default: Date.now

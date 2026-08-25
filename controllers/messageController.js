@@ -8,7 +8,7 @@ const {
   isTrc20Address,
   formatTelegramMessage
 } = require('../utils/formatter');
-const { isUserOwner, isUserAdmin, isUserOperator } = require('../utils/permissions');
+const { isUserOwner, isUserAdmin, isUserOperator, canManageGroupOperators } = require('../utils/permissions');
 const { parseBankTransferMessage } = require('../utils/bankParser');
 const messages = require('../src/messages/vi');
 
@@ -73,6 +73,7 @@ const {
   handleListUsersCommand,
   handleCurrencyUnitCommand,
   handleSetUsdtAddressCommand,
+  handleSetSubscriptionUsdtAddressCommand,
   handleGetUsdtAddressCommand,
   handleSetOwnerCommand,
   handleMigrateDataCommand,
@@ -96,6 +97,19 @@ const {
   handleShowCardCommand,
   handleListHiddenCardsCommand
 } = require('./cardCommands');
+
+const {
+  handlePlanCommand,
+  handleSubscribeCommand,
+  handleMysubCommand,
+  handleSetplanCommand,
+  handleGrantsubCommand,
+  sendSubscriptionIntro,
+  sendMainReplyKeyboard,
+  handleReplyMenuAction
+} = require('./subscriptionCommands');
+
+const { enforceSubscriptionGate } = require('../utils/subscriptionGate');
 
 // Hàm xử lý tin nhắn chính
 const handleMessage = async (bot, msg, cache) => {
@@ -122,6 +136,8 @@ const handleMessage = async (bot, msg, cache) => {
       await handleStartCommand(bot, chatId);
       return;
     }
+
+    await checkAndRegisterUser(userId, username, firstName, lastName, bot, chatId);
     
     // Xử lý thành viên mới tham gia nhóm
     if (msg.new_chat_members) {
@@ -135,6 +151,7 @@ const handleMessage = async (bot, msg, cache) => {
     // Xử lý các lệnh liên quan đến ảnh
     if (msg.photo) {
       if (msg.caption && msg.caption === ('/c')) {
+        if (await enforceSubscriptionGate(bot, chatId, userId, msg.caption, msg)) return;
         await handleImageBankInfo(bot, msg);
         return;
       }
@@ -145,6 +162,7 @@ const handleMessage = async (bot, msg, cache) => {
         
         // Kiểm tra lệnh + trong caption
         if (caption.startsWith('+')) {
+          if (await enforceSubscriptionGate(bot, chatId, userId, caption, msg)) return;
           // Kiểm tra quyền Operator
           if (await isUserOperator(userId, chatId)) {
             // Tạo tin nhắn giả với caption làm text để xử lý
@@ -163,6 +181,7 @@ const handleMessage = async (bot, msg, cache) => {
         
         // Kiểm tra lệnh - trong caption
         if (caption.startsWith('-')) {
+          if (await enforceSubscriptionGate(bot, chatId, userId, caption, msg)) return;
           // Kiểm tra quyền Operator
           if (await isUserOperator(userId, chatId)) {
             // Tạo tin nhắn giả với caption làm text để xử lý
@@ -181,6 +200,7 @@ const handleMessage = async (bot, msg, cache) => {
         
         // Kiểm tra lệnh % hoặc 下发 trong caption
         if (caption.startsWith('%') || caption.startsWith('下发')) {
+          if (await enforceSubscriptionGate(bot, chatId, userId, caption, msg)) return;
           // Kiểm tra quyền Operator
           if (await isUserOperator(userId, chatId)) {
             // Tạo tin nhắn giả với caption làm text để xử lý
@@ -201,12 +221,14 @@ const handleMessage = async (bot, msg, cache) => {
     
     // Xử lý khi người dùng reply một tin nhắn có ảnh
     if (msg.reply_to_message && msg.reply_to_message.photo && msg.text && msg.text === ('/c')) {
+      if (await enforceSubscriptionGate(bot, chatId, userId, msg.text, msg)) return;
       await handleReplyImageBankInfo(bot, msg);
       return;
     }
     
     // Reply "1" / "2" / "3" vào ảnh bill (pic mode) — kiểm tra ảnh trước để không nhầm với tin có caption
     if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2' || messageText.trim() === '3')) {
+      if (await enforceSubscriptionGate(bot, chatId, userId, messageText.trim(), msg)) return;
       await handleBillImageReply(bot, msg);
       return;
     }
@@ -214,6 +236,7 @@ const handleMessage = async (bot, msg, cache) => {
     // Reply "1" / "2" / "3" vào tin text hoặc caption (thông báo CK ngân hàng dạng chữ)
     const bankSmsParentBody = msg.reply_to_message && (msg.reply_to_message.text || msg.reply_to_message.caption);
     if (msg.reply_to_message && bankSmsParentBody && /^[123]$/.test(messageText.trim())) {
+      if (await enforceSubscriptionGate(bot, chatId, userId, messageText.trim(), msg)) return;
       await handleBankTransferReply(bot, msg);
       return;
     }
@@ -222,9 +245,15 @@ const handleMessage = async (bot, msg, cache) => {
     if (!msg.text && !msg.caption) {
       return;
     }
-    
-    // Kiểm tra và đăng ký người dùng mới + phát hiện đổi tên/username
-    await checkAndRegisterUser(userId, username, firstName, lastName, bot, chatId);
+
+    if (await enforceSubscriptionGate(bot, chatId, userId, messageText, msg)) {
+      return;
+    }
+
+    // Menu reply keyboard (chỉ DM — bấm nút thay lệnh)
+    if (chatId > 0 && await handleReplyMenuAction(bot, msg)) {
+      return;
+    }
     
     // Xử lý các lệnh tiếng Trung
     if (messageText === '上课' || messageText === 'start' || messageText === 'Start'|| messageText === 'Bắt đầu') {
@@ -315,8 +344,7 @@ const handleMessage = async (bot, msg, cache) => {
     
     // Lệnh quản lý operators
     if (messageText.startsWith('设置操作')) {
-      // Kiểm tra quyền Admin
-      if (await isUserAdmin(userId)) {
+      if (await canManageGroupOperators(userId)) {
         // Chuyển đổi tin nhắn để sử dụng lệnh /op
         const modifiedMsg = { ...msg };
         const prefixLength = messageText.startsWith('设置操作') ? 4 : 5;
@@ -330,8 +358,7 @@ const handleMessage = async (bot, msg, cache) => {
     }
     
     if (messageText.startsWith('删除操作')) {
-      // Kiểm tra quyền Admin
-      if (await isUserAdmin(userId)) {
+      if (await canManageGroupOperators(userId)) {
         // Chuyển đổi tin nhắn để sử dụng lệnh /removeop
         const modifiedMsg = { ...msg };
         // Xác định độ dài prefix
@@ -349,11 +376,39 @@ const handleMessage = async (bot, msg, cache) => {
     if (messageText.startsWith('/')) {
       if (messageText === '/start') {
         bot.sendMessage(chatId, "Chào mừng bạn đến với bot！");
+        if (chatId > 0) {
+          await sendMainReplyKeyboard(bot, chatId);
+        }
         return;
       }
       
       if (messageText === '/help') {
         await handleHelpCommand(bot, chatId);
+        return;
+      }
+
+      if (messageText === '/plan' || messageText === '/goi') {
+        await handlePlanCommand(bot, msg);
+        return;
+      }
+
+      if (messageText.startsWith('/subscribe')) {
+        await handleSubscribeCommand(bot, msg);
+        return;
+      }
+
+      if (messageText === '/mysub') {
+        await handleMysubCommand(bot, msg);
+        return;
+      }
+
+      if (messageText.startsWith('/setplan ')) {
+        await handleSetplanCommand(bot, msg);
+        return;
+      }
+
+      if (messageText.startsWith('/grantsub ')) {
+        await handleGrantsubCommand(bot, msg);
         return;
       }
       
@@ -566,6 +621,11 @@ const handleMessage = async (bot, msg, cache) => {
         } else {
           bot.sendMessage(chatId, messages.adminOnly);
         }
+        return;
+      }
+
+      if (messageText.startsWith('/usdt2 ')) {
+        await handleSetSubscriptionUsdtAddressCommand(bot, msg);
         return;
       }
       
@@ -830,14 +890,14 @@ const checkAndRegisterUser = async (userId, username, firstName, lastName, bot, 
       const hasFirstChanged = (firstName || '') !== oldFirst;
       const hasLastChanged = (lastName || '') !== oldLast;
       
-      if (hasUsernameChanged || hasFirstChanged || hasLastChanged) {
+      if (hasUsernameChanged || hasLastChanged || hasFirstChanged) {
         user.username = username;
         user.firstName = firstName;
         user.lastName = lastName;
         await user.save();
         
         // Thông báo trong nhóm (nếu có chatId & bot)
-        if (bot && chatId) {
+        if (bot && chatId && chatId < 0) {
           const oldName = `${oldFirst} ${oldLast}`.trim() || '(Không tên)';
           const newName = `${firstName || ''} ${lastName || ''}`.trim() || '(Không tên)';
           const oldU = oldUsername ? `@${oldUsername}` : '(không username)';
@@ -863,6 +923,23 @@ const checkAndRegisterUser = async (userId, username, firstName, lastName, bot, 
           } catch (_) {
             // ignore send errors
           }
+        }
+      }
+
+      // Giới thiệu gói subscription lần đầu nhắn bot (chỉ DM, bỏ qua Owner/Admin)
+      if (
+        bot &&
+        chatId > 0 &&
+        !user.subscriptionIntroSent &&
+        !user.isOwner &&
+        !user.isAdmin
+      ) {
+        try {
+          await sendSubscriptionIntro(bot, chatId);
+          user.subscriptionIntroSent = true;
+          await user.save();
+        } catch (introErr) {
+          console.warn('Could not send subscription intro:', introErr.message);
         }
       }
     }
