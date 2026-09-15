@@ -73,7 +73,33 @@ const logMessage = async (msg, botToken, MessageLog) => {
   }
 };
 
+const CHAT_ACTION_REFRESH_MS = 4000;
+
+const sendChatActionSafe = (bot, chatId, action) => {
+  return bot.sendChatAction(chatId, action).catch(() => {});
+};
+
+/**
+ * Chạy asyncFn trong khi gửi sendChatAction định kỳ (typing ~5s mỗi lần trên Telegram).
+ */
+const runWithChatAction = async (bot, chatId, asyncFn, options = {}) => {
+  const action = options.action || 'typing';
+  const intervalMs = options.intervalMs || CHAT_ACTION_REFRESH_MS;
+
+  await sendChatActionSafe(bot, chatId, action);
+  const timer = setInterval(() => {
+    sendChatActionSafe(bot, chatId, action);
+  }, intervalMs);
+
+  try {
+    return await asyncFn();
+  } finally {
+    clearInterval(timer);
+  }
+};
+
 module.exports = {
   getDownloadLink,
-  logMessage
+  logMessage,
+  runWithChatAction
 };

@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { extractBankInfoFromImage, extractAmountFromBill } = require('../utils/openai');
-const { getDownloadLink, logMessage } = require('../utils/telegramUtils');
+const { getDownloadLink, logMessage, runWithChatAction } = require('../utils/telegramUtils');
 const { 
   formatRateValue, 
   isMathExpression, 
@@ -1029,61 +1029,46 @@ const handleBillImageReply = async (bot, msg) => {
       return;
     }
     
-    // Gửi thông báo đang xử lý và lưu message ID để xóa sau
-    const processingMessage = await bot.sendMessage(chatId, "🔄 Đang xử lý ảnh bill...");
-    
-    // Lấy ảnh từ Telegram
-    const photo = repliedMsg.photo[repliedMsg.photo.length - 1]; // Lấy ảnh có độ phân giải cao nhất
-    const fileLink = await getDownloadLink(photo.file_id, process.env.TELEGRAM_BOT_TOKEN);
-    
-    if (!fileLink) {
-      // Xóa thông báo đang xử lý
-      bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
-      bot.sendMessage(chatId, "❌ Không thể tải ảnh!");
-      return;
-    }
-    
-    // Tải ảnh
-    const imageResponse = await axios.get(fileLink, { responseType: 'arraybuffer' });
-    const imageBuffer = Buffer.from(imageResponse.data);
-    
-    // Trích xuất số tiền từ ảnh
-    const billInfo = await extractAmountFromBill(imageBuffer);
-    
-    if (!billInfo || !billInfo.amount) {
-      // Xóa thông báo đang xử lý
-      bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
-      bot.sendMessage(chatId, "❌ Không thể trích xuất số tiền từ ảnh! Vui lòng thử lại hoặc nhập thủ công.");
-      return;
-    }
-    
+    const photo = repliedMsg.photo[repliedMsg.photo.length - 1];
     const billPhotoMessageId = repliedMsg.message_id;
 
-    // Tạo tin nhắn giả với lệnh +, % hoặc — replyToMessageId để mọi tin bot gửi bám vào ảnh bill
-    const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
-    const fakeMsg = {
-      ...msg,
-      text: `${command}${billInfo.amount}`,
-      reply_to_message: undefined,
-      replyToMessageId: billPhotoMessageId
-    };
-    
-    // Xóa thông báo đang xử lý
-    bot.deleteMessage(chatId, processingMessage.message_id).catch(() => {});
+    await runWithChatAction(bot, chatId, async () => {
+      const fileLink = await getDownloadLink(photo.file_id, process.env.TELEGRAM_BOT_TOKEN);
 
-    // Thực hiện lệnh +, % hoặc - tương ứng
-    if (replyText === '1') {
-      const { handlePlusCommand } = require('./transactionCommands');
-      await handlePlusCommand(bot, fakeMsg);
-    } else if (replyText === '2') {
-      const { handlePercentCommand } = require('./transactionCommands');
-      await handlePercentCommand(bot, fakeMsg);
-    } else {
-      const { handleMinusCommand } = require('./transactionCommands');
-      await handleMinusCommand(bot, fakeMsg);
-    }
+      if (!fileLink) {
+        bot.sendMessage(chatId, '❌ Không thể tải ảnh!');
+        return;
+      }
 
-    // Xóa tin nhắn lệnh "1" / "2" / "3" của người dùng
+      const imageResponse = await axios.get(fileLink, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(imageResponse.data);
+      const billInfo = await extractAmountFromBill(imageBuffer);
+
+      if (!billInfo || !billInfo.amount) {
+        bot.sendMessage(
+          chatId,
+          '❌ Không thể trích xuất số tiền từ ảnh! Vui lòng thử lại hoặc nhập thủ công.'
+        );
+        return;
+      }
+
+      const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
+      const fakeMsg = {
+        ...msg,
+        text: `${command}${billInfo.amount}`,
+        reply_to_message: undefined,
+        replyToMessageId: billPhotoMessageId
+      };
+
+      if (replyText === '1') {
+        await handlePlusCommand(bot, fakeMsg);
+      } else if (replyText === '2') {
+        await handlePercentCommand(bot, fakeMsg);
+      } else {
+        await handleMinusCommand(bot, fakeMsg);
+      }
+    });
+
     bot.deleteMessage(chatId, msg.message_id).catch(() => {});
     
   } catch (error) {

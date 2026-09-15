@@ -18,7 +18,6 @@ module.exports = {
 
   // Thông báo ngân hàng
   bankInfoNotFound: "❌ Không thể nhận dạng thông tin tài khoản ngân hàng từ hình ảnh này.",
-  bankInfoProcessing: "⏳ Đang lấy thông tin tài khoản ngân hàng...",
 
   // Thông báo lệnh
   invalidCommand: "Lệnh không hợp lệ. Định dạng: {format}",
