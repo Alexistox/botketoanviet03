@@ -2,7 +2,7 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression, parseNumberWithUnits } = require('../utils/formatter');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
@@ -63,15 +63,19 @@ const handleCalculateUsdtCommand = async (bot, msg) => {
       return;
     }
     
-    // Lấy số tiền VND
-    const amount = parseFloat(parts[1].trim().replace(/,/g, ''));
+    const rawAmount = parts[1].trim();
+    const amount = parseNumberWithUnits(rawAmount);
     if (isNaN(amount)) {
-      bot.sendMessage(chatId, "");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /t 1000000 hoặc /t 1tr hoặc /t 500m hoặc /t 2tr543k");
       return;
     }
     
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
+      bot.sendMessage(chatId, "Nhóm chưa có tỷ giá. Operator cần thiết lập /d trước.");
+      return;
+    }
     
     // Tính toán
     const xValue = group.rate;
@@ -107,15 +111,19 @@ const handleCalculateVndCommand = async (bot, msg) => {
       return;
     }
     
-    // Lấy số tiền USDT
-    const amount = parseFloat(parts[1].trim());
+    const rawAmount = parts[1].trim();
+    const amount = parseNumberWithUnits(rawAmount);
     if (isNaN(amount)) {
-      bot.sendMessage(chatId, "");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /v 100 hoặc /v 50k");
       return;
     }
     
     // Tìm group
     const group = await Group.findOne({ chatId: chatId.toString() });
+    if (!group) {
+      bot.sendMessage(chatId, "Nhóm chưa có tỷ giá. Operator cần thiết lập /d trước.");
+      return;
+    }
     // Tính toán
     const xValue = group.rate;
     const yValue = group.exchangeRate;
@@ -319,8 +327,8 @@ const handleHelpCommand = async (bot, chatId) => {
 Start - xóa hết lịch sử giao dịch và thẻ để ghi lại từ đầu.(bắt đầu phiên làm việc mới)
 
 *Lệnh chuyển đổi tiền tệ:*
-/t [số] - Chuyển đổi VND sang USDT
-/v [số] - Chuyển đổi USDT sang VND
+/t [số] - Chuyển đổi VND sang USDT (hỗ trợ k, m, tr: /t 1tr, /t 500m, /t 2tr543k)
+/v [số] - Chuyển đổi USDT sang VND (hỗ trợ k, m, tr)
 
 *Lệnh subscription USDT (TRC20):*
 /plan hoặc /goi - Xem gói ngày/tháng/năm

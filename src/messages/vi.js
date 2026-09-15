@@ -66,9 +66,10 @@ module.exports = {
   subscriptionReplyCalcBtn: '🧮 Máy tính',
   subscriptionReplyCalcHint:
     '🧮 *Máy tính miễn phí*\n\n' +
-    '• Biểu thức: `1000+500`, `3*25`\n' +
-    '• VND → USDT: `/t 1000000`\n' +
-    '• USDT → VND: `/v 100`',
+    '• Biểu thức: `1000+500`, `3*25`, `1tr+500m`\n' +
+    '• VND → USDT: `/t 1000000` hoặc `/t 1tr`\n' +
+    '• USDT → VND: `/v 100` hoặc `/v 50k`\n' +
+    '• Đơn vị: k (nghìn), m (triệu), tr (tỷ)',
   subscriptionReplyHide: '⌨️ Ẩn menu',
   subscriptionPaymentFeeNote:
     '⚠️ *Lưu ý phí chuyển USDT (TRC20):*\n' +
