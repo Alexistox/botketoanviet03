@@ -2,7 +2,7 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression, parseNumberWithUnits, extractMathIdentifiers } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatRatioPart, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression, parseNumberWithUnits, extractMathIdentifiers } = require('../utils/formatter');
 const { getARatio, setARatio, getAVars, setAVars, RESERVED_A_VAR_NAMES } = require('../utils/aCalcStore');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
@@ -161,7 +161,7 @@ const handleSetA1RatioCommand = async (bot, msg) => {
       }
       bot.sendMessage(
         chatId,
-        `Tỷ lệ toàn bot: ${formatSmart(ratio.x)}/${formatSmart(ratio.y)}\nDùng \`/a [số]\` để tính. Ví dụ: /a 100`
+        `Tỷ lệ toàn bot: ${formatRatioPart(ratio.x)}/${formatRatioPart(ratio.y)}\nDùng \`/a [số]\` để tính. Ví dụ: /a 100`
       );
       return;
     }
@@ -190,7 +190,7 @@ const handleSetA1RatioCommand = async (bot, msg) => {
 
     bot.sendMessage(
       chatId,
-      `✅ Đã gán tỷ lệ toàn bot: ${formatSmart(xValue)}/${formatSmart(yValue)}\nDùng \`/a [số]\` để tính. Ví dụ: /a 100 → ${formatSmart(100 * xValue / yValue)}`
+      `✅ Đã gán tỷ lệ toàn bot: ${formatRatioPart(xValue)}/${formatRatioPart(yValue)}\nDùng \`/a [số]\` để tính. Ví dụ: /a 100 → ${formatSmart(100 * xValue / yValue)}`
     );
   } catch (error) {
     console.error('Error in handleSetA1RatioCommand:', error);
@@ -231,7 +231,7 @@ const handleCalculateACommand = async (bot, msg) => {
 
     bot.sendMessage(
       chatId,
-      `${formatSmart(amount)} × ${formatSmart(xValue)}/${formatSmart(yValue)} = ${formatSmart(result)}`
+      `${formatSmart(amount)} × ${formatRatioPart(xValue)}/${formatRatioPart(yValue)} = ${formatSmart(result)}`
     );
   } catch (error) {
     console.error('Error in handleCalculateACommand:', error);

@@ -66,6 +66,20 @@ const formatRateValue = (num) => {
 };
 
 /**
+ * Định dạng thành phần tỷ lệ x/y (giữ số lẻ nhỏ, không cắt còn 2 chữ số).
+ */
+const formatRatioPart = (num) => {
+  num = parseFloat(num);
+  if (isNaN(num)) {
+    return "0";
+  }
+  if (Math.abs(num - Math.round(num)) < 1e-12) {
+    return String(Math.round(num));
+  }
+  return num.toFixed(12).replace(/\.?0+$/, '');
+};
+
+/**
  * Kiểm tra xem chuỗi có phải biểu thức toán học hợp lệ không
  * @param {String} msg - Chuỗi cần kiểm tra
  * @returns {Boolean} - true nếu là biểu thức toán học
@@ -568,6 +582,7 @@ module.exports = {
   formatWithComma,
   formatSmartWithGroup,
   formatRateValue,
+  formatRatioPart,
   isMathExpression,
   extractMathIdentifiers,
   isSingleNumber,
