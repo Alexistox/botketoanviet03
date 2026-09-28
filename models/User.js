@@ -251,12 +251,15 @@ const commandPermissions = {
   '/delete': 'operator',
   '/d': 'operator',
   '/d2': 'operator',
+  '/a1': 'operator',
+  '/a2': 'operator',
   '/hiddenCards': 'operator',
   '/m': 'operator',
   
   // User commands - anyone can use
   '/t': 'user',
   '/v': 'user',
+  '/a': 'user',
   '/u': 'user',
   '/help': 'user',
   '/start': 'user',

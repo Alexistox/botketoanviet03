@@ -71,7 +71,7 @@ function isCalculationAction(messageText) {
   if (!t) return false;
   // Lệnh kế toán +100 / -100 — không phải máy tính
   if (t.startsWith('+') || t.startsWith('-')) return false;
-  if (t.startsWith('/t ') || t.startsWith('/v ')) return true;
+  if (t.startsWith('/t ') || t.startsWith('/v ') || t.startsWith('/a ') || t === '/a1' || t.startsWith('/a1 ') || t === '/a2' || t.startsWith('/a2 ')) return true;
   if (isMathExpression(t) && !isSingleNumber(t)) return true;
   return false;
 }

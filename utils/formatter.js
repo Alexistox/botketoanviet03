@@ -71,25 +71,41 @@ const formatRateValue = (num) => {
  * @returns {Boolean} - true nếu là biểu thức toán học
  */
 const isMathExpression = (msg) => {
-  // Cập nhật regex để hỗ trợ k, tr, m, và dấu phẩy
-  const mathRegex = /^[0-9+\-*/().\s,kmtr]+$/;
-  
-  // Kiểm tra xem có match pattern cơ bản không
+  // Số, đơn vị k/m/tr, dấu phẩy, toán tử, và tên biến a-zA-Z_
+  const mathRegex = /^[0-9a-zA-Z_+\-*/().\s,]+$/;
+
   if (!mathRegex.test(msg)) {
     return false;
   }
-  
-  // Bỏ qua những ký tự đơn lẻ không có ý nghĩa
+
   const trimmed = msg.trim();
   if (trimmed.length === 1 && /[+\-*/.()]/.test(trimmed)) {
     return false;
   }
-  
-  // Phải chứa ít nhất một số hoặc đơn vị viết tắt
+
   const hasNumber = /\d/.test(trimmed);
-  const hasUnit = /[kmtr]/.test(trimmed);
-  
-  return hasNumber || hasUnit;
+  const hasIdent = /[a-zA-Z_]/.test(trimmed);
+
+  return hasNumber || hasIdent;
+};
+
+/**
+ * Lấy tên biến trong biểu thức (bỏ số và đơn vị k/m/tr).
+ */
+const extractMathIdentifiers = (expression) => {
+  if (!expression || typeof expression !== 'string') {
+    return [];
+  }
+
+  let s = expression;
+  s = s.replace(/\d+(?:\.\d+)?[eE][+\-]?\d+/g, ' ');
+  s = s.replace(/\d+(?:\.\d+)?(m|tr)\d+(?:\.\d+)?k\b/gi, ' ');
+  s = s.replace(/\d+(?:\.\d+)?(tr|m|k)\d+\b/gi, ' ');
+  s = s.replace(/\d+(?:\.\d+)?(k|tr|m)\b/gi, ' ');
+  s = s.replace(/\d+(?:\.\d+)?/g, ' ');
+
+  const names = s.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+  return [...new Set(names)];
 };
 
 /**
@@ -553,6 +569,7 @@ module.exports = {
   formatSmartWithGroup,
   formatRateValue,
   isMathExpression,
+  extractMathIdentifiers,
   isSingleNumber,
   isTrc20Address,
   formatTelegramMessage,

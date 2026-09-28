@@ -2,7 +2,8 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression, parseNumberWithUnits } = require('../utils/formatter');
+const { formatSmart, formatRateValue, formatTelegramMessage, isTrc20Address, formatDateUS, getNumberFormat, preprocessMathExpression, parseNumberWithUnits, extractMathIdentifiers } = require('../utils/formatter');
+const { getARatio, setARatio, getAVars, setAVars, RESERVED_A_VAR_NAMES } = require('../utils/aCalcStore');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
@@ -144,14 +145,206 @@ const handleCalculateVndCommand = async (bot, msg) => {
 };
 
 /**
+ * Xử lý lệnh gán tỷ lệ /a1 x/y (toàn bot)
+ */
+const handleSetA1RatioCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const messageText = msg.text.trim();
+    const userId = msg.from && msg.from.id;
+
+    if (messageText === '/a1') {
+      const ratio = await getARatio();
+      if (!ratio || !ratio.y) {
+        bot.sendMessage(chatId, "Chưa gán tỷ lệ toàn bot. Ví dụ: `/a1 2/3`");
+        return;
+      }
+      bot.sendMessage(
+        chatId,
+        `Tỷ lệ toàn bot: ${formatSmart(ratio.x)}/${formatSmart(ratio.y)}\nDùng \`/a [số]\` để tính. Ví dụ: /a 100`
+      );
+      return;
+    }
+
+    const parts = messageText.split('/a1 ');
+    if (parts.length !== 2) {
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /a1 2/3");
+      return;
+    }
+
+    const inputText = parts[1].trim();
+    const slashIndex = inputText.indexOf('/');
+    if (slashIndex <= 0 || slashIndex === inputText.length - 1) {
+      bot.sendMessage(chatId, "Định dạng không hợp lệ. Ví dụ: /a1 2/3");
+      return;
+    }
+
+    const xValue = parseNumberWithUnits(inputText.substring(0, slashIndex).trim());
+    const yValue = parseNumberWithUnits(inputText.substring(slashIndex + 1).trim());
+    if (isNaN(xValue) || isNaN(yValue) || yValue === 0) {
+      bot.sendMessage(chatId, "Giá trị không hợp lệ. Ví dụ: /a1 2/3 (y phải khác 0)");
+      return;
+    }
+
+    await setARatio(xValue, yValue, userId);
+
+    bot.sendMessage(
+      chatId,
+      `✅ Đã gán tỷ lệ toàn bot: ${formatSmart(xValue)}/${formatSmart(yValue)}\nDùng \`/a [số]\` để tính. Ví dụ: /a 100 → ${formatSmart(100 * xValue / yValue)}`
+    );
+  } catch (error) {
+    console.error('Error in handleSetA1RatioCommand:', error);
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
+  }
+};
+
+/**
+ * Xử lý lệnh tính /a z → z * x/y (tỷ lệ toàn bot)
+ */
+const handleCalculateACommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const messageText = msg.text;
+
+    const parts = messageText.split('/a ');
+    if (parts.length !== 2) {
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /a 100");
+      return;
+    }
+
+    const rawAmount = parts[1].trim();
+    const amount = parseNumberWithUnits(rawAmount);
+    if (isNaN(amount)) {
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /a 100 hoặc /a 1tr hoặc /a 500k");
+      return;
+    }
+
+    const ratio = await getARatio();
+    if (!ratio || !ratio.y) {
+      bot.sendMessage(chatId, "Chưa gán tỷ lệ toàn bot. Operator dùng `/a1 x/y` trước. Ví dụ: /a1 2/3");
+      return;
+    }
+
+    const xValue = ratio.x;
+    const yValue = ratio.y;
+    const result = amount * xValue / yValue;
+
+    bot.sendMessage(
+      chatId,
+      `${formatSmart(amount)} × ${formatSmart(xValue)}/${formatSmart(yValue)} = ${formatSmart(result)}`
+    );
+  } catch (error) {
+    console.error('Error in handleCalculateACommand:', error);
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
+  }
+};
+
+/**
+ * Xử lý lệnh biến /a2 (toàn bot, tách khỏi /d)
+ */
+const handleSetA2VarCommand = async (bot, msg) => {
+  try {
+    const chatId = msg.chat.id;
+    const messageText = msg.text.trim();
+    const userId = msg.from && msg.from.id;
+    const vars = await getAVars();
+
+    if (messageText === '/a2') {
+      const names = Object.keys(vars);
+      if (names.length === 0) {
+        bot.sendMessage(chatId, "Chưa có biến toàn bot. Ví dụ: `/a2 gia 1tr`");
+        return;
+      }
+      const lines = names
+        .sort()
+        .map((name) => `${name} = ${formatSmart(vars[name])}`);
+      bot.sendMessage(chatId, `Biến toàn bot:\n${lines.join('\n')}\nDùng trong biểu thức, ví dụ: gia * 2`);
+      return;
+    }
+
+    if (!messageText.startsWith('/a2 ')) {
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /a2 gia 1tr");
+      return;
+    }
+
+    const rest = messageText.slice(4).trim();
+    const tokens = rest.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /a2 gia 1tr");
+      return;
+    }
+
+    const name = tokens[0];
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name) || RESERVED_A_VAR_NAMES.has(name.toLowerCase())) {
+      bot.sendMessage(chatId, "Tên biến không hợp lệ. Dùng chữ/số/_, không dùng k, m, tr. Ví dụ: /a2 gia 1tr");
+      return;
+    }
+
+    if (tokens.length === 1) {
+      if (vars[name] === undefined) {
+        bot.sendMessage(chatId, `Chưa gán biến \`${name}\`. Ví dụ: /a2 ${name} 1tr`);
+        return;
+      }
+      bot.sendMessage(chatId, `${name} = ${formatSmart(vars[name])} (toàn bot)`);
+      return;
+    }
+
+    if (tokens[1].toLowerCase() === 'off' && tokens.length === 2) {
+      if (vars[name] === undefined) {
+        bot.sendMessage(chatId, `Không có biến \`${name}\` để xóa.`);
+        return;
+      }
+      delete vars[name];
+      await setAVars(vars, userId);
+      bot.sendMessage(chatId, `✅ Đã xóa biến toàn bot: ${name}`);
+      return;
+    }
+
+    const rawValue = tokens.slice(1).join(' ');
+    const value = parseNumberWithUnits(rawValue);
+    if (isNaN(value)) {
+      bot.sendMessage(chatId, "Giá trị không hợp lệ. Ví dụ: /a2 gia 1tr hoặc /a2 gia 500k");
+      return;
+    }
+
+    vars[name] = value;
+    await setAVars(vars, userId);
+    bot.sendMessage(
+      chatId,
+      `✅ Đã gán biến toàn bot: ${name} = ${formatSmart(value)}\nDùng trong biểu thức, ví dụ: ${name} * 2`
+    );
+  } catch (error) {
+    console.error('Error in handleSetA2VarCommand:', error);
+    bot.sendMessage(msg.chat.id, messages.errorProcessingMessage);
+  }
+};
+
+function substituteAVars(expression, vars) {
+  let result = expression;
+  const names = Object.keys(vars).sort((a, b) => b.length - a.length);
+  for (const name of names) {
+    const re = new RegExp(`\\b${name}\\b`, 'g');
+    result = result.replace(re, String(vars[name]));
+  }
+  return result;
+}
+
+/**
  * Xử lý biểu thức toán học
  */
 const handleMathExpression = async (bot, chatId, expression, senderName) => {
   try {
-    // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
-    const preprocessedExpression = preprocessMathExpression(expression);
-    
-    // Tính toán kết quả
+    const vars = await getAVars();
+    const identifiers = extractMathIdentifiers(expression);
+    const unknown = identifiers.filter((name) => vars[name] === undefined);
+    if (unknown.length > 0) {
+      bot.sendMessage(chatId, `Chưa gán biến: ${unknown.join(', ')}. Operator dùng \`/a2 [tên] [giá trị]\`.`);
+      return;
+    }
+
+    const withVars = substituteAVars(expression, vars);
+    const preprocessedExpression = preprocessMathExpression(withVars);
+
     let result;
     try {
       result = eval(preprocessedExpression);
@@ -159,13 +352,12 @@ const handleMathExpression = async (bot, chatId, expression, senderName) => {
       bot.sendMessage(chatId, "");
       return;
     }
-    
+
     if (isNaN(result)) {
       bot.sendMessage(chatId, "");
       return;
     }
-    
-    // Gửi kết quả
+
     bot.sendMessage(
       chatId,
       `${expression} = ${formatSmart(result)}`
@@ -329,6 +521,10 @@ Start - xóa hết lịch sử giao dịch và thẻ để ghi lại từ đầu
 *Lệnh chuyển đổi tiền tệ:*
 /t [số] - Chuyển đổi VND sang USDT (hỗ trợ k, m, tr: /t 1tr, /t 500m, /t 2tr543k)
 /v [số] - Chuyển đổi USDT sang VND (hỗ trợ k, m, tr)
+/a1 [x]/[y] - Gán tỷ lệ dùng chung mọi nhóm (ví dụ: /a1 2/3)
+/a [số] - Tính số × x/y theo tỷ lệ toàn bot (ví dụ: /a 100)
+/a2 [biến] [giá trị] - Gán biến số toàn bot (ví dụ: /a2 gia 1tr). /a2 xem danh sách, /a2 gia off để xóa
+Gửi biểu thức có biến: gia * 2 + 500k
 
 *Lệnh subscription USDT (TRC20):*
 /plan hoặc /goi - Xem gói ngày/tháng/năm
@@ -409,6 +605,9 @@ Kết thúc| /report`;
 module.exports = {
   handleCalculateUsdtCommand,
   handleCalculateVndCommand,
+  handleSetA1RatioCommand,
+  handleCalculateACommand,
+  handleSetA2VarCommand,
   handleMathExpression,
   handleTrc20Address,
   handleReportCommand,

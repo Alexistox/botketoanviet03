@@ -4,6 +4,7 @@ const { getDownloadLink, logMessage, runWithChatAction } = require('../utils/tel
 const { 
   formatRateValue, 
   isMathExpression, 
+  extractMathIdentifiers,
   isSingleNumber, 
   isTrc20Address,
   formatTelegramMessage
@@ -18,10 +19,14 @@ const Card = require('../models/Card');
 const User = require('../models/User');
 const Config = require('../models/Config');
 const MessageLog = require('../models/MessageLog');
+const { getAVars } = require('../utils/aCalcStore');
 
 const {
   handleCalculateUsdtCommand,
   handleCalculateVndCommand,
+  handleSetA1RatioCommand,
+  handleCalculateACommand,
+  handleSetA2VarCommand,
   handleMathExpression,
   handleReportCommand,
   handleHelpCommand,
@@ -507,6 +512,29 @@ const handleMessage = async (bot, msg, cache) => {
         await handleCalculateVndCommand(bot, msg);
         return;
       }
+
+      if (messageText === '/a1' || messageText.startsWith('/a1 ')) {
+        if (await isUserOperator(userId, chatId)) {
+          await handleSetA1RatioCommand(bot, msg);
+        } else {
+          bot.sendMessage(chatId, messages.operatorOnly);
+        }
+        return;
+      }
+
+      if (messageText === '/a2' || messageText.startsWith('/a2 ')) {
+        if (await isUserOperator(userId, chatId)) {
+          await handleSetA2VarCommand(bot, msg);
+        } else {
+          bot.sendMessage(chatId, messages.operatorOnly);
+        }
+        return;
+      }
+
+      if (messageText.startsWith('/a ')) {
+        await handleCalculateACommand(bot, msg);
+        return;
+      }
       
       if (messageText.startsWith('/format')) {
         await handleFormatCommand(bot, msg);
@@ -756,9 +784,17 @@ const handleMessage = async (bot, msg, cache) => {
     }
 
     
-    // Xử lý biểu thức toán học
-    if (isMathExpression(messageText)) {
-      if (!isSingleNumber(messageText)) {
+    // Xử lý biểu thức toán học (số hoặc biến /a2 toàn bot)
+    if (isMathExpression(messageText) && !isSingleNumber(messageText)) {
+      const identifiers = extractMathIdentifiers(messageText);
+      if (identifiers.length > 0) {
+        const vars = await getAVars();
+        const unknown = identifiers.filter((name) => vars[name] === undefined);
+        if (unknown.length === 0) {
+          await handleMathExpression(bot, chatId, messageText, firstName);
+          return;
+        }
+      } else {
         await handleMathExpression(bot, chatId, messageText, firstName);
         return;
       }
