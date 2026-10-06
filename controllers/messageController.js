@@ -231,9 +231,9 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
-    // Reply "1" / "2" / "3" vào ảnh bill (pic mode) — kiểm tra ảnh trước để không nhầm với tin có caption
+    // Reply "1" / "2" / "3" vào ảnh bill (pic mode) — hết hạn thì im, không báo
     if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2' || messageText.trim() === '3')) {
-      if (await enforceSubscriptionGate(bot, chatId, userId, messageText.trim(), msg)) return;
+      if (await enforceSubscriptionGate(bot, chatId, userId, messageText.trim(), msg, { silent: true })) return;
       await handleBillImageReply(bot, msg);
       return;
     }

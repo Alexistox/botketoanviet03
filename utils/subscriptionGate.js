@@ -84,9 +84,11 @@ async function shouldBlockForSubscription(userId, messageText, msg, chatId) {
   return true;
 }
 
-async function enforceSubscriptionGate(bot, chatId, userId, messageText, msg) {
+async function enforceSubscriptionGate(bot, chatId, userId, messageText, msg, options = {}) {
   if (!(await shouldBlockForSubscription(userId, messageText, msg, chatId))) return false;
-  await bot.sendMessage(chatId, messages.subscriptionExpired, { parse_mode: 'Markdown' });
+  if (!options.silent) {
+    await bot.sendMessage(chatId, messages.subscriptionExpired, { parse_mode: 'Markdown' });
+  }
   return true;
 }
 
