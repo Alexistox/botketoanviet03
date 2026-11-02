@@ -42,7 +42,8 @@ const {
 const {
   isTransferMessage,
   parseTransferInfo,
-  generateQRResponse
+  generateQRResponse,
+  fetchVietQRImage
 } = require('../utils/qrGenerator');
 
 const {
@@ -1012,20 +1013,24 @@ const handleAutoQRGeneration = async (bot, msg) => {
       return; // Không parse được thông tin
     }
     
-    // Tạo thông tin QR code
+    // Tạo thông tin QR code rồi tự tải PNG (VietQR trả SVG, Telegram không fetch được URL)
     const qrResponse = generateQRResponse(transferInfo);
-    
-    // Gửi ảnh QR code với reply vào tin nhắn của người dùng
-    await bot.sendPhoto(chatId, qrResponse.photo, { 
-      caption: qrResponse.caption,
-      parse_mode: 'Markdown',
-      reply_to_message_id: msg.message_id
+    const photo = await fetchVietQRImage(qrResponse.photo);
+    const photoOptions = { reply_to_message_id: msg.message_id };
+    if (qrResponse.caption) photoOptions.caption = qrResponse.caption;
+
+    await bot.sendPhoto(chatId, photo, photoOptions, {
+      filename: 'vietqr.png',
+      contentType: 'image/png'
     });
     
     console.log(`QR code generated for transfer: ${transferInfo.accountNumber} - ${transferInfo.bankName} - ${transferInfo.amount}`);
     
   } catch (error) {
     console.error('Error in handleAutoQRGeneration:', error);
+    bot.sendMessage(msg.chat.id, '❌ Không tạo được QR. Thử gửi lại tin chuyển khoản.', {
+      reply_to_message_id: msg.message_id
+    }).catch(() => {});
   }
 };
 

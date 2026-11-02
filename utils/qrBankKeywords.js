@@ -93,6 +93,12 @@ register('name', [
 register('amount', [
   '金额',
   '下发',
+  '出款金额',
+  '出款',
+  '转账金额',
+  '付款金额',
+  '汇款金额',
+  '提款金额',
   'số tiền',
   'so tien',
   'amount',
@@ -105,6 +111,11 @@ register('amount', [
 
 register('note', [
   '备注',
+  '转账内容',
+  '转帐内容',
+  '转账备注',
+  '附言',
+  '用途',
   'ghi chú',
   'ghi chu',
   'note',
@@ -121,13 +132,45 @@ register('note', [
   'ref'
 ]);
 
+const FIELD_PRIORITY = { account: 0, bank: 1, name: 2, amount: 3, note: 4 };
+
+const hasCjk = (s) => /[\u3400-\u9FFF]/.test(s);
+
+/** Nhãn Latin phải là cụm từ; nhãn chữ Hán khớp chuỗi con. */
+const labelContainedInKey = (key, label) => {
+  if (!label || !key.includes(label)) return false;
+  if (hasCjk(label)) return true;
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\s)${escaped}(\\s|$)`, 'u').test(key);
+};
+
 /**
  * @param {string} rawKey — phần trước dấu : hoặc ：
  * @returns {'account'|'bank'|'name'|'amount'|'note'|null}
  */
 const matchLabelToField = (rawKey) => {
   const k = normalizeLabelKey(rawKey);
-  return LABEL_TO_FIELD.get(k) || null;
+  if (!k) return null;
+  if (LABEL_TO_FIELD.has(k)) return LABEL_TO_FIELD.get(k);
+
+  let best = null;
+  for (const [label, field] of LABEL_TO_FIELD) {
+    if (!labelContainedInKey(k, label)) continue;
+    const cand = { label, field, index: k.indexOf(label) };
+    if (!best || cand.label.length > best.label.length) {
+      best = cand;
+      continue;
+    }
+    if (cand.label.length < best.label.length) continue;
+    const candStarts = cand.index === 0;
+    const bestStarts = best.index === 0;
+    if (candStarts !== bestStarts) {
+      if (candStarts) best = cand;
+      continue;
+    }
+    if (FIELD_PRIORITY[cand.field] < FIELD_PRIORITY[best.field]) best = cand;
+  }
+  return best ? best.field : null;
 };
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

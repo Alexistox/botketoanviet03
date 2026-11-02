@@ -1,3 +1,5 @@
+const axios = require('axios');
+const { Resvg } = require('@resvg/resvg-js');
 const { parseNumberWithUnits } = require('./formatter');
 const { findBankCode, BANK_MAPPING } = require('./bankMapping');
 const { matchLabelToField, matchSpaceSeparatedLine, findLabelSeparatorIndex, hasLabelSeparator } = require('./qrBankKeywords');
@@ -234,9 +236,11 @@ const extractLabeledFields = (message) => {
             }
             break;
           }
-          case 'name':
-            out.accountName = value.trim();
+          case 'name': {
+            const normalized = normalizeName(value);
+            if (normalized) out.accountName = normalized;
             break;
+          }
           case 'amount': {
             out.amountSeen = true;
             const a = parseVietnameseAmount(value);
@@ -269,9 +273,11 @@ const extractLabeledFields = (message) => {
             }
             break;
           }
-          case 'name':
-            out.accountName = sp.value.trim();
+          case 'name': {
+            const normalized = normalizeName(sp.value);
+            if (normalized) out.accountName = normalized;
             break;
+          }
           case 'amount': {
             out.amountSeen = true;
             const a = parseVietnameseAmount(sp.value);
@@ -344,6 +350,7 @@ const collectOrphanNumericRemarks = (message, accountNumber, amountNum) => {
   const amtKey = String(Math.trunc(Number(amountNum)));
   const parts = [];
   for (const line of lines) {
+    if (isSkippableNoiseLine(line)) continue;
     if (matchSpaceSeparatedLine(line)) continue;
     if (hasLabelSeparator(line)) {
       const sep = findLabelSeparatorIndex(line);
@@ -460,7 +467,7 @@ const parseTransferInfoHeuristic = (message) => {
     if (!isNaN(parsedAmount) && parsedAmount > 0) continue;
     const candidate = looksLikeNameLine(line);
     if (candidate) {
-      accountName = candidate;
+      accountName = normalizeName(candidate);
       break;
     }
   }
@@ -473,6 +480,9 @@ const parseTransferInfoHeuristic = (message) => {
     const line = lines[i].trim();
     if (isSkippableNoiseLine(line)) continue;
     if (line === accountNumber || line === bankName || line === accountName) continue;
+    if (accountName && normalizeName(line) === accountName) continue;
+    const nameSep = findLabelSeparatorIndex(line);
+    if (nameSep > 0 && matchLabelToField(line.slice(0, nameSep).trim())) continue;
     if (compactDigitsOnly(line) === String(accountNumber).replace(/\s+/g, '')) continue;
     const parsedAmount = parseVietnameseAmount(line);
     if (!isNaN(parsedAmount) && parsedAmount > 0) continue;
@@ -590,7 +600,7 @@ const generateQRResponse = (transferInfo, remark = '') => {
   // Format số tiền với dấu phẩy
   const formattedAmount = amount.toLocaleString('vi-VN');
   
-  const caption = `${finalRemark ? `📝 **Ghi chú:** ${finalRemark}` : ''}`;
+  const caption = finalRemark ? `📝 Ghi chú: ${finalRemark}` : '';
 
   return {
     photo: qrUrl,
@@ -598,11 +608,39 @@ const generateQRResponse = (transferInfo, remark = '') => {
   };
 };
 
+/**
+ * VietQR trả SVG: khung là PNG nhúng, mã QR là path vẽ đè lên.
+ * Lấy riêng PNG sẽ ra ô trống. Render cả SVG thành PNG rồi gửi cho Telegram.
+ */
+const fetchVietQRImage = async (qrUrl) => {
+  const resp = await axios.get(qrUrl, {
+    responseType: 'arraybuffer',
+    timeout: 15000,
+    maxRedirects: 5,
+    headers: { Accept: 'image/svg+xml,image/png,image/jpeg,*/*' }
+  });
+  const contentType = String(resp.headers['content-type'] || '');
+  const buf = Buffer.from(resp.data);
+  if (contentType.includes('image/png') || contentType.includes('image/jpeg')) {
+    return buf;
+  }
+
+  const svg = buf.toString('utf8');
+  if (!svg.includes('<svg')) {
+    throw new Error('VietQR không trả ảnh');
+  }
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: 'width', value: 540 }
+  });
+  return resvg.render().asPng();
+};
+
 module.exports = {
   parseTransferInfo,
   generateVietQRUrl,
   isTransferMessage,
   generateQRResponse,
+  fetchVietQRImage,
   parseVietnameseAmount,
   normalizeName,
   BANK_MAPPING

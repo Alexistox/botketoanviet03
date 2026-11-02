@@ -101,8 +101,74 @@ Tran Hoai Chau
 060937320889
 Sacombank
 335223504`
+  },
+
+  {
+    name: 'Nhãn ghép Việt–Trung',
+    input: `Ngân hàng 银行：MB bank
+Số tài khoản 账号 ： 556789866666
+Tên chủ tài khoản 姓名： Lưu Thị Thúy Thanh
+出款金额： 39.483.000 VND
+转账内容：  NAPAS 247`,
+    expect: {
+      accountNumber: '556789866666',
+      accountName: 'LUU THI THUY THANH',
+      bankCode: '970422',
+      amount: 39483000,
+      remark: 'NAPAS 247'
+    }
+  },
+
+  {
+    name: 'Nhãn ghép — đổi thứ tự dòng',
+    input: `转账内容：NAPAS 247
+出款金额：39.483.000 VND
+Tên chủ tài khoản 姓名：Lưu Thị Thúy Thanh
+Số tài khoản 账号：556789866666
+Ngân hàng 银行：MB bank`,
+    expect: {
+      accountNumber: '556789866666',
+      accountName: 'LUU THI THUY THANH',
+      bankCode: '970422',
+      amount: 39483000,
+      remark: 'NAPAS 247'
+    }
+  },
+
+  {
+    name: 'Chỉ tiếng Trung — 出款金额 / 转账内容',
+    input: `银行：MB bank
+账号：556789866666
+姓名：LUU THI THUY THANH
+出款金额：39483000
+转账内容：NAPAS 247`,
+    expect: {
+      accountNumber: '556789866666',
+      accountName: 'LUU THI THUY THANH',
+      bankCode: '970422',
+      amount: 39483000,
+      remark: 'NAPAS 247'
+    }
+  },
+
+  {
+    name: 'Nhãn ghép Bank 银行',
+    input: `Bank 银行：MB bank
+Account 账号：556789866666
+Name 姓名：Luu Thi Thuy Thanh
+Amount 金额：39.483.000 VND
+Note 转账内容：NAPAS 247`,
+    expect: {
+      accountNumber: '556789866666',
+      accountName: 'LUU THI THUY THANH',
+      bankCode: '970422',
+      amount: 39483000,
+      remark: 'NAPAS 247'
+    }
   }
 ];
+
+let failed = false;
 
 tests.forEach((test, i) => {
   console.log(`${i + 1}. ${test.name}:`);
@@ -116,16 +182,25 @@ tests.forEach((test, i) => {
     console.log('  - Name:', result.accountName);
     console.log('  - Bank:', result.bankName, `(${result.bankCode})`);
     console.log('  - Amount:', result.amount.toLocaleString());
+    console.log('  - Remark:', result.remark || '');
     
-    // Test QR generation
     const qr = generateQRResponse(result);
     console.log('  - QR Generated:', qr.photo ? '✅ YES' : '❌ NO');
-    
+
+    if (test.expect) {
+      const mismatches = Object.entries(test.expect).filter(([key, value]) => result[key] !== value);
+      if (mismatches.length) {
+        console.log('❌ EXPECT MISMATCH', mismatches.map(([key, value]) => `${key}: got ${result[key]} want ${value}`).join('; '));
+        failed = true;
+      }
+    }
   } else {
     console.log('❌ PARSE FAILED');
+    failed = true;
   }
   
   console.log('');
 });
 
-console.log('=== KẾT THÚC TEST ==='); 
+console.log('=== KẾT THÚC TEST ===');
+if (failed) process.exit(1); 

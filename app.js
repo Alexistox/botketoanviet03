@@ -1,4 +1,7 @@
 require('dotenv').config();
+const dns = require('dns');
+// api.telegram.org ưu tiên IPv6 trên server này, và IPv6 hay ETIMEDOUT nên bot nhận tin nhưng không trả lời được.
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const mongoose = require('mongoose');
 const TelegramBot = require('node-telegram-bot-api');
@@ -30,7 +33,7 @@ app.use('/', messageLogRoutes);
 
 // Kết nối MongoDB và khởi động subscription watcher
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { polling: true, request: { family: 4 } });
 
 connectDB().then(async () => {
   try {
