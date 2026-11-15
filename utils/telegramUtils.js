@@ -1,5 +1,6 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const { redactBdsdContent } = require('./bdsdParser');
 
 const fileCache = new NodeCache({ stdTTL: 21600 });
 
@@ -40,7 +41,7 @@ const logMessage = async (msg, botToken, MessageLog) => {
       senderName: `${from.first_name || ''} ${from.last_name || ''}`.trim(),
       username: from.username || '',
       timestamp: msg.date ? new Date(msg.date * 1000) : new Date(),
-      content: msg.text || msg.caption || ''
+      content: redactBdsdContent(msg.text || msg.caption || '')
     });
 
     if (msg.photo && msg.photo.length > 0) {

@@ -255,6 +255,7 @@ const commandPermissions = {
   '/a2': 'operator',
   '/hiddenCards': 'operator',
   '/m': 'operator',
+  '/bdsd': 'operator',
   
   // User commands - anyone can use
   '/t': 'user',
