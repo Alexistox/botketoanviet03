@@ -21,7 +21,7 @@ const PROFILE_PROMPT = [
   'Ví dụ:',
   '/bdsd 0363392845 Abc112112@ DO DUY NHUAN 26754321',
   '',
-  'Sau đó gửi file CSV sao kê hoặc ảnh chụp thông báo.'
+  'Sau đó gửi file CSV sao kê hoặc ảnh chụp thông báo vào chat riêng này. Lệnh kết quả cũng trả ở đây.'
 ].join('\n');
 
 const sessionKey = (userId) => `bdsd:${userId}`;
@@ -101,15 +101,41 @@ const downloadTelegramFile = async (fileId) => {
   return Buffer.from(response.data);
 };
 
+const privateChatIdOf = (msg, session) => {
+  if (session && session.privateChatId) return String(session.privateChatId);
+  if (!isGroupChat(msg.chat)) return String(msg.chat.id);
+  return String(msg.from.id);
+};
+
+const replyPrivate = async (bot, msg, session, text, extra) => {
+  const target = privateChatIdOf(msg, session);
+  try {
+    await bot.sendMessage(target, text, extra);
+    return true;
+  } catch (error) {
+    if (String(msg.chat.id) !== target) {
+      await bot.sendMessage(msg.chat.id, 'Hãy mở chat riêng với bot, bấm /start, rồi gửi lại.');
+    }
+    return false;
+  }
+};
+
 const deliverCommands = async (bot, msg, session, lines) => {
+  const target = privateChatIdOf(msg, session);
   if (!lines.length) {
-    await bot.sendMessage(msg.chat.id, 'Không đọc được giao dịch nào. Kiểm tra file CSV hoặc ảnh thông báo.');
+    await replyPrivate(bot, msg, session, 'Không đọc được giao dịch nào. Kiểm tra file CSV hoặc ảnh thông báo.');
     return;
   }
 
-  await sendLines(bot, session.groupChatId, lines);
-  if (String(msg.chat.id) !== String(session.groupChatId)) {
-    await bot.sendMessage(msg.chat.id, 'Đã gửi lệnh vào nhóm.');
+  try {
+    await sendLines(bot, target, lines);
+  } catch (error) {
+    await replyPrivate(bot, msg, session, 'Không gửi được lệnh vào chat riêng. Hãy bấm /start với bot rồi gửi lại file.');
+    return;
+  }
+
+  if (isGroupChat(msg.chat)) {
+    await bot.sendMessage(msg.chat.id, 'Đã gửi lệnh vào chat riêng.');
   }
 };
 
@@ -125,53 +151,39 @@ const handleBdsdCommand = async (bot, msg, cache) => {
   const existing = getSession(cache, userId);
   const profile = parseBdsdProfile(text);
 
-  if (!profile) {
-    if (!isGroupChat(msg.chat) && !existing) {
-      await bot.sendMessage(chatId, 'Hãy gõ /bdsd trong nhóm trước, rồi nhập thông tin ở đây.');
-      return;
-    }
+  const privateChatId = isGroupChat(msg.chat) ? String(userId) : String(chatId);
+  const groupChatId = isGroupChat(msg.chat)
+    ? String(chatId)
+    : (existing && existing.groupChatId) || '';
 
-    const groupChatId = isGroupChat(msg.chat)
-      ? String(chatId)
-      : existing.groupChatId;
+  if (!profile) {
     saveSession(cache, userId, {
       step: 'await_profile',
-      groupChatId: String(groupChatId),
+      privateChatId,
+      groupChatId,
       userId: String(userId)
     });
 
+    const prompt = looksLikeProfileAttempt(text) ? `Sai mẫu.\n${PROFILE_PROMPT}` : PROFILE_PROMPT;
     if (!isGroupChat(msg.chat)) {
-      await bot.sendMessage(chatId, PROFILE_PROMPT);
+      await bot.sendMessage(chatId, prompt);
       return;
     }
 
     if (looksLikeProfileAttempt(text)) {
       bot.deleteMessage(chatId, msg.message_id).catch(() => {});
     }
-
-    try {
-      await bot.sendMessage(userId, looksLikeProfileAttempt(text)
-        ? `Sai mẫu.\n${PROFILE_PROMPT}`
-        : PROFILE_PROMPT);
-      await bot.sendMessage(chatId, 'Đã gửi hướng dẫn /bdsd vào chat riêng. Mở tin nhắn với bot để nhập thông tin.');
-    } catch (error) {
-      await bot.sendMessage(chatId, 'Hãy mở chat riêng với bot, bấm /start, rồi gõ lại /bdsd trong nhóm này.');
+    const sent = await replyPrivate(bot, msg, { privateChatId }, prompt);
+    if (sent) {
+      await bot.sendMessage(chatId, 'Đã gửi hướng dẫn /bdsd vào chat riêng. Mở tin nhắn với bot để nhập thông tin và nhận lệnh.');
     }
     return;
   }
 
-  if (!isGroupChat(msg.chat) && !existing) {
-    await bot.sendMessage(chatId, 'Hãy gõ /bdsd trong nhóm trước, rồi nhập thông tin ở đây.');
-    return;
-  }
-
-  const groupChatId = isGroupChat(msg.chat)
-    ? String(chatId)
-    : existing.groupChatId;
-
   saveSession(cache, userId, {
     step: 'ready',
-    groupChatId: String(groupChatId),
+    privateChatId,
+    groupChatId,
     userId: String(userId),
     phone: profile.phone,
     password: profile.password,
@@ -179,10 +191,17 @@ const handleBdsdCommand = async (bot, msg, cache) => {
     stk: profile.stk
   });
 
-  if (isGroupChat(msg.chat)) {
-    bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  const readyText = 'Đã nhận thông tin. Gửi file CSV sao kê hoặc ảnh chụp thông báo vào chat riêng này.';
+  if (!isGroupChat(msg.chat)) {
+    await bot.sendMessage(chatId, readyText);
+    return;
   }
-  await bot.sendMessage(chatId, 'Đã nhận thông tin. Gửi file CSV sao kê hoặc ảnh chụp thông báo biến động số dư.');
+
+  bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  const sent = await replyPrivate(bot, msg, { privateChatId }, readyText);
+  if (sent) {
+    await bot.sendMessage(chatId, 'Đã nhận. Tiếp tục trong chat riêng, lệnh kết quả cũng trả ở đó.');
+  }
 };
 
 const readySession = async (bot, msg, cache) => {
@@ -190,7 +209,7 @@ const readySession = async (bot, msg, cache) => {
   if (!session) return null;
   if (!(await allowBdsd(bot, msg, cache))) return false;
   if (session.step !== 'ready' || !session.phone) {
-    await bot.sendMessage(msg.chat.id, 'Hãy gửi SĐT, mật khẩu, tên và STK trước khi gửi sao kê.');
+    await replyPrivate(bot, msg, session, 'Hãy gửi SĐT, mật khẩu, tên và STK trước khi gửi sao kê.');
     return false;
   }
   return session;
@@ -208,14 +227,14 @@ const tryHandleBdsdDocument = async (bot, msg, cache) => {
       return commandsFromCsv(profileFromSession(session), buffer.toString('utf8'));
     });
     if (!lines) {
-      await bot.sendMessage(msg.chat.id, 'Không tải được file CSV.');
+      await replyPrivate(bot, msg, session, 'Không tải được file CSV.');
       return true;
     }
     saveSession(cache, msg.from.id, session);
     await deliverCommands(bot, msg, session, lines);
   } catch (error) {
     console.error('Error in tryHandleBdsdDocument:', error.message);
-    await bot.sendMessage(msg.chat.id, 'Không gửi được lệnh /bdsd từ file CSV.');
+    await replyPrivate(bot, msg, getSession(cache, msg.from.id), 'Không gửi được lệnh /bdsd từ file CSV.');
   }
   return true;
 };
@@ -236,14 +255,14 @@ const tryHandleBdsdPhoto = async (bot, msg, cache) => {
       return buildBdsdCommands(profileFromSession(session), transactionsFromVision(items));
     });
     if (!lines) {
-      await bot.sendMessage(msg.chat.id, 'Không đọc được ảnh. Hãy gửi file CSV sao kê.');
+      await replyPrivate(bot, msg, session, 'Không đọc được ảnh. Hãy gửi file CSV sao kê.');
       return true;
     }
     saveSession(cache, msg.from.id, session);
     await deliverCommands(bot, msg, session, lines);
   } catch (error) {
     console.error('Error in tryHandleBdsdPhoto:', error.message);
-    await bot.sendMessage(msg.chat.id, 'Không gửi được lệnh /bdsd từ ảnh.');
+    await replyPrivate(bot, msg, getSession(cache, msg.from.id), 'Không gửi được lệnh /bdsd từ ảnh.');
   }
   return true;
 };
