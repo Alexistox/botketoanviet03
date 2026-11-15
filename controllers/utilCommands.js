@@ -564,6 +564,9 @@ Gửi biểu thức có biến: gia * 2 + 500k
 /qr on - Bật tạo QR code tự động cho tin nhắn chuyển khoản VN
 /qr off - Tắt tạo QR code tự động
 
+*Lệnh biến động số dư:*
+/bdsd - Nhập SĐT, mật khẩu, tên, STK qua tin riêng, rồi gửi CSV sao kê hoặc ảnh thông báo để tạo lệnh
+
 *Lệnh xử lý ảnh bill:*
 /pic on - Bật chế độ xử lý ảnh bill tự động
 /pic off - Tắt chế độ xử lý ảnh bill tự động

@@ -116,6 +116,12 @@ const {
 } = require('./subscriptionCommands');
 
 const { enforceSubscriptionGate } = require('../utils/subscriptionGate');
+const { isBdsdCommand, redactBdsdContent } = require('../utils/bdsdParser');
+const {
+  handleBdsdCommand,
+  tryHandleBdsdDocument,
+  tryHandleBdsdPhoto
+} = require('./bdsdCommands');
 
 // Hàm xử lý tin nhắn chính
 const handleMessage = async (bot, msg, cache) => {
@@ -123,8 +129,11 @@ const handleMessage = async (bot, msg, cache) => {
     // Log message to database
     await logMessage(msg, process.env.TELEGRAM_BOT_TOKEN, MessageLog);
     
-    // Log tin nhắn vào console để debug
-    console.log('Received message:', JSON.stringify(msg, null, 2));
+    // Log tin nhắn vào console để debug. Mật khẩu /bdsd không ghi ra log.
+    const debugMsg = { ...msg };
+    if (debugMsg.text) debugMsg.text = redactBdsdContent(debugMsg.text);
+    if (debugMsg.caption) debugMsg.caption = redactBdsdContent(debugMsg.caption);
+    console.log('Received message:', JSON.stringify(debugMsg, null, 2));
     
     // Lấy thông tin cơ bản từ tin nhắn
     const chatId = msg.chat.id;
@@ -223,6 +232,10 @@ const handleMessage = async (bot, msg, cache) => {
           return;
         }
       }
+
+      if (!msg.caption || !msg.caption.trim()) {
+        if (await tryHandleBdsdPhoto(bot, msg, cache)) return;
+      }
     }
     
     // Xử lý khi người dùng reply một tin nhắn có ảnh
@@ -247,8 +260,17 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
+    if (msg.document && await tryHandleBdsdDocument(bot, msg, cache)) {
+      return;
+    }
+
     // Nếu không có văn bản/caption, không xử lý
     if (!msg.text && !msg.caption) {
+      return;
+    }
+
+    if (isBdsdCommand(messageText)) {
+      await handleBdsdCommand(bot, msg, cache);
       return;
     }
 
