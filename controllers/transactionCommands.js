@@ -3,6 +3,7 @@ const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
 const { formatSmart, formatRateValue, formatTelegramMessage, formatSenderMarkdown, isSingleNumber, formatDateUS, formatTimeString, getNumberFormat, parseNumberWithUnits, preprocessMathExpression } = require('../utils/formatter');
+const { sendReportWithReveal } = require('../utils/reportStream');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const { getCurrencyForGroup } = require('../utils/permissions');
@@ -120,11 +121,10 @@ const handlePlusCommand = async (bot, msg) => {
       const showButtons = await getButtonsStatus(chatId);
       const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
       
-      bot.sendMessage(chatId, response, { 
-        parse_mode: 'Markdown',
-        reply_markup: keyboard,
-        ...threadReply
-      });
+      await sendReportWithReveal(bot, chatId, response, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
       return;
     }
    
@@ -276,10 +276,9 @@ const handlePlusCommand = async (bot, msg) => {
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
-    bot.sendMessage(chatId, response, { 
+    await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard,
-      ...threadReply
+      reply_markup: keyboard
     });
     
   } catch (error) {
@@ -477,10 +476,9 @@ const handleMinusCommand = async (bot, msg) => {
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
-    bot.sendMessage(chatId, response, { 
+    await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard,
-      ...threadReply
+      reply_markup: keyboard
     });
     
   } catch (error) {
@@ -668,10 +666,9 @@ const handlePercentCommand = async (bot, msg) => {
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
-    bot.sendMessage(chatId, response, { 
+    await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard,
-      ...threadReply
+      reply_markup: keyboard
     });
     
   } catch (error) {
@@ -883,7 +880,7 @@ const handleSkipCommand = async (bot, msg) => {
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
-    await bot.sendMessage(chatId, response, { 
+    await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
