@@ -28,6 +28,7 @@ const {
   handleCalculateACommand,
   handleSetA2VarCommand,
   handleMathExpression,
+  normalizeReportChatIdArg,
   handleReportCommand,
   handleHelpCommand,
   handleStartCommand,
@@ -122,6 +123,11 @@ const {
   tryHandleBdsdDocument,
   tryHandleBdsdPhoto
 } = require('./bdsdCommands');
+
+const {
+  handleReportWebCommand,
+  handleReportHCommand
+} = require('./reportCommands');
 
 // Hàm xử lý tin nhắn chính
 const handleMessage = async (bot, msg, cache) => {
@@ -295,7 +301,7 @@ const handleMessage = async (bot, msg, cache) => {
     }
     
     if (messageText === '结束') {
-      // Xử lý "结束" giống như "/report"
+      // Báo cáo phiên hiện tại trên Telegram (không mở web)
       await handleReportCommand(bot, chatId, firstName);
       return;
     }
@@ -701,8 +707,28 @@ const handleMessage = async (bot, msg, cache) => {
         return;
       }
       
-      if (messageText === '/report') {
-        await handleReportCommand(bot, chatId, firstName);
+      // /report h [chatId] — lịch sử Excel; /report [chatId] — web dashboard; /report1 alias
+      if (
+        messageText === '/report h' ||
+        messageText.startsWith('/report h ') ||
+        messageText === '/report1 h' ||
+        messageText.startsWith('/report1 h ')
+      ) {
+        const parts = messageText.trim().split(/\s+/);
+        const idArg = parts.length >= 3 ? normalizeReportChatIdArg(parts[2]) : null;
+        await handleReportHCommand(bot, msg, idArg ? { reportChatId: idArg } : {});
+        return;
+      }
+
+      if (
+        messageText === '/report' ||
+        messageText === '/report1' ||
+        messageText.startsWith('/report ') ||
+        messageText.startsWith('/report1 ')
+      ) {
+        const parts = messageText.trim().split(/\s+/);
+        const idArg = parts.length >= 2 ? normalizeReportChatIdArg(parts[1]) : null;
+        await handleReportWebCommand(bot, msg, idArg ? { reportChatId: idArg } : {});
         return;
       }
       

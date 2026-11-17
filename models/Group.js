@@ -82,6 +82,14 @@ const GroupSchema = new mongoose.Schema({
   qrEnabled: {
     type: Boolean,
     default: false
+  },
+  reportToken: {
+    type: String,
+    default: null
+  },
+  reportTokenExpiry: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
 

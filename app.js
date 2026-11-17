@@ -22,6 +22,8 @@ const Transaction = require('./models/Transaction');
 const User = require('./models/User');
 const Card = require('./models/Card');
 const messageLogRoutes = require('./routes/messageLogRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const { installBotMessageLogger } = require('./utils/botMessageLogger');
 
 // Khởi tạo cache
 const cache = new NodeCache({ stdTTL: 21600 }); // Cache in 6 hours
@@ -30,10 +32,12 @@ const cache = new NodeCache({ stdTTL: 21600 }); // Cache in 6 hours
 const app = express();
 app.use(express.json());
 app.use('/', messageLogRoutes);
+app.use('/', reportRoutes);
 
 // Kết nối MongoDB và khởi động subscription watcher
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true, request: { family: 4 } });
+installBotMessageLogger(bot);
 
 connectDB().then(async () => {
   try {

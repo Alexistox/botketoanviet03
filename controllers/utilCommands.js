@@ -7,6 +7,7 @@ const { getARatio, setARatio, getAVars, setAVars, RESERVED_A_VAR_NAMES } = requi
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
 const messages = require('../src/messages/vi');
+const { sendReportWithReveal } = require('../utils/reportStream');
 const { getCurrencyForGroup } = require('../utils/permissions');
 
 /**
@@ -387,6 +388,15 @@ const handleTrc20Address = async (bot, chatId, address, senderName) => {
 /**
  * Xử lý lệnh báo cáo (/report hoặc 结束)
  */
+
+function normalizeReportChatIdArg(raw) {
+  if (raw == null || typeof raw !== 'string') return null;
+  const s = raw.trim().split('@')[0].trim();
+  if (!s || !/^-?\d+$/.test(s)) return null;
+  if (s.startsWith('-')) return s;
+  return `-100${s}`;
+}
+
 const handleReportCommand = async (bot, chatId, senderName) => {
   try {
     // Tìm group
@@ -493,7 +503,7 @@ const handleReportCommand = async (bot, chatId, senderName) => {
     const showButtons = await getButtonsStatus(chatId);
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
-    bot.sendMessage(chatId, response, { 
+    await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
@@ -556,7 +566,9 @@ Gửi biểu thức có biến: gia * 2 + 500k
 
 *Lệnh khác:*
 /u - Xem địa chỉ USDT (kế toán nhóm)
-/report - Xem báo cáo
+/report - Mở báo cáo web (dashboard)
+/report h - Lịch sử theo phiên + Excel
+结束 - Báo cáo phiên hiện tại trên Telegram
 /repeat [text] - Lặp lại text (ví dụ: /repeat Hello World)
 
 
@@ -613,6 +625,7 @@ module.exports = {
   handleSetA2VarCommand,
   handleMathExpression,
   handleTrc20Address,
+  normalizeReportChatIdArg,
   handleReportCommand,
   handleHelpCommand,
   handleStartCommand,
