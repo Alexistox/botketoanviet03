@@ -123,7 +123,8 @@ const handlePlusCommand = async (bot, msg) => {
       
       await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard
+      reply_markup: keyboard,
+      ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
       return;
     }
@@ -278,7 +279,8 @@ const handlePlusCommand = async (bot, msg) => {
     
     await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard
+      reply_markup: keyboard,
+      ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
     
   } catch (error) {
@@ -478,7 +480,8 @@ const handleMinusCommand = async (bot, msg) => {
     
     await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard
+      reply_markup: keyboard,
+      ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
     
   } catch (error) {
@@ -668,7 +671,8 @@ const handlePercentCommand = async (bot, msg) => {
     
     await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard
+      reply_markup: keyboard,
+      ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
     
   } catch (error) {
@@ -882,7 +886,8 @@ const handleSkipCommand = async (bot, msg) => {
     });
     await sendReportWithReveal(bot, chatId, response, {
       parse_mode: 'Markdown',
-      reply_markup: keyboard
+      reply_markup: keyboard,
+      ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
     
   } catch (error) {
