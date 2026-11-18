@@ -28,12 +28,23 @@ function buildReportSkeleton(html) {
     /<b>已下发<\/b>/.test(line) ||
     /^已入账/.test(line.trim()) ||
     (/^已下发/.test(line.trim()) && !/应下发|未下发|已下发\s*:/.test(line)) ||
+    /<b>Tiền đã nạp<\/b>/.test(line) ||
+    /<b>Đã thanh toán<\/b>/.test(line) ||
     /\*Tiền đã nạp\*/.test(line) ||
     /\*Đã thanh toán\*/.test(line);
 
   const isSummaryLine = (line) =>
     /总入款|总出款|费率|汇率|应下发|未下发|卡额度|入款费率|出款费率|例如/.test(line) ||
     /^已下发\s*:/.test(line.trim()) ||
+    /<b>Tổng tiền nạp/.test(line) ||
+    /<b>Tổng tiền rút/.test(line) ||
+    /<b>Tổng USDT phải trả/.test(line) ||
+    /<b>USDT đã thanh toán/.test(line) ||
+    /<b>USDT phải trả còn lại/.test(line) ||
+    /<b>Tiền phải trả/.test(line) ||
+    /<b>Tiền đã trả/.test(line) ||
+    /<b>Tiền còn lại/.test(line) ||
+    /<b>Hạn mức thẻ/.test(line) ||
     /\*Tổng tiền nạp/.test(line) ||
     /\*Tổng tiền rút/.test(line) ||
     /\*Tổng USDT phải trả/.test(line) ||

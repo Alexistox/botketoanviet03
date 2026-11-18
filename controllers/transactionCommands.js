@@ -122,7 +122,7 @@ const handlePlusCommand = async (bot, msg) => {
       const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
       
       await sendReportWithReveal(bot, chatId, response, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard,
       ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
@@ -278,7 +278,7 @@ const handlePlusCommand = async (bot, msg) => {
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
     await sendReportWithReveal(bot, chatId, response, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard,
       ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
@@ -479,7 +479,7 @@ const handleMinusCommand = async (bot, msg) => {
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
     await sendReportWithReveal(bot, chatId, response, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard,
       ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
@@ -670,7 +670,7 @@ const handlePercentCommand = async (bot, msg) => {
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
     await sendReportWithReveal(bot, chatId, response, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard,
       ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });
@@ -885,7 +885,7 @@ const handleSkipCommand = async (bot, msg) => {
       reply_markup: keyboard
     });
     await sendReportWithReveal(bot, chatId, response, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard,
       ...(typeof threadReply !== 'undefined' ? threadReply : {})
     });

@@ -504,7 +504,7 @@ const handleReportCommand = async (bot, chatId, senderName) => {
     const keyboard = showButtons ? await getInlineKeyboard(chatId) : null;
     
     await sendReportWithReveal(bot, chatId, response, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: keyboard
     });
     
