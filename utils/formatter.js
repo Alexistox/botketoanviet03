@@ -406,12 +406,72 @@ const formatDateUS = (date) => {
 };
 
 /**
- * Định dạng thời gian theo định dạng 24h (HH:mm:ss) theo múi giờ Campuchia (Asia/Phnom_Penh)
- * @param {Date} date - Đối tượng ngày cần định dạng
- * @returns {String} - Chuỗi thời gian đã định dạng (ví dụ: 14:05:00)
+ * Định dạng thời gian 24h HH:mm:ss (timezone sổ cái Asia/Phnom_Penh).
+ * Dùng en-GB + hour/minute/second cố định — tránh locale AM/PM.
  */
 const formatTimeString = (date) => {
-  return date.toLocaleTimeString('en-US', { timeZone: 'Asia/Phnom_Penh', hour12: false });
+  return date.toLocaleTimeString('en-GB', {
+    timeZone: 'Asia/Phnom_Penh',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
+const coerceReportNumber = (value) => {
+  if (value == null || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const s = String(value).replace(/,/g, '').trim();
+  if (s === '') return 0;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const escapeHtml = (text) =>
+  String(text == null ? '' : text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+/**
+ * Telegram Date Formatting (HTML).
+ * format r | w?[dD]?[tT]? — hoặc '' để hiện đúng fallback 24h (tránh client AM/PM).
+ */
+const formatTelegramDateTimeHtml = (date, format = '', fallbackText = '') => {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    return escapeHtml(fallbackText || '');
+  }
+  const unix = Math.floor(d.getTime() / 1000);
+  const fallback =
+    fallbackText ||
+    (format === 'd' || format === 'D' || format === 'w' || /^w?[dD]$/.test(format)
+      ? formatDateUS(d)
+      : formatTimeString(d));
+  const formatAttr = format ? ` format="${escapeHtml(format)}"` : '';
+  return `<tg-time unix="${unix}"${formatAttr}>${escapeHtml(fallback)}</tg-time>`;
+};
+
+/** Đổi fragment Markdown legacy trong dòng details sang HTML an toàn. */
+const markdownFragmentToHtml = (fragment) => {
+  if (!fragment) return '';
+  let s = String(fragment);
+  s = s.replace(/\\\*/g, '\u0001');
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|tg:\/\/[^)\s]+)\)/g, (_, label, url) => {
+    return `\u0002${encodeURIComponent(label)}\u0003${encodeURIComponent(url)}\u0004`;
+  });
+  s = s.replace(/`([^`]+)`/g, (_, code) => `\u0005${encodeURIComponent(code)}\u0006`);
+  s = s.replace(/\*([^*]+)\*/g, (_, bold) => `\u0007${encodeURIComponent(bold)}\u0008`);
+  s = escapeHtml(s);
+  s = s.replace(/\u0001/g, '*');
+  s = s.replace(/\u0002([^\u0003]+)\u0003([^\u0004]+)\u0004/g, (_, label, url) => {
+    return `<a href="${decodeURIComponent(url)}">${escapeHtml(decodeURIComponent(label))}</a>`;
+  });
+  s = s.replace(/\u0005([^\u0006]+)\u0006/g, (_, code) => `<code>${escapeHtml(decodeURIComponent(code))}</code>`);
+  s = s.replace(/\u0007([^\u0008]+)\u0008/g, (_, bold) => `<b>${escapeHtml(decodeURIComponent(bold))}</b>`);
+  return s;
 };
 
 /**
@@ -424,7 +484,42 @@ const formatSenderMarkdown = (senderName, userId) => {
   return `[${safeLabel}](tg://user?id=${String(userId)})`;
 };
 
-/** Bỏ 📌 sau khối giờ; nếu isNewest thì chèn 📌 một lần sau giờ (chỉ dòng giao dịch mới nhất). */
+const newestEntryMarker = (isNewest) => (isNewest ? '<b>📌</b> ' : '');
+
+/**
+ * Render dòng giao dịch: giờ dùng Date Formatting, phần còn lại Markdown → HTML.
+ */
+const formatReportEntryLineHtml = (entry, markerHtml, idLabel, idPrefixed = false) => {
+  const details = entry?.details || '';
+  const ts = entry?.timestamp ? new Date(entry.timestamp) : null;
+  const timeMatch = details.match(/^`([^`]+)`(\s*)/);
+  let rest = details;
+  let timeHtml = '';
+
+  if (ts && !Number.isNaN(ts.getTime())) {
+    timeHtml = formatTelegramDateTimeHtml(ts, '', formatTimeString(ts));
+    rest = timeMatch ? details.slice(timeMatch[0].length) : details.replace(/^\S+\s*/, '');
+  } else if (timeMatch) {
+    timeHtml = `<code>${escapeHtml(timeMatch[1])}</code>`;
+    rest = details.slice(timeMatch[0].length);
+  }
+
+  const restHtml = markdownFragmentToHtml(rest);
+  let line = `${timeHtml}${timeMatch && timeMatch[2] ? timeMatch[2] : ' '}${markerHtml || ''}${restHtml}`;
+
+  if (entry?.messageId && entry?.chatLink) {
+    const safeHref = escapeHtml(entry.chatLink);
+    const safeId = escapeHtml(String(idLabel));
+    if (idPrefixed) {
+      line += ` (<a href="${safeHref}">${safeId}</a>)`;
+    } else {
+      line += ` (<a href="${safeHref}">${safeId}</a>)`;
+    }
+  }
+  return line;
+};
+
+/** Bỏ 📌 sau khối giờ; nếu isNewest thì chèn 📌 (Markdown legacy / tương thích). */
 const formatTransactionDetailLine = (details, isNewest) => {
   if (!details || typeof details !== 'string') return details || '';
   let d = details.replace(/(`[^`]+`)\s*📌\s*/g, '$1 ');
@@ -435,112 +530,73 @@ const formatTransactionDetailLine = (details, isNewest) => {
 };
 
 /**
- * Tạo tin nhắn telegram không sử dụng markdown
- * @param {Object} jsonData - Dữ liệu cần format
- * @returns {String} - Chuỗi đã định dạng
+ * Báo cáo Telegram (HTML + Date Formatting 24h).
+ * Giữ nhãn tiếng Việt + nhánh wrate/d2 của botketoanviet03.
  */
 const formatTelegramMessage = (jsonData) => {
   let output = '';
-  
-  // Lấy định dạng số từ jsonData hoặc sử dụng default
   const numberFormat = jsonData.numberFormat || 'comma';
-  
-  // Helper function để format số với định dạng của nhóm
-  const formatNumber = (num) => formatSmart(num, numberFormat);
-  
-  // Date header - using US format (MM/DD/YYYY)
+  const unit = escapeHtml(jsonData.currencyUnit || 'USDT');
   const currentDate = new Date();
-  const formattedDate = formatDateUS(currentDate);
-  output += `*Hôm nay ${formattedDate}*\n`;
-  
-  // Deposits section
+
+  output += `<b>Hôm nay ${formatTelegramDateTimeHtml(currentDate, 'd', formatDateUS(currentDate))}</b>\n`;
+
   if (jsonData.depositData && jsonData.depositData.entries && jsonData.depositData.entries.length > 0) {
     const depositCount = jsonData.depositData.totalCount || jsonData.depositData.entries.length;
-    output += `*Tiền đã nạp* ([${depositCount}](https://t.me/@id7590104666) Đơn):\n`;
-    
-    // Sắp xếp entries theo timestamp giảm dần (mới nhất ở đầu)
+    output += `<b>Tiền đã nạp</b> (${depositCount} Đơn):\n`;
+
     const sortedDepositEntries = [...jsonData.depositData.entries].sort((a, b) => {
-      const timestampA = new Date(a.timestamp || 0);
-      const timestampB = new Date(b.timestamp || 0);
-      return timestampB - timestampA; // Sắp xếp giảm dần (mới nhất trước)
+      return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
     });
-    
-    // Format giao dịch với ID và link - sử dụng ID từ groupCommands.js
+
     sortedDepositEntries.forEach((entry, index) => {
-      // Sử dụng ID từ entry (đã được tính từ groupCommands.js)
-      const id = entry.id;
-      if (entry.messageId && entry.chatLink) {
-        const line = formatTransactionDetailLine(entry.details, index === 0);
-        output += `${line} ([${id}](${entry.chatLink}))\n`;
-      }
+      if (!(entry.messageId && entry.chatLink)) return;
+      output += `${formatReportEntryLineHtml(entry, newestEntryMarker(index === 0), entry.id, true)}\n`;
     });
     output += '\n';
   } else {
-    output += "*Tiền đã nạp* ([0](https://t.me/@id7590104666) Đơn):\n\n";
+    output += '<b>Tiền đã nạp</b> (0 Đơn):\n\n';
   }
-  
-  // Payments section
+
   if (jsonData.paymentData && jsonData.paymentData.entries && jsonData.paymentData.entries.length > 0) {
     const paymentCount = jsonData.paymentData.totalCount || jsonData.paymentData.entries.length;
-    output += `*Đã thanh toán* ([${paymentCount}](https://t.me/@id7590104666) Đơn):\n`;
-    
-    // Sắp xếp entries theo timestamp giảm dần (mới nhất ở đầu)
+    output += `<b>Đã thanh toán</b> (${paymentCount} Đơn):\n`;
+
     const sortedPaymentEntries = [...jsonData.paymentData.entries].sort((a, b) => {
-      const timestampA = new Date(a.timestamp || 0);
-      const timestampB = new Date(b.timestamp || 0);
-      return timestampB - timestampA; // Sắp xếp giảm dần (mới nhất trước)
+      return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
     });
-    
-    // Format giao dịch với ID và link - sử dụng ID từ groupCommands.js
+
     sortedPaymentEntries.forEach((entry, index) => {
-      // Sử dụng ID từ entry (đã được tính từ groupCommands.js)
-      const id = `!${entry.id}`;
-      if (entry.messageId && entry.chatLink) {
-        const line = formatTransactionDetailLine(entry.details, index === 0);
-        output += `${line} ([${id}](${entry.chatLink}))\n`;
-      }
+      if (!(entry.messageId && entry.chatLink)) return;
+      output += `${formatReportEntryLineHtml(entry, newestEntryMarker(index === 0), `!${entry.id}`, false)}\n`;
     });
     output += '\n';
   } else {
-    output += "*Đã thanh toán* ([0](https://t.me/@id7590104666) Đơn):\n\n";
+    output += '<b>Đã thanh toán</b> (0 Đơn):\n\n';
   }
-  // Rate information - hiển thị khác nhau dựa trên có wrate/wexchangeRate hay không
+
   if ((jsonData.wrate > 0 || jsonData.wexchangeRate > 0) && jsonData.wrate !== undefined && jsonData.wexchangeRate !== undefined) {
-    // Hiển thị đầy đủ khi có wrate/wexchangeRate
-    output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}  |  ${jsonData.totalUSDTPlus} ${jsonData.currencyUnit || 'USDT'}\n`;
-    output += `*Tổng tiền rút*: ${jsonData.totalVNDMinus || '0'} |   ${jsonData.totalUSDTMinus} ${jsonData.currencyUnit || 'USDT'}\n`;
-    
-    const rateInfo = `Phí: [${jsonData.rate}](https://t.me/@id7590104666)|  Tỷ giá: [${jsonData.exchangeRate}](https://t.me/@id7590104666)\n`;
-    const wrateInfo = `W-Phí: [${jsonData.wrate}](https://t.me/@id7590104666)|  W-Tỷ giá: [${jsonData.wexchangeRate}](https://t.me/@id7590104666)\n`;
-    
-    output += `${rateInfo}${wrateInfo}\n`;
-    
-    // Summary section với thông tin mới
-    output += `*USDT đã thanh toán (%)*: ${jsonData.paidUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
-    output += `*Tổng USDT phải trả*: ${jsonData.totalUSDTGross} ${jsonData.currencyUnit || 'USDT'}\n`;
-    output += `*USDT phải trả còn lại*: ${jsonData.remainingUSDTOwed} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `<b>Tổng tiền nạp💰</b>: ${escapeHtml(String(jsonData.totalAmount))}  |  ${escapeHtml(String(jsonData.totalUSDTPlus))} ${unit}\n`;
+    output += `<b>Tổng tiền rút</b>: ${escapeHtml(String(jsonData.totalVNDMinus || '0'))} |   ${escapeHtml(String(jsonData.totalUSDTMinus))} ${unit}\n`;
+    output += `Phí: ${escapeHtml(String(jsonData.rate))} |  Tỷ giá: ${escapeHtml(String(jsonData.exchangeRate))}\n`;
+    output += `W-Phí: ${escapeHtml(String(jsonData.wrate))} |  W-Tỷ giá: ${escapeHtml(String(jsonData.wexchangeRate))}\n\n`;
+    output += `<b>USDT đã thanh toán (%)</b>: ${escapeHtml(String(jsonData.paidUSDT))} ${unit}\n`;
+    output += `<b>Tổng USDT phải trả</b>: ${escapeHtml(String(jsonData.totalUSDTGross))} ${unit}\n`;
+    output += `<b>USDT phải trả còn lại</b>: ${escapeHtml(String(jsonData.remainingUSDTOwed))} ${unit}\n`;
   } else {
-    // Hiển thị theo cách cũ khi chưa có wrate/wexchangeRate
-    const rateInfo = `Phí: [${jsonData.rate}](https://t.me/@id7590104666)|  Tỷ giá: [${jsonData.exchangeRate}](https://t.me/@id7590104666)\n`;
-    
-    // Thêm ví dụ nếu có
-    let rateInfoWithExample = rateInfo;
+    let rateInfo = `Phí: ${escapeHtml(String(jsonData.rate))} |  Tỷ giá: ${escapeHtml(String(jsonData.exchangeRate))}\n`;
     if (jsonData.example) {
-      rateInfoWithExample += `\nVD: 100000 = [${jsonData.example}](https://t.me/@id7590104666) ${jsonData.currencyUnit || 'USDT'}`;
+      rateInfo += `\nVD: 100000 = ${escapeHtml(String(jsonData.example))} ${unit}`;
     }
-    
-    output += `${rateInfoWithExample}\n`;
-    
-    // Summary section cũ
-    output += `*Tổng tiền nạp💰*: ${jsonData.totalAmount}\n`;
-    output += `*Tiền phải trả*: ${jsonData.totalUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
-    output += `*Tiền đã trả*: ${jsonData.paidUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
-    output += `*Tiền còn lại*: ${jsonData.remainingUSDT} ${jsonData.currencyUnit || 'USDT'}\n`;
+    output += `${rateInfo}\n`;
+    output += `<b>Tổng tiền nạp💰</b>: ${escapeHtml(String(jsonData.totalAmount))}\n`;
+    output += `<b>Tiền phải trả</b>: ${escapeHtml(String(jsonData.totalUSDT))} ${unit}\n`;
+    output += `<b>Tiền đã trả</b>: ${escapeHtml(String(jsonData.paidUSDT))} ${unit}\n`;
+    output += `<b>Tiền còn lại</b>: ${escapeHtml(String(jsonData.remainingUSDT))} ${unit}\n`;
   }
-  
-   // Cards section (if present)
-   if (jsonData.cards && jsonData.cards.length > 0) {
-    output += `\n*Hạn mức thẻ 💳* :\n${jsonData.cards.join("\n")}`;
+
+  if (jsonData.cards && jsonData.cards.length > 0) {
+    output += `\n<b>Hạn mức thẻ 💳</b> :\n${jsonData.cards.map((c) => markdownFragmentToHtml(String(c))).join('\n')}`;
   }
   return output;
 };
@@ -590,6 +646,9 @@ module.exports = {
   formatTelegramMessage,
   formatDateUS,
   formatTimeString,
+  formatTelegramDateTimeHtml,
+  escapeHtml,
+  coerceReportNumber,
   formatSenderMarkdown,
   getNumberFormat,
   parseNumberWithUnits,
