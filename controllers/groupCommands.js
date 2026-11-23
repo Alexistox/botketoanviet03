@@ -313,24 +313,22 @@ const handleDualRateCommand = async (bot, msg) => {
     const senderName = msg.from.first_name;
     const messageText = msg.text;
     
-    // Trích xuất giá trị rate và tỷ giá từ tin nhắn
+    // /d 2/14600 hoặc /d 2 (tỷ giá mặc định = 1)
     const inputText = messageText.substring(3).trim();
     
     if (!inputText) {
-      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /d 2/14600");
+      bot.sendMessage(chatId, "Cú pháp không hợp lệ. Ví dụ: /d 2/14600 hoặc /d 2");
       return;
     }
     
-    // Tách rate và tỷ giá
-    const [rateStr, exRateStr] = inputText.split('/');
-    if (!rateStr || !exRateStr) {
-      bot.sendMessage(chatId, "Định dạng không hợp lệ. Ví dụ: /d 2/14600");
+    const parts = inputText.split('/');
+    if (parts.length > 2 || !parts[0]) {
+      bot.sendMessage(chatId, "Định dạng không hợp lệ. Ví dụ: /d 2/14600 hoặc /d 2");
       return;
     }
     
-    // Chuyển đổi sang số
-    const newRate = parseFloat(rateStr);
-    const newExRate = parseFloat(exRateStr);
+    const newRate = parseFloat(parts[0]);
+    const newExRate = parts.length === 2 ? parseFloat(parts[1]) : 1;
     
     if (isNaN(newRate) || isNaN(newExRate)) {
       bot.sendMessage(chatId, "Giá trị nhập vào không hợp lệ.");
@@ -421,16 +419,15 @@ const handleDualRateCommand2 = async (bot, msg) => {
       return;
     }
     
-    // Tách wrate và wexchangeRate
-    const [wrateStr, wexRateStr] = inputText.split('/');
-    if (!wrateStr || !wexRateStr) {
-      bot.sendMessage(chatId, "Định dạng không hợp lệ. Ví dụ: /d2 2/14600 hoặc /d2 off");
+    // /d2 2/14600 hoặc /d2 2 (tỷ giá xuất mặc định = 1)
+    const wParts = inputText.split('/');
+    if (wParts.length > 2 || !wParts[0]) {
+      bot.sendMessage(chatId, "Định dạng không hợp lệ. Ví dụ: /d2 2/14600 hoặc /d2 2 hoặc /d2 off");
       return;
     }
     
-    // Chuyển đổi sang số
-    const newWRate = parseFloat(wrateStr);
-    const newWExRate = parseFloat(wexRateStr);
+    const newWRate = parseFloat(wParts[0]);
+    const newWExRate = wParts.length === 2 ? parseFloat(wParts[1]) : 1;
     
     if (isNaN(newWRate) || isNaN(newWExRate)) {
       bot.sendMessage(chatId, "Giá trị nhập vào không hợp lệ.");

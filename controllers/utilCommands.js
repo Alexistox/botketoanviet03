@@ -547,11 +547,18 @@ Gửi biểu thức có biến: gia * 2 + 500k
 
 *Lệnh quản lý:*
 /m [đơn vị] - Đặt đơn vị tiền tệ cho nhóm này (VND/USDT)
-/d [% vào tiền]/[Giá vào tiền] - Đặt tỷ lệ và tỷ giá
-/d2 [% rút tiền]/[Giá xuất tiền]
-+[số tiền] (nạp tiền) nếu sau số tiền có kí tự thì bot sẽ tính riêng theo số tiền vào từng thẻ.
+/d [% vào tiền]/[Giá vào tiền] - Đặt tỷ lệ và tỷ giá (hoặc /d 2 → tỷ giá=1)
+/d2 [% rút tiền]/[Giá xuất tiền] - hoặc /d2 3 → giá xuất=1; alias 出款
++[số tiền] hoặc +[số]*[phí%]/[tỷ giá] (vd +14000*12) — phí riêng giao dịch đó
 %[số tiền] (thanh toán) nếu sau số tiền có kí tự thì bot sẽ tính riêng theo số tiền vào từng thẻ.
--[số tiền] (rút tiền) nếu sau số tiền có kí tự thì bot sẽ tính riêng theo số tiền vào từng thẻ.
+-[số tiền] hoặc -[số]*[phí%]/[tỷ giá] (vd -14000*12, mặc định /d2)
+
+*Broadcast / lịch gửi (Operator):*
+/g [mã] /glist /dg — quản lý tập nhóm
+/cm [mã] /cmlist /dm [mã] — lưu tin
+/send [mã tin] [mã tập|ID] — gửi ngay (hoặc reply + /send …)
+/cs [mã tin] [mã tập|ID] [HH:mm] — gửi mỗi ngày (TZ Asia/Phnom_Penh)
+Reply + /cs [mã tập|ID] [HH:mm] | /cslist | /ds [số|mã ngắn] | alias 定时
 /x [ID] - Ẩn thẻ
 /sx [ID] - Hiện thẻ
 /hiddenCards - Xem danh sách thẻ ẩn
