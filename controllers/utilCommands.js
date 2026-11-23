@@ -524,7 +524,8 @@ const handleHelpCommand = async (bot, chatId) => {
 
 *Lệnh cơ bản:*
 /start - Bắt đầu sử dụng bot
-/help - Hiển thị hướng dẫn này
+/help - Hiển thị hướng dẫn ngắn
+/help3 - Hướng dẫn đầy đủ chi tiết mọi chức năng
 /off - Kết thúc phiên làm việc
 Start - xóa hết lịch sử giao dịch và thẻ để ghi lại từ đầu.(bắt đầu phiên làm việc mới)
 
@@ -559,6 +560,7 @@ Gửi biểu thức có biến: gia * 2 + 500k
 /send [mã tin] [mã tập|ID] — gửi ngay (hoặc reply + /send …)
 /cs [mã tin] [mã tập|ID] [HH:mm] [days] — lịch gửi (TZ Asia/Phnom_Penh)
   days: 1-5=T2–T6 / 6,7=cuối tuần / 3 / wd / we (, . : đều được)
+  Cùng tin/reply + cùng đích → lệnh mới thay lịch cũ
 Reply + /cs [mã tập|ID] [HH:mm] [days] | /cslist | /ds [số|mã ngắn] | alias 定时
 /x [ID] - Ẩn thẻ
 /sx [ID] - Hiện thẻ
@@ -601,6 +603,193 @@ Reply + /cs [mã tập|ID] [HH:mm] [days] | /cslist | /ds [số|mã ngắn] | al
   }
 };
 
+/**
+ * /help3 — hướng dẫn đầy đủ chi tiết mọi chức năng (botketoanviet03)
+ */
+const handleHelp3Command = async (bot, chatId) => {
+  try {
+    const help3Message = `
+HƯỚNG DẪN ĐẦY ĐỦ — /help3
+Bot kế toán Việt (botketoanviet03)
+
+Phân quyền (tóm tắt):
+- Owner: toàn quyền hệ thống, ví /usdt2, /setowner, /grantsub…
+- Admin: quản trị người dùng, /messagelogs, /ad…
+- Operator: giao dịch, broadcast /cs, tỷ giá, thẻ…
+- Member: quy đổi /t /v, biểu thức, xem /help
+
+━━━━━━━━━━━━━━━━━━
+1) Lệnh cơ bản
+- /start — chào + bàn phím nhanh (DM)
+- /st — mở hướng dẫn nhanh (alias start)
+- /help — hướng dẫn ngắn
+- /help3 — hướng dẫn đầy đủ (lệnh này)
+- /off — kết thúc phiên / lời kết
+- 上课 / Start / Bắt đầu / start — reset phiên: xóa lịch sử giao dịch + thẻ, bắt đầu sổ mới
+- 结束 — báo cáo Telegram phiên hiện tại (sau 上课)
+- /report — link dashboard web nhóm/chat (Operator)
+- /report h — lịch sử rich/Excel theo từng phiên 上课
+- /report1 — alias của /report
+- /repeat <text> — bot nhắc lại nội dung
+
+━━━━━━━━━━━━━━━━━━
+2) Quy đổi tiền & biểu thức
+- /t <VND> — VND → USDT (hỗ trợ k, m, tr: /t 1tr, /t 500m, /t 2tr543k)
+- /v <USDT> — USDT → VND
+- /a1 <x>/<y> — gán tỷ lệ chung mọi nhóm (vd /a1 2/3)
+- /a <số> — tính số × x/y theo tỷ lệ /a1
+- /a2 <biến> <giá trị> — gán biến toàn bot (vd /a2 gia 1tr)
+  /a2 — xem danh sách biến; /a2 gia off — xóa biến
+- Gửi biểu thức: 2+2, gia * 2 + 500k (có biến /a2)
+- Hỗ trợ đơn vị số: k, m, tr…
+
+━━━━━━━━━━━━━━━━━━
+3) Tỷ giá & phí (Operator)
+- /m <VND|USDT> — đơn vị tiền tệ của nhóm
+- /d <phí%>/<tỷ giá> — phí & tỷ giá nạp (vd /d 2/14600)
+  Một số: /d 2 → phí=2, tỷ giá=1
+- Alias 价格 <phí>/<tỷ giá>
+- 设置费率<số> / 设置汇率<số>
+- /d2 <phí rút%>/<giá xuất> — phí & tỷ giá rút (W)
+  Một số: /d2 3 → phí rút=3, giá xuất=1
+- Alias 出款 <phí>/<giá> (vd 出款 3 hoặc 出款 3/14800)
+- /d2 off — tắt hiển thị W-tỷ giá
+
+━━━━━━━━━━━━━━━━━━
+4) Giao dịch (Operator)
+- +<số> [mã thẻ] [hạn mức] — ghi nạp
+  Override phí từng giao dịch: +14000*12 hoặc +14000*12/14600
+  (*12 = phí 12%; /tỷ giá tùy chọn; ẩn *1 và /1 trên báo cáo)
+- -<số> [mã thẻ] — ghi rút (mặc định theo /d2)
+  Override: -14000*12 hoặc -14000*12/y (*12 = phí rút 12%)
+- %<số> [mã thẻ] hoặc 下发 <USDT> [mã thẻ] — đánh dấu đã chi / thanh toán
+- /delete <ID> — xóa giao dịch
+- /skip <ID> hoặc 撤回 <ID> — bỏ qua giao dịch nhầm
+
+━━━━━━━━━━━━━━━━━━
+5) Thẻ ngân hàng (Operator)
+- /x <mã thẻ> — ẩn thẻ
+- /sx <mã thẻ> — hiện lại thẻ
+- /hiddenCards — danh sách thẻ đang ẩn
+
+━━━━━━━━━━━━━━━━━━
+6) QR / ảnh bill / OCR
+- /qr on | /qr off — bật/tắt tạo QR VietQR từ tin chuyển khoản
+- /pic on | /pic off — chế độ xử lý ảnh bill
+  Reply vào ảnh:
+  • 1 / 1*12 / 1*x/y → lệnh + (nạp, phí % theo giao dịch)
+  • 2 → lệnh % (thanh toán)
+  • 3 / 3*12 / 3*x/y → lệnh - (rút, mặc định /d2)
+- /c — trích xuất thông tin ngân hàng từ ảnh (nếu có)
+
+━━━━━━━━━━━━━━━━━━
+7) Biến động số dư (/bdsd)
+- /bdsd — cấu hình SĐT, mật khẩu, tên, STK trong chat riêng
+- Gửi CSV hoặc ảnh thông báo biến động → kết quả trả về chat riêng
+- Không lộ mật khẩu trong log
+
+━━━━━━━━━━━━━━━━━━
+8) Subscription USDT (TRC20)
+- /plan hoặc /goi — xem gói ngày / tháng / năm
+- /subscribe day|month|year — đăng ký + thanh toán USDT
+- /mysub — gói hiện tại & ngày hết hạn
+- /usdt2 <địa chỉ> — ví nhận tiền gói (Owner)
+- /setplan … / /grantsub … — cấp gói thủ công (Owner/Admin tùy quyền)
+
+━━━━━━━━━━━━━━━━━━
+9) Địa chỉ USDT kế toán nhóm
+- /usdt <address> — đặt địa chỉ USDT nhóm (Admin+)
+- /u — xem địa chỉ USDT hiện tại
+- Gửi địa chỉ TRC20 → bot nhận diện & format
+
+━━━━━━━━━━━━━━━━━━
+10) Quản trị người dùng
+- /op @user hoặc 设置操作 @user — thêm Operator (cần gói / Admin)
+- /removeop @user — xóa Operator
+- /ops hoặc 操作人 — danh sách Operator
+- /ad @user — thêm Admin (Owner)
+- /removead @user — xóa Admin
+- /admins — danh sách Admin
+- /users — danh sách user (Admin+)
+- /listgroups / /groups — danh sách nhóm (Admin+)
+- /messagelogs — dashboard log tin nhắn (Admin)
+- /setowner … — đổi Owner
+- /remove @user — gỡ user
+- /migrate — migrate dữ liệu (Owner)
+
+━━━━━━━━━━━━━━━━━━
+11) Nút tùy chỉnh & chat
+- /inline <text>|<command> — thêm/sửa nút
+- /removeinline <text> — xóa nút
+- /buttons — xem nút
+- /onbut | /offbut — bật/tắt hiện nút
+- /inline2 … /removeinline2 … /buttons2 — bộ nút mở rộng
+- /chat … — lệnh chat liên quan nút
+
+━━━━━━━━━━━━━━━━━━
+12) Định dạng số
+- /format A — có dấu phân tách (1,000,000) — mặc định
+- /format — số thuần không phân tách nghìn (1000000)
+
+━━━━━━━━━━━━━━━━━━
+13) Broadcast & lịch gửi cố định (Operator)
+Tập nhóm:
+- /g <mã> — thêm nhóm hiện tại vào tập
+- /glist — liệt kê tập (ID + tên nhóm)
+- /dg — gỡ nhóm hiện tại khỏi mọi tập
+- /dg <ID> — gỡ ID khỏi mọi tập
+- /dg <mã> — gỡ nhóm hiện tại khỏi một tập
+
+Tin đã lưu:
+- /cm <mã> — lưu tin (reply tin, hoặc caption media /cm <mã>)
+- /cmlist — xem & gửi lại toàn bộ tin đã lưu
+- /dm <mã> — xóa tin đã lưu
+- /send <mã tin> <mã tập|ID> — gửi ngay tin đã lưu
+- Reply + /send <mã tập|ID> — gửi thẳng tin đang reply
+
+Lịch /cs (TZ Asia/Phnom_Penh — Campuchia, giờ 24h):
+- /cs <mã tin> <mã tập|ID> <HH:mm> [days]
+- Reply + /cs <mã tập|ID> <HH:mm> [days]
+- Alias: 定时 … = /cs …
+- Không có days → gửi mỗi ngày
+- days (1=T2 … 5=T6, 6=T7, 7=CN):
+  • 1-5 — chỉ ngày làm việc
+  • 3 — chỉ thứ 4
+  • 2,5 hoặc 2.5 hoặc 2:5 — T3 và T6
+  • wd / work = 1-5 ; we / weekend = 6,7
+- Cùng mã tin (hoặc cùng reply) + cùng đích → lệnh mới XÓA lịch cũ rồi tạo mới
+- /cslist — danh sách lịch (hiện giờ + khung ngày)
+- /ds <số TT|mã ngắn> — xóa lịch
+
+━━━━━━━━━━━━━━━━━━
+Gợi ý: hầu hết lệnh nghiệp vụ cần Operator trở lên. Gõ /help để xem bản ngắn.
+`;
+    const maxLen = 3500;
+    const chunks = [];
+    let remaining = help3Message.trim();
+
+    while (remaining.length > 0) {
+      if (remaining.length <= maxLen) {
+        chunks.push(remaining);
+        break;
+      }
+      const piece = remaining.slice(0, maxLen);
+      let splitAt = piece.lastIndexOf('\n');
+      if (splitAt < 500) splitAt = maxLen;
+      chunks.push(remaining.slice(0, splitAt).trim());
+      remaining = remaining.slice(splitAt).trim();
+    }
+
+    for (let i = 0; i < chunks.length; i += 1) {
+      const prefix = chunks.length > 1 ? `Help3 (${i + 1}/${chunks.length})\n\n` : '';
+      await bot.sendMessage(chatId, `${prefix}${chunks[i]}`);
+    }
+  } catch (error) {
+    console.error('Error in handleHelp3Command:', error);
+    bot.sendMessage(chatId, messages.errorDisplayHelp);
+  }
+};
+
 const handleStartCommand = async (bot, chatId) => {
   try {
     const startMessage = `Chào mừng sử dụng bot kế toán!
@@ -636,6 +825,7 @@ module.exports = {
   normalizeReportChatIdArg,
   handleReportCommand,
   handleHelpCommand,
+  handleHelp3Command,
   handleStartCommand,
   handleFormatCommand
 }; 

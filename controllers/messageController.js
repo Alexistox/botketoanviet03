@@ -33,6 +33,7 @@ const {
   normalizeReportChatIdArg,
   handleReportCommand,
   handleHelpCommand,
+  handleHelp3Command,
   handleStartCommand,
   handleFormatCommand
 } = require('./utilCommands');
@@ -486,6 +487,11 @@ const handleMessage = async (bot, msg, cache) => {
       
       if (messageText === '/help') {
         await handleHelpCommand(bot, chatId);
+        return;
+      }
+
+      if (messageText === '/help3') {
+        await handleHelp3Command(bot, chatId);
         return;
       }
 
