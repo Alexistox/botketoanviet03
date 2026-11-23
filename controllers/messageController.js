@@ -7,7 +7,9 @@ const {
   extractMathIdentifiers,
   isSingleNumber, 
   isTrc20Address,
-  formatTelegramMessage
+  formatTelegramMessage,
+  parsePicReplyAction,
+  buildPicCommandText
 } = require('../utils/formatter');
 const { isUserOwner, isUserAdmin, isUserOperator, canManageGroupOperators } = require('../utils/permissions');
 const { parseBankTransferMessage } = require('../utils/bankParser');
@@ -265,16 +267,17 @@ const handleMessage = async (bot, msg, cache) => {
       return;
     }
     
-    // Reply "1" / "2" / "3" vào ảnh bill (pic mode) — hết hạn thì im, không báo
-    if (msg.reply_to_message && msg.reply_to_message.photo && (messageText.trim() === '1' || messageText.trim() === '2' || messageText.trim() === '3')) {
+    // Reply "1" / "3*12" / "1*x/y" vào ảnh bill (pic mode)
+    const picReply = parsePicReplyAction(messageText);
+    if (msg.reply_to_message && msg.reply_to_message.photo && picReply.ok) {
       if (await enforceSubscriptionGate(bot, chatId, userId, messageText.trim(), msg, { silent: true })) return;
       await handleBillImageReply(bot, msg);
       return;
     }
 
-    // Reply "1" / "2" / "3" vào tin text hoặc caption (thông báo CK ngân hàng dạng chữ)
+    // Reply "1" / "3*12" vào tin text hoặc caption (thông báo CK ngân hàng)
     const bankSmsParentBody = msg.reply_to_message && (msg.reply_to_message.text || msg.reply_to_message.caption);
-    if (msg.reply_to_message && bankSmsParentBody && /^[123]$/.test(messageText.trim())) {
+    if (msg.reply_to_message && bankSmsParentBody && picReply.ok) {
       if (await enforceSubscriptionGate(bot, chatId, userId, messageText.trim(), msg)) return;
       await handleBankTransferReply(bot, msg);
       return;
@@ -1007,9 +1010,10 @@ const handleBankTransferReply = async (bot, msg) => {
   try {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
-    const replyText = msg.text.trim();
     const repliedMsg = msg.reply_to_message;
     const repliedBody = (repliedMsg.text || repliedMsg.caption || '').trim();
+    const picReply = parsePicReplyAction(msg.text);
+    if (!picReply.ok) return;
 
     if (!(await isUserOperator(userId, chatId))) {
       bot.sendMessage(chatId, messages.operatorOnly);
@@ -1025,18 +1029,16 @@ const handleBankTransferReply = async (bot, msg) => {
     }
 
     const threadId = repliedMsg.message_id;
-    const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
-
     const fakeMsg = {
       ...msg,
-      text: `${command}${bankInfo.amount}`,
+      text: buildPicCommandText(picReply.digit, bankInfo.amount, picReply.rateSuffix),
       reply_to_message: undefined,
       replyToMessageId: threadId
     };
 
-    if (replyText === '1') {
+    if (picReply.digit === '1') {
       await handlePlusCommand(bot, fakeMsg);
-    } else if (replyText === '2') {
+    } else if (picReply.digit === '2') {
       await handlePercentCommand(bot, fakeMsg);
     } else {
       await handleMinusCommand(bot, fakeMsg);
@@ -1204,7 +1206,8 @@ const handleBillImageReply = async (bot, msg) => {
   try {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
-    const replyText = msg.text.trim();
+    const picReply = parsePicReplyAction(msg.text);
+    if (!picReply.ok) return;
     
     // Kiểm tra quyền Operator
     if (!(await isUserOperator(userId, chatId))) {
@@ -1219,15 +1222,10 @@ const handleBillImageReply = async (bot, msg) => {
       return;
     }
     
-    // Kiểm tra reply có phải là "1", "2" hoặc "3"
-    if (replyText !== '1' && replyText !== '2' && replyText !== '3') {
-      return; // Không xử lý nếu không phải "1", "2" hoặc "3"
-    }
-    
     // Kiểm tra tin nhắn được reply có ảnh không
     const repliedMsg = msg.reply_to_message;
     if (!repliedMsg || !repliedMsg.photo) {
-      bot.sendMessage(chatId, "❌ Vui lòng reply \"1\", \"2\" hoặc \"3\" vào tin nhắn có ảnh!");
+      bot.sendMessage(chatId, "❌ Vui lòng reply \"1\", \"2\" hoặc \"3\" (vd 1*12) vào tin nhắn có ảnh!");
       return;
     }
     
@@ -1254,17 +1252,16 @@ const handleBillImageReply = async (bot, msg) => {
         return;
       }
 
-      const command = replyText === '1' ? '+' : replyText === '2' ? '%' : '-';
       const fakeMsg = {
         ...msg,
-        text: `${command}${billInfo.amount}`,
+        text: buildPicCommandText(picReply.digit, billInfo.amount, picReply.rateSuffix),
         reply_to_message: undefined,
         replyToMessageId: billPhotoMessageId
       };
 
-      if (replyText === '1') {
+      if (picReply.digit === '1') {
         await handlePlusCommand(bot, fakeMsg);
-      } else if (replyText === '2') {
+      } else if (picReply.digit === '2') {
         await handlePercentCommand(bot, fakeMsg);
       } else {
         await handleMinusCommand(bot, fakeMsg);
