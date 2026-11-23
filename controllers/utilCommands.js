@@ -614,7 +614,7 @@ Bot kế toán Việt (botketoanviet03)
 
 Phân quyền (tóm tắt):
 - Owner: toàn quyền hệ thống, ví /usdt2, /setowner, /grantsub…
-- Admin: quản trị người dùng, /messagelogs, /ad…
+- Admin: quản trị người dùng, /ad…
 - Operator: giao dịch, broadcast /cs, tỷ giá, thẻ…
 - Member: quy đổi /t /v, biểu thức, xem /help
 
@@ -712,7 +712,6 @@ Phân quyền (tóm tắt):
 - /admins — danh sách Admin
 - /users — danh sách user (Admin+)
 - /listgroups / /groups — danh sách nhóm (Admin+)
-- /messagelogs — dashboard log tin nhắn (Admin)
 - /setowner … — đổi Owner
 - /remove @user — gỡ user
 - /migrate — migrate dữ liệu (Owner)
