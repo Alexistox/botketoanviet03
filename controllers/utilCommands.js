@@ -589,9 +589,9 @@ Reply + /cs [mã tập|ID] [HH:mm] | /cslist | /ds [số|mã ngắn] | alias 定
 *Lệnh xử lý ảnh bill:*
 /pic on - Bật chế độ xử lý ảnh bill tự động
 /pic off - Tắt chế độ xử lý ảnh bill tự động
-• Reply "1" vào ảnh bill → Lệnh +[số tiền] (nạp tiền)
-• Reply "2" vào ảnh bill → Lệnh %[số tiền] (thanh toán)
-• Reply "3" vào ảnh bill → Lệnh -[số tiền] (rút tiền)
+• Reply "1" / "1*12" / "1*x/y" vào ảnh bill → +[số]*phí% (nạp)
+• Reply "2" vào ảnh bill → %[số tiền] (thanh toán)
+• Reply "3" / "3*12" vào ảnh bill → -[số]*phí% (rút, mặc định /d2)
 `;
     bot.sendMessage(chatId, helpMessage.trim());
   } catch (error) {

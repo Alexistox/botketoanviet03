@@ -775,6 +775,30 @@ const resolvePlusXyDefaults = (parsed, group) => {
   };
 };
 
+/**
+ * Reply pic/bank: "1", "3*12", "1*x/y", "1 *12 /14600"
+ * digit = 1(+) 2(%) 3(-); rateSuffix gắn sau số tiền khi +/−.
+ */
+const parsePicReplyAction = (text) => {
+  const raw = String(text || '').trim().replace(/\s*([*/])\s*/g, '$1');
+  const m = raw.match(/^([123])(.*)$/);
+  if (!m) return { ok: false };
+  const digit = m[1];
+  const suffix = (m[2] || '').trim();
+  if (!suffix) return { ok: true, digit, rateSuffix: '' };
+  if (!suffix.startsWith('*') && !suffix.startsWith('/')) return { ok: false };
+  const probe = parsePlusAmountRateExpr(`1${suffix}`);
+  if (!probe.ok || !probe.rateMode) return { ok: false };
+  return { ok: true, digit, rateSuffix: suffix };
+};
+
+/** Dựng lệnh +/-/% từ digit + amount + optional *phí/y (chỉ +/−) */
+const buildPicCommandText = (digit, amount, rateSuffix = '') => {
+  const cmd = digit === '1' ? '+' : digit === '2' ? '%' : '-';
+  if (digit === '2' || !rateSuffix) return `${cmd}${amount}`;
+  return `${cmd}${amount}${rateSuffix}`;
+};
+
 /** - : literal *N = wrate % → hệ số 1 + N/100; mặc định từ /d2 (wrate/wexchangeRate) */
 const resolveMinusXyDefaults = (parsed, group) => {
   const hasD2 =
@@ -811,6 +835,8 @@ module.exports = {
   parsePlusAmountRateExpr,
   resolvePlusXyDefaults,
   resolveMinusXyDefaults,
+  parsePicReplyAction,
+  buildPicCommandText,
   isMathExpression,
   extractMathIdentifiers,
   isSingleNumber,
