@@ -633,12 +633,184 @@ const getNumberFormat = async (chatId) => {
   }
 };
 
+/**
+ * Hệ số *x: tối đa 3 chữ số thập phân (0.985 → "0.985", 0.98 → "0.98").
+ */
+const formatRateFactor = (num) => {
+  const n = Number(num);
+  if (!Number.isFinite(n)) return '0';
+  const rounded3 = Math.round(n * 1000) / 1000;
+  const with3 = rounded3.toFixed(3);
+  if (with3.endsWith('0')) return rounded3.toFixed(2);
+  return with3;
+};
+
+const isNeutralRateFactor = (rateFactorStr) => {
+  const n = Number(rateFactorStr);
+  return Number.isFinite(n) && Math.abs(n - 1) < 1e-9;
+};
+
+const isNeutralExchangeRate = (yValue) => {
+  const n = Number(yValue);
+  return Number.isFinite(n) && Math.abs(n - 1) < 1e-9;
+};
+
+/** Hậu tố *x/y — ẩn *1 và /1 */
+const formatDepositRateSuffix = (rateFactor, yValue) => {
+  const xNeutral = isNeutralRateFactor(rateFactor);
+  const yNeutral = isNeutralExchangeRate(yValue);
+  if (xNeutral && yNeutral) return '';
+  if (xNeutral) return `/${yValue}`;
+  if (yNeutral) return `\\*${rateFactor}`;
+  return `\\*${rateFactor}/${yValue}`;
+};
+
+/**
+ * Parse token sau +/− : amount*费率/汇率 (số sau * = % phí).
+ * Dùng parseNumberWithUnits cho amount (1tr, 2k…).
+ */
+const parsePlusAmountRateExpr = (token) => {
+  const raw = String(token || '').trim().replace(/\s*([*/])\s*/g, '$1');
+  if (!raw) return { ok: false };
+
+  const starIdx = raw.indexOf('*');
+  const slashIdx = raw.indexOf('/');
+  const rateMode = starIdx >= 0 || slashIdx >= 0;
+
+  if (!rateMode) {
+    const amount = parseNumberWithUnits(raw);
+    if (Number.isNaN(amount)) {
+      // fallback số thuần
+      const n = parseFloat(raw);
+      if (Number.isNaN(n)) return { ok: false };
+      return { ok: true, rateMode: false, amount: n };
+    }
+    return { ok: true, rateMode: false, amount };
+  }
+
+  let amountStr;
+  let xStr = null;
+  let yStr = null;
+
+  if (starIdx >= 0 && slashIdx > starIdx) {
+    amountStr = raw.slice(0, starIdx);
+    xStr = raw.slice(starIdx + 1, slashIdx);
+    yStr = raw.slice(slashIdx + 1);
+  } else if (starIdx >= 0 && slashIdx < 0) {
+    amountStr = raw.slice(0, starIdx);
+    xStr = raw.slice(starIdx + 1);
+  } else if (slashIdx >= 0 && (starIdx < 0 || starIdx > slashIdx)) {
+    amountStr = raw.slice(0, slashIdx);
+    yStr = raw.slice(slashIdx + 1);
+  } else {
+    return { ok: false };
+  }
+
+  let amount = parseNumberWithUnits(amountStr);
+  if (Number.isNaN(amount)) {
+    amount = parseFloat(amountStr);
+  }
+  if (Number.isNaN(amount)) return { ok: false };
+
+  let xLiteral = null;
+  let yLiteral = null;
+  let xIsPlaceholder = true;
+  let yIsPlaceholder = true;
+
+  if (xStr != null) {
+    const xs = xStr.trim();
+    if (!xs) return { ok: false };
+    if (/^x$/i.test(xs)) {
+      xIsPlaceholder = true;
+    } else {
+      const rateTok = xs.replace(/%$/u, '');
+      xLiteral = parseFloat(rateTok);
+      if (Number.isNaN(xLiteral)) return { ok: false };
+      xIsPlaceholder = false;
+    }
+  }
+
+  if (yStr != null) {
+    const ys = yStr.trim();
+    if (!ys) return { ok: false };
+    if (/^y$/i.test(ys)) {
+      yIsPlaceholder = true;
+    } else {
+      yLiteral = parseFloat(ys);
+      if (Number.isNaN(yLiteral)) return { ok: false };
+      yIsPlaceholder = false;
+    }
+  }
+
+  return {
+    ok: true,
+    rateMode: true,
+    amount,
+    xLiteral,
+    yLiteral,
+    xIsPlaceholder,
+    yIsPlaceholder
+  };
+};
+
+/** + : literal *N = phí % → hệ số 1 - N/100; mặc định từ /d */
+const resolvePlusXyDefaults = (parsed, group) => {
+  const groupRate =
+    group && group.rate != null && Number.isFinite(Number(group.rate))
+      ? Number(group.rate)
+      : null;
+  const ex =
+    group && group.exchangeRate != null && Number(group.exchangeRate) !== 0
+      ? Number(group.exchangeRate)
+      : null;
+
+  const ratePercent = parsed.xIsPlaceholder
+    ? (groupRate != null ? groupRate : 0)
+    : Number(parsed.xLiteral);
+
+  return {
+    x: 1 - ratePercent / 100,
+    y: parsed.yIsPlaceholder ? (ex != null ? ex : 1) : Number(parsed.yLiteral),
+    ratePercent
+  };
+};
+
+/** - : literal *N = wrate % → hệ số 1 + N/100; mặc định từ /d2 (wrate/wexchangeRate) */
+const resolveMinusXyDefaults = (parsed, group) => {
+  const hasD2 =
+    group &&
+    group.wrate != null &&
+    group.wexchangeRate != null &&
+    Number(group.wexchangeRate) !== 0;
+
+  const groupRate = hasD2 ? Number(group.wrate) : null;
+  const ex = hasD2 ? Number(group.wexchangeRate) : null;
+
+  const ratePercent = parsed.xIsPlaceholder
+    ? (groupRate != null ? groupRate : 0)
+    : Number(parsed.xLiteral);
+
+  return {
+    x: 1 + ratePercent / 100,
+    y: parsed.yIsPlaceholder ? (ex != null ? ex : 1) : Number(parsed.yLiteral),
+    ratePercent,
+    hasD2: !!hasD2
+  };
+};
+
 module.exports = {
   formatSmart,
   formatWithComma,
   formatSmartWithGroup,
   formatRateValue,
   formatRatioPart,
+  formatRateFactor,
+  isNeutralRateFactor,
+  isNeutralExchangeRate,
+  formatDepositRateSuffix,
+  parsePlusAmountRateExpr,
+  resolvePlusXyDefaults,
+  resolveMinusXyDefaults,
   isMathExpression,
   extractMathIdentifiers,
   isSingleNumber,

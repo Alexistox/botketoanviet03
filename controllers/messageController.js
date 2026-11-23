@@ -64,6 +64,20 @@ const {
 } = require('./groupCommands');
 
 const {
+  isCmCommandSource,
+  handleBroadcastCm,
+  handleBroadcastG,
+  handleBroadcastGlist,
+  handleBroadcastCmlist,
+  handleBroadcastSend,
+  handleBroadcastDm,
+  handleBroadcastDg,
+  handleBroadcastCs,
+  handleBroadcastCslist,
+  handleBroadcastDs
+} = require('./broadcastCommands');
+
+const {
   handleQROnCommand,
   handleQROffCommand,
   handlePicOnCommand,
@@ -356,6 +370,57 @@ const handleMessage = async (bot, msg, cache) => {
       }
       return;
     }
+
+    // 出款 — alias /d2 (phí rút / tỷ giá xuất); thiếu y → 1
+    if (messageText === '出款' ||
+        messageText.startsWith('出款 ') ||
+        messageText.startsWith('出款/') ||
+        messageText.startsWith('出款:') ||
+        messageText.startsWith('出款：')) {
+      if (await isUserOperator(userId, chatId)) {
+        let rest = messageText.slice(2);
+        if (rest.startsWith(':') || rest.startsWith('：') || rest.startsWith('/')) {
+          rest = rest.slice(1);
+        }
+        rest = rest.trim();
+        const modifiedMsg = { ...msg, text: rest ? `/d2 ${rest}` : '/d2' };
+        await handleDualRateCommand2(bot, modifiedMsg);
+      } else {
+        bot.sendMessage(chatId, messages.operatorOnly);
+      }
+      return;
+    }
+
+    // 定时 — alias /cs
+    if (messageText === '定时' ||
+        messageText.startsWith('定时 ') ||
+        messageText.startsWith('定时/') ||
+        messageText.startsWith('定时:') ||
+        messageText.startsWith('定时：')) {
+      if (await isUserOperator(userId, chatId)) {
+        let rest = messageText.slice(2);
+        if (rest.startsWith(':') || rest.startsWith('：') || rest.startsWith('/')) {
+          rest = rest.slice(1);
+        }
+        rest = rest.trim();
+        const modifiedMsg = { ...msg, text: rest ? `/cs ${rest}` : '/cs' };
+        await handleBroadcastCs(bot, modifiedMsg);
+      } else {
+        bot.sendMessage(chatId, messages.operatorOnly);
+      }
+      return;
+    }
+
+    // /cm từ text hoặc caption
+    const textOrCaption = (msg.text || msg.caption || '').trim();
+    if (textOrCaption && isCmCommandSource(textOrCaption)) {
+      if (await isUserOperator(userId, chatId)) {
+        await handleBroadcastCm(bot, msg);
+      } else {
+        bot.sendMessage(chatId, messages.operatorOnly);
+      }
+      return;
+    }
     
     // Lệnh 撤销账单 (tương đương /skip)
     if (messageText.startsWith('撤回')) {
@@ -597,6 +662,54 @@ const handleMessage = async (bot, msg, cache) => {
         } else {
           bot.sendMessage(chatId, messages.operatorOnly);
         }
+        return;
+      }
+
+      const slashFirst = messageText.trim().split(/\s+/)[0].split('@')[0];
+
+      if (slashFirst === '/glist') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastGlist(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/cmlist') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastCmlist(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/send') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastSend(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/g') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastG(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/dm') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastDm(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/dg') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastDg(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/cs') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastCs(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/cslist') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastCslist(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
+        return;
+      }
+      if (slashFirst === '/ds') {
+        if (await isUserOperator(userId, chatId)) await handleBroadcastDs(bot, msg);
+        else bot.sendMessage(chatId, messages.operatorOnly);
         return;
       }
       

@@ -17,6 +17,7 @@ const { handleSubscriptionCallback } = require('./controllers/subscriptionComman
 const { connectDB } = require('./config/db');
 const { seedSubscriptionPlans } = require('./services/subscriptionSeed');
 const { startUsdtWatcher } = require('./services/tronUsdtWatcher');
+const { startBroadcastScheduleWatcher } = require('./services/broadcastScheduleWatcher');
 const Group = require('./models/Group');
 const Transaction = require('./models/Transaction');
 const User = require('./models/User');
@@ -43,6 +44,7 @@ connectDB().then(async () => {
   try {
     await seedSubscriptionPlans();
     startUsdtWatcher(bot);
+    startBroadcastScheduleWatcher(bot);
   } catch (err) {
     console.error('Subscription init error:', err.message);
   }

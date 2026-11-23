@@ -2,7 +2,23 @@ const Group = require('../models/Group');
 const Transaction = require('../models/Transaction');
 const Card = require('../models/Card');
 const Config = require('../models/Config');
-const { formatSmart, formatRateValue, formatTelegramMessage, formatSenderMarkdown, isSingleNumber, formatDateUS, formatTimeString, getNumberFormat, parseNumberWithUnits, preprocessMathExpression } = require('../utils/formatter');
+const {
+  formatSmart,
+  formatRateValue,
+  formatRateFactor,
+  formatDepositRateSuffix,
+  formatTelegramMessage,
+  formatSenderMarkdown,
+  isSingleNumber,
+  formatDateUS,
+  formatTimeString,
+  getNumberFormat,
+  parseNumberWithUnits,
+  preprocessMathExpression,
+  parsePlusAmountRateExpr,
+  resolvePlusXyDefaults,
+  resolveMinusXyDefaults
+} = require('../utils/formatter');
 const { sendReportWithReveal } = require('../utils/reportStream');
 const { getDepositHistory, getPaymentHistory, getCardSummary } = require('./groupCommands');
 const { getButtonsStatus, getInlineKeyboard } = require('./userCommands');
@@ -27,31 +43,23 @@ const handlePlusCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('+');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: +số hoặc +số [mã thẻ] [hạn mức]", threadReply);
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: +số hoặc +số*phí%/tỷ giá hoặc +số [mã thẻ] [hạn mức]", threadReply);
       return;
     }
     
-    // Xử lý các tham số
-    const inputParts = parts[1].trim().split(' ');
+    // +14000 *12 /y — gộp khoảng trắng quanh */
+    const normalizedPlus = parts[1].trim().replace(/\s*([*/])\s*/g, '$1');
+    const inputParts = normalizedPlus.split(/\s+/);
     const expr = inputParts[0];
     const cardCode = inputParts.length > 1 ? inputParts[1].toUpperCase() : '';
     const cardLimit = inputParts.length > 2 ? parseFloat(inputParts[2]) : 0;
-    
-    // Tính toán số tiền
-    let amountVND;
-    if (!isSingleNumber(expr)) {
-      try {
-        // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
-        const preprocessedExpr = preprocessMathExpression(expr);
-        amountVND = eval(preprocessedExpr);
-      } catch(err) {
-        bot.sendMessage(chatId, "Thử lại đi, sai rồi.", threadReply);
-        return;
-      }
-    } else {
-      // Sử dụng parseNumberWithUnits để xử lý cả số thường và số có đơn vị viết tắt
-      amountVND = parseNumberWithUnits(expr);
+
+    const parsedPlus = parsePlusAmountRateExpr(expr);
+    if (!parsedPlus.ok) {
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Ví dụ: +10000 hoặc +14000*12 hoặc +14000*x/y", threadReply);
+      return;
     }
+    const amountVND = parsedPlus.amount;
     
     if (isNaN(amountVND)) {
       bot.sendMessage(chatId, "Hãy nhập đúng.", threadReply);
@@ -64,8 +72,8 @@ const handlePlusCommand = async (bot, msg) => {
       bot.sendMessage(chatId, "Cài đặt phí và tỷ giá", threadReply);
       return;
     }
-    // Kiểm tra tỷ giá
-    if (!group.exchangeRate) {
+    // +số thuần cần tỷ giá; mode *phí/y: y mặc định 1
+    if (!parsedPlus.rateMode && !group.exchangeRate) {
       bot.sendMessage(chatId, "Cài đặt phí và tỷ giá", threadReply);
       return;
     }
@@ -130,13 +138,32 @@ const handlePlusCommand = async (bot, msg) => {
     }
    
     
-    // Tính toán giá trị USDT
-    const xValue = group.rate;
-    const yValue = group.exchangeRate;
-    const newUSDT = (amountVND / yValue) * (1 - xValue / 100);
-    
-    // Tính toán phần (1-(费率/100))
-    const rateFactor = (1 - xValue / 100).toFixed(2);
+    // USDT: mode *phí%/y → amount*(1-phí/100)/y; +số thuần → công thức nhóm /d
+    let xValue;
+    let yValue;
+    let rateFactor;
+    let newUSDT;
+    let storedRate;
+
+    if (parsedPlus.rateMode) {
+      const resolved = resolvePlusXyDefaults(parsedPlus, group);
+      const factor = resolved.x;
+      yValue = resolved.y;
+      xValue = resolved.ratePercent;
+      if (!Number.isFinite(factor) || !Number.isFinite(yValue) || yValue === 0) {
+        bot.sendMessage(chatId, "Giá trị không hợp lệ.", threadReply);
+        return;
+      }
+      newUSDT = (amountVND * factor) / yValue;
+      rateFactor = formatRateFactor(factor);
+      storedRate = resolved.ratePercent;
+    } else {
+      xValue = group.rate;
+      yValue = group.exchangeRate;
+      newUSDT = (amountVND / yValue) * (1 - xValue / 100);
+      rateFactor = formatRateFactor(1 - xValue / 100);
+      storedRate = xValue;
+    }
     
     // Cập nhật group
     group.totalVND += amountVND;
@@ -147,34 +174,20 @@ const handlePlusCommand = async (bot, msg) => {
     group.remainingUSDT = group.totalUSDT - group.usdtPaid;
     await group.save();
     
-    // Tạo chi tiết giao dịch
+    // Chi tiết: ẩn *1 và /1
+    const rateSuffix = formatDepositRateSuffix(rateFactor, yValue);
     let details;
-    if (cardCode) {
-      if (xValue === 0 && yValue === 1) {
-        // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}* (${cardCode}) ${senderLink}`;
-      } else if (xValue === 0 && yValue !== 1) {
-        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}*/${yValue} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode}) ${senderLink}`;
-      } else if (xValue !== 0 && yValue === 1) {
-        // Không hiển thị phần /${yValue} khi exchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}*\\*${rateFactor} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode}) ${senderLink}`;
-      } else {
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}*\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT, numberFormat)}* (${cardCode}) ${senderLink}`;
-      }
+    const amt = formatSmart(amountVND, numberFormat);
+    const usdtStr = formatSmart(newUSDT, numberFormat);
+    const timeStr = formatTimeString(new Date());
+    if (rateSuffix) {
+      details = cardCode
+        ? `\`${timeStr}\` *${amt}*${rateSuffix} = *${usdtStr}* (${cardCode}) ${senderLink}`
+        : `\`${timeStr}\` *${amt}*${rateSuffix} = *${usdtStr}* ${senderLink}`;
     } else {
-      if (xValue === 0 && yValue === 1) {
-        // Không hiển thị phần tính toán khi rate = 0 và exchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}* ${senderLink}`;
-      } else if (xValue === 0 && yValue !== 1) {
-        // Khi rate = 0 và exchangeRate khác 1: chỉ hiển thị phần /${yValue}, bỏ phần *${rateFactor}
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}*/${yValue} = *${formatSmart(newUSDT, numberFormat)}* ${senderLink}`;
-      } else if (xValue !== 0 && yValue === 1) {
-        // Không hiển thị phần /${yValue} khi exchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}*\\*${rateFactor} = *${formatSmart(newUSDT, numberFormat)}* ${senderLink}`;
-      } else {
-        details = `\`${formatTimeString(new Date())}\` *${formatSmart(amountVND, numberFormat)}*\\*${rateFactor}/${yValue} = *${formatSmart(newUSDT, numberFormat)}* ${senderLink}`;
-      }
+      details = cardCode
+        ? `\`${timeStr}\` *${amt}* (${cardCode}) ${senderLink}`
+        : `\`${timeStr}\` *${amt}* ${senderLink}`;
     }
     
     // Lưu giao dịch mới
@@ -189,7 +202,7 @@ const handlePlusCommand = async (bot, msg) => {
       senderUserId: msg.from && msg.from.id != null ? String(msg.from.id) : null,
       cardCode,
       limit: cardLimit,
-      rate: xValue,
+      rate: storedRate,
       exchangeRate: yValue,
       timestamp: new Date(),
       messageId
@@ -223,7 +236,9 @@ const handlePlusCommand = async (bot, msg) => {
     // Tính toán giá trị ví dụ
     let exampleValue = null;
     if (Math.abs(amountVND) < 1) {
-      exampleValue = (100000 / yValue) * (1 - xValue / 100);
+      exampleValue = parsedPlus.rateMode
+        ? (100000 * (1 - storedRate / 100)) / yValue
+        : (100000 / yValue) * (1 - storedRate / 100);
     }
     
     // Lấy thông tin giao dịch gần đây
@@ -304,30 +319,21 @@ const handleMinusCommand = async (bot, msg) => {
     // Phân tích tin nhắn
     const parts = messageText.split('-');
     if (parts.length !== 2) {
-      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: -số hoặc -số [mã thẻ]", threadReply);
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Định dạng: -số hoặc -số*phí%/tỷ giá hoặc -số [mã thẻ]", threadReply);
       return;
     }
     
-    // Xử lý các tham số
-    const inputParts = parts[1].trim().split(' ');
+    const normalizedMinus = parts[1].trim().replace(/\s*([*/])\s*/g, '$1');
+    const inputParts = normalizedMinus.split(/\s+/);
     const expr = inputParts[0];
     const cardCode = inputParts.length > 1 ? inputParts[1].toUpperCase() : '';
-    
-    // Tính toán số tiền
-    let amountVND;
-    if (!isSingleNumber(expr)) {
-      try {
-        // Tiền xử lý biểu thức để chuyển đổi định dạng viết tắt
-        const preprocessedExpr = preprocessMathExpression(expr);
-        amountVND = eval(preprocessedExpr);
-      } catch(err) {
-        bot.sendMessage(chatId, "Thử lại đi, sai rồi.", threadReply);
-        return;
-      }
-    } else {
-      // Sử dụng parseNumberWithUnits để xử lý cả số thường và số có đơn vị viết tắt
-      amountVND = parseNumberWithUnits(expr);
+
+    const parsedMinus = parsePlusAmountRateExpr(expr);
+    if (!parsedMinus.ok) {
+      bot.sendMessage(chatId, "Lệnh không hợp lệ. Ví dụ: -10000 hoặc -14000*12 hoặc -14000*x/y", threadReply);
+      return;
     }
+    const amountVND = parsedMinus.amount;
     
     if (isNaN(amountVND)) {
       bot.sendMessage(chatId, "Hãy nhập đúng.", threadReply);
@@ -341,23 +347,40 @@ const handleMinusCommand = async (bot, msg) => {
       return;
     }
     
-    // Kiểm tra wrate và wexchangeRate (cần có /d2 trước)
-    if (!group.wrate && group.wrate !== 0) {
-      bot.sendMessage(chatId, "Cần thiết lập wrate và wexchangeRate trước bằng lệnh /d2", threadReply);
-      return;
-    }
-    if (!group.wexchangeRate) {
-      bot.sendMessage(chatId, "Cần thiết lập wrate và wexchangeRate trước bằng lệnh /d2", threadReply);
-      return;
+    // -số thuần: cần /d2. Mode *phí/y: mặc định từ /d2 hoặc y=1
+    if (!parsedMinus.rateMode) {
+      if (!group.wrate && group.wrate !== 0) {
+        bot.sendMessage(chatId, "Cần thiết lập wrate và wexchangeRate trước bằng lệnh /d2", threadReply);
+        return;
+      }
+      if (!group.wexchangeRate) {
+        bot.sendMessage(chatId, "Cần thiết lập wrate và wexchangeRate trước bằng lệnh /d2", threadReply);
+        return;
+      }
     }
     
-    // Tính toán giá trị USDT với công thức mới: (amountVND / wexchangeRate) * (1 + wrate/100)
-    const wRateValue = group.wrate;
-    const wExchangeValue = group.wexchangeRate;
-    const minusUSDT = (amountVND / wExchangeValue) * (1 + wRateValue / 100);
-    
-    // Tính toán phần (1+(wrate/100))
-    const wRateFactor = (1 + wRateValue / 100).toFixed(2);
+    let wRateValue;
+    let wExchangeValue;
+    let minusUSDT;
+    let wRateFactor;
+
+    if (parsedMinus.rateMode) {
+      const resolved = resolveMinusXyDefaults(parsedMinus, group);
+      wRateValue = resolved.ratePercent;
+      wExchangeValue = resolved.y;
+      const factor = resolved.x;
+      if (!Number.isFinite(factor) || !Number.isFinite(wExchangeValue) || wExchangeValue === 0) {
+        bot.sendMessage(chatId, "Giá trị không hợp lệ.", threadReply);
+        return;
+      }
+      minusUSDT = (amountVND * factor) / wExchangeValue;
+      wRateFactor = formatRateFactor(factor);
+    } else {
+      wRateValue = group.wrate;
+      wExchangeValue = group.wexchangeRate;
+      minusUSDT = (amountVND / wExchangeValue) * (1 + wRateValue / 100);
+      wRateFactor = formatRateFactor(1 + wRateValue / 100);
+    }
     
     // Cập nhật group với logic mới
     group.totalVND -= amountVND;
@@ -374,34 +397,19 @@ const handleMinusCommand = async (bot, msg) => {
     const currencyUnit = await getCurrencyForGroup(chatId);
     const numberFormat = await getNumberFormat(chatId);
     
-    // Tạo chi tiết giao dịch
+    const rateSuffix = formatDepositRateSuffix(wRateFactor, wExchangeValue);
     let details;
-    if (cardCode) {
-      if (wRateValue === 0 && wExchangeValue === 1) {
-        // Không hiển thị phần tính toán khi wrate = 0 và wexchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}* (${cardCode}) ${senderLink}`;
-      } else if (wRateValue === 0 && wExchangeValue !== 1) {
-        // Khi wrate = 0 và wexchangeRate khác 1: chỉ hiển thị phần /${wExchangeValue}
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderLink}`;
-      } else if (wRateValue !== 0 && wExchangeValue === 1) {
-        // Không hiển thị phần /${wExchangeValue} khi wexchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderLink}`;
-      } else {
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor}/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* (${cardCode}) ${senderLink}`;
-      }
+    const amt = formatSmart(amountVND, numberFormat);
+    const usdtStr = formatSmart(minusUSDT, numberFormat);
+    const timeStr = formatTimeString(new Date());
+    if (rateSuffix) {
+      details = cardCode
+        ? `\`${timeStr}\` -*${amt}*${rateSuffix} = *-${usdtStr}* (${cardCode}) ${senderLink}`
+        : `\`${timeStr}\` -*${amt}*${rateSuffix} = *-${usdtStr}* ${senderLink}`;
     } else {
-      if (wRateValue === 0 && wExchangeValue === 1) {
-        // Không hiển thị phần tính toán khi wrate = 0 và wexchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}* ${senderLink}`;
-      } else if (wRateValue === 0 && wExchangeValue !== 1) {
-        // Khi wrate = 0 và wexchangeRate khác 1: chỉ hiển thị phần /${wExchangeValue}
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderLink}`;
-      } else if (wRateValue !== 0 && wExchangeValue === 1) {
-        // Không hiển thị phần /${wExchangeValue} khi wexchangeRate = 1
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderLink}`;
-      } else {
-        details = `\`${formatTimeString(new Date())}\` -*${formatSmart(amountVND, numberFormat)}*\\*${wRateFactor}/${wExchangeValue} = *-${formatSmart(minusUSDT, numberFormat)}* ${senderLink}`;
-      }
+      details = cardCode
+        ? `\`${timeStr}\` -*${amt}* (${cardCode}) ${senderLink}`
+        : `\`${timeStr}\` -*${amt}* ${senderLink}`;
     }
     
     // Lưu giao dịch mới
