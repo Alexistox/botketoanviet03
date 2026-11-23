@@ -1,22 +1,11 @@
 /**
- * Reveal báo cáo: khung (已入账/已下发/tổng/应已未) → full giao dịch.
- * delay mặc định 0 — edit ngay sau send (chỉ còn RTT Telegram).
+ * Gửi báo cáo: luôn sendMessage full ngay (không draft, không editMessageText).
  */
 
 const { sendLongMarkdownMessage, splitTelegramText } = require('./telegramChunks');
 
-const sleep = (ms) => {
-  if (!ms || ms <= 0) return Promise.resolve();
-  return new Promise((r) => setTimeout(r, ms));
-};
-
-const isPrivateChatId = (chatId) => {
-  const n = Number(chatId);
-  return Number.isFinite(n) && n > 0;
-};
-
 /**
- * Khung: header 已入账/已下发 + tổng + 应/已/未 — bỏ dòng giao dịch.
+ * Khung skeleton — giữ export để tương thích / test cũ.
  */
 function buildReportSkeleton(html) {
   const lines = String(html || '').split('\n');
@@ -29,29 +18,15 @@ function buildReportSkeleton(html) {
     /^已入账/.test(line.trim()) ||
     (/^已下发/.test(line.trim()) && !/应下发|未下发|已下发\s*:/.test(line)) ||
     /<b>Tiền đã nạp<\/b>/.test(line) ||
-    /<b>Đã thanh toán<\/b>/.test(line) ||
-    /\*Tiền đã nạp\*/.test(line) ||
-    /\*Đã thanh toán\*/.test(line);
+    /<b>Đã thanh toán<\/b>/.test(line);
 
   const isSummaryLine = (line) =>
     /总入款|总出款|费率|汇率|应下发|未下发|卡额度|入款费率|出款费率|例如/.test(line) ||
     /^已下发\s*:/.test(line.trim()) ||
     /<b>Tổng tiền nạp/.test(line) ||
     /<b>Tổng tiền rút/.test(line) ||
-    /<b>Tổng USDT phải trả/.test(line) ||
-    /<b>USDT đã thanh toán/.test(line) ||
-    /<b>USDT phải trả còn lại/.test(line) ||
-    /<b>Tiền phải trả/.test(line) ||
-    /<b>Tiền đã trả/.test(line) ||
-    /<b>Tiền còn lại/.test(line) ||
-    /<b>Hạn mức thẻ/.test(line) ||
-    /\*Tổng tiền nạp/.test(line) ||
-    /\*Tổng tiền rút/.test(line) ||
-    /\*Tổng USDT phải trả/.test(line) ||
-    /\*Tiền đã trả/.test(line) ||
     /^Phí:/.test(line.trim()) ||
-    /^W-Phí:/.test(line.trim()) ||
-    /Tỷ giá:/.test(line);
+    /^W-Phí:/.test(line.trim());
 
   for (const line of lines) {
     if (isListHeader(line)) {
@@ -76,7 +51,7 @@ function buildReportSkeleton(html) {
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** [khung, full] */
+/** [khung, full] — giữ export; reveal hiện không dùng. */
 function buildRevealStages(html) {
   const text = String(html || '').trim();
   if (!text) return [];
@@ -86,17 +61,8 @@ function buildRevealStages(html) {
   return [skeleton, text];
 }
 
-async function sendDraftStage(bot, chatId, draftId, text, parseMode) {
-  const form = {
-    chat_id: chatId,
-    draft_id: draftId,
-    text: text || ''
-  };
-  if (parseMode) form.parse_mode = parseMode;
-  await bot._request('sendMessageDraft', { form });
-}
-
 /**
+ * Gửi báo cáo full ngay bằng sendMessage (chia chunk nếu dài).
  * @param {object} bot
  * @param {string|number} chatId
  * @param {string} html
@@ -104,109 +70,17 @@ async function sendDraftStage(bot, chatId, draftId, text, parseMode) {
  */
 async function sendReportWithReveal(bot, chatId, html, options = {}) {
   const parse_mode = options.parse_mode || 'HTML';
-  // 0 = edit ngay, không sleep — “quệt một phát”
-  const delayMs = options.delayMs != null ? options.delayMs : 0;
   const reply_markup = options.reply_markup;
   const reply_to_message_id = options.reply_to_message_id;
 
-  const sizeChunks = splitTelegramText(html, 3900);
-  if (sizeChunks.length > 1) {
-    await sendLongMarkdownMessage(bot, chatId, html, {
-      parse_mode,
-      reply_markup,
-      reply_to_message_id
-    });
-    return { mode: 'chunked' };
-  }
+  await sendLongMarkdownMessage(bot, chatId, html, {
+    parse_mode,
+    reply_markup,
+    reply_to_message_id
+  });
 
-  const stages = buildRevealStages(html);
-  if (stages.length <= 1) {
-    await sendLongMarkdownMessage(bot, chatId, html, {
-      parse_mode,
-      reply_markup,
-      reply_to_message_id
-    });
-    return { mode: 'instant' };
-  }
-
-  const privateChat = isPrivateChatId(chatId);
-  const [skeleton, full] = stages;
-
-  // ——— Private: draft khung → draft full → sendMessage chốt (delay 0) ———
-  if (privateChat) {
-    const draftId = (Date.now() % 2147483646) + 1;
-    try {
-      await sendDraftStage(bot, chatId, draftId, skeleton, parse_mode);
-      await sleep(delayMs);
-      await sendDraftStage(bot, chatId, draftId, full, parse_mode);
-      await sendLongMarkdownMessage(bot, chatId, html, {
-        parse_mode,
-        reply_markup,
-        reply_to_message_id
-      });
-      return { mode: 'draft', stages: 2 };
-    } catch (err) {
-      console.warn(
-        '[reportStream] draft failed, fallback edit:',
-        err && err.message ? err.message : err
-      );
-    }
-  }
-
-  // ——— Group: send khung → edit full ngay (không chờ) ———
-  try {
-    const firstOpts = {
-      parse_mode,
-      ...(reply_to_message_id != null && Number.isFinite(Number(reply_to_message_id))
-        ? { reply_to_message_id: Number(reply_to_message_id) }
-        : {})
-    };
-    const sent = await bot.sendMessage(chatId, skeleton, firstOpts);
-    const messageId = sent && sent.message_id;
-    if (messageId == null) {
-      await sendLongMarkdownMessage(bot, chatId, html, {
-        parse_mode,
-        reply_markup,
-        reply_to_message_id
-      });
-      return { mode: 'instant' };
-    }
-
-    // Edit full ngay lập tức (delay 0) — giao dịch “quệt” vào
-    await sleep(delayMs);
-    try {
-      await bot.editMessageText(full, {
-        chat_id: chatId,
-        message_id: messageId,
-        parse_mode,
-        ...(reply_markup ? { reply_markup } : {})
-      });
-    } catch (editErr) {
-      console.warn(
-        '[reportStream] edit failed, sending full:',
-        editErr && editErr.message ? editErr.message : editErr
-      );
-      await sendLongMarkdownMessage(bot, chatId, html, {
-        parse_mode,
-        reply_markup,
-        reply_to_message_id
-      });
-      return { mode: 'edit-fallback' };
-    }
-
-    return { mode: 'edit', stages: 2 };
-  } catch (err) {
-    console.warn(
-      '[reportStream] reveal failed, plain send:',
-      err && err.message ? err.message : err
-    );
-    await sendLongMarkdownMessage(bot, chatId, html, {
-      parse_mode,
-      reply_markup,
-      reply_to_message_id
-    });
-    return { mode: 'fallback' };
-  }
+  const chunks = splitTelegramText(html || '', 3900);
+  return { mode: chunks.length > 1 ? 'chunked' : 'instant' };
 }
 
 module.exports = {
