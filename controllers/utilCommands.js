@@ -557,8 +557,9 @@ Gửi biểu thức có biến: gia * 2 + 500k
 /g [mã] /glist /dg — quản lý tập nhóm
 /cm [mã] /cmlist /dm [mã] — lưu tin
 /send [mã tin] [mã tập|ID] — gửi ngay (hoặc reply + /send …)
-/cs [mã tin] [mã tập|ID] [HH:mm] — gửi mỗi ngày (TZ Asia/Phnom_Penh)
-Reply + /cs [mã tập|ID] [HH:mm] | /cslist | /ds [số|mã ngắn] | alias 定时
+/cs [mã tin] [mã tập|ID] [HH:mm] [days] — lịch gửi (TZ Asia/Phnom_Penh)
+  days: 1-5=T2–T6 / 6,7=cuối tuần / 3 / wd / we (, . : đều được)
+Reply + /cs [mã tập|ID] [HH:mm] [days] | /cslist | /ds [số|mã ngắn] | alias 定时
 /x [ID] - Ẩn thẻ
 /sx [ID] - Hiện thẻ
 /hiddenCards - Xem danh sách thẻ ẩn
